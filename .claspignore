@@ -2,3 +2,5 @@
 **/*
 !kfk-apps-script.gs
 !appsscript.json
+!Patches.js
+!patch-26_024-treatments-v2.gs.js

@@ -7,7 +7,7 @@
     "bump": "node bump-cache.js",
     "deploy:frontend": "node bump-cache.js && git add -A && git commit -m \"Frontend deploy\" && git push",
     "push:backend": "clasp push",
-    "deploy:backend": "clasp push && echo \"Jetzt: clasp deploy --deploymentId <DEPLOY_ID>\""
+    "deploy:backend": "clasp push && clasp deploy --deploymentId AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2"

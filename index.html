@@ -2323,8 +2323,14 @@ async function previewAsanaTask() {
   document.getElementById('imp-gid').value = gid;
   setSync('wait', 'lade Task…');
   try {
-    const res = await apiGet({ action: 'importFromAsana', asana_task_gid: gid });
-    if (res.error) throw new Error(res.error);
+    // Primär: Import aus dem verknüpften Protokoll-Doc (JSON-Block).
+    // Fallback: alter Asana-Notizen-Import, falls kein Doc/JSON-Block gefunden.
+    let res = await apiGet({ action: 'importFromDoc', asana_task_gid: gid });
+    if (res.error) {
+      const docErr = res.error;
+      res = await apiGet({ action: 'importFromAsana', asana_task_gid: gid });
+      if (res.error) throw new Error('Doc-Import fehlgeschlagen (' + docErr + '); Asana-Fallback: ' + res.error);
+    }
     const p = res.prefill || {};
     if (p.versuchsnr) document.getElementById('imp-versuchsnr').value = p.versuchsnr;
     if (p.titel) document.getElementById('imp-titel').value = p.titel;

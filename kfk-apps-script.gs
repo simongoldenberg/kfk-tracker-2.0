@@ -52,6 +52,12 @@ function setupAsanaPat() {
   Logger.log('ASANA_PAT gespeichert. Bitte die Token-Zeile in setupAsanaPat jetzt wieder leeren.');
 }
 
+// Asana-Custom-Field-GID fuer die Protokoll-URL (verlinktes Google-Doc mit
+// dem <<<KFK-DATA ... KFK-DATA>>> Block). Optional: Leer lassen ('') aktiviert
+// den Fallback, der die erste docs.google.com/document-URL aus den Task-Notizen
+// verwendet. GID setzen, falls ein eigenes Custom-Field genutzt wird.
+const PROTOKOLL_URL_FIELD_GID = '';
+
 // Drive-Ordner-ID KFK-Daten (enthaelt __KFK-Index + Versuchs-Unterordner)
 const KFK_DATA_FOLDER_ID = '15X-Ri1feR3I1qGC6FgPpPLc0jgHskcoM';
 
@@ -105,6 +111,8 @@ function doGet(e) {
         return json(getVersuch(e.parameter.versuchsnr));
       case 'importFromAsana':
         return json(importVersuchFromAsana(e.parameter.asana_task_gid));
+      case 'importFromDoc':
+        return json(importVersuchFromDoc(e.parameter.asana_task_gid));
       case 'field_get':
         return json(fieldTrackerGet());
       default:
@@ -141,6 +149,8 @@ function doPost(e) {
         return json(fieldTrackerUploadFoto(body));
       case 'importRbd':
         return json(importRbdFromAsana(body.versuchsnr));
+      case 'importRbdDoc':
+        return json(importRbdFromDoc(body.versuchsnr));
       default:
         return json({ error: 'unknown POST action: ' + action });
     }
@@ -834,10 +844,6 @@ function importRbdFromAsana(versuchsnr) {
   const anzahlTrays = Number(v.anzahl_trays || 1);
   const treatments  = v.treatments || [];          // bereits parsed durch readIndex
 
-  // Farb-Map: { 'T0': '#ffffff', ... }
-  const colorMap = {};
-  treatments.forEach(function(t) { colorMap[t.code] = t.color || ''; });
-
   // 2. Asana-Notes holen
   const res = UrlFetchApp.fetch(
     'https://app.asana.com/api/1.0/tasks/' + v.asana_task_gid + '?opt_fields=notes',
@@ -901,7 +907,30 @@ function importRbdFromAsana(versuchsnr) {
     };
   }
 
-  // 4. Daten-Sheet komplett neu aufbauen
+  // 4. Daten-Sheet komplett neu aufbauen (gemeinsamer Helfer)
+  const built = buildDatenSheetFromRbdMap_(v, rbdMap, cols, rows, anzahlTrays, treatments);
+  if (built.error) return built;
+
+  return {
+    ok: true,
+    versuchsnr: versuchsnr,
+    parsedTrays: parsedTrays,
+    totalRows: built.totalRows,
+    assignedCount: built.assignedCount,
+    message: built.assignedCount + ' von ' + built.totalRows + ' Toepfen mit Treatment belegt (' +
+             parsedTrays + ' Trays aus Asana-Notizen)'
+  };
+}
+
+// ========== GEMEINSAMER SHEET-AUFBAU (Asana + Doc teilen sich diese Logik) ==========
+// Baut das Daten-Sheet von v komplett neu auf. rbdMap[trayNr][topf] = 'TN'.
+// Topf-Nummerierung spaltenweise: topf = blockIdx*rows + wdh (Block A = 1..rows).
+// AZ-Daten werden dabei geleert (Neuaufbau) – identisch zum bisherigen Verhalten.
+function buildDatenSheetFromRbdMap_(v, rbdMap, cols, rows, anzahlTrays, treatments) {
+  // Farb-Map: { 'T0': '#ffffff', ... }
+  const colorMap = {};
+  (treatments || []).forEach(function(t) { colorMap[t.code] = t.color || ''; });
+
   const ss = openDatenSheet(v);
   const datenSheet = ss.getSheetByName('Daten');
   if (!datenSheet) {
@@ -977,15 +1006,186 @@ function importRbdFromAsana(versuchsnr) {
 
   SpreadsheetApp.flush();
 
+  return { ok: true, totalRows: dataRows.length, assignedCount: assignedCount };
+}
+
+// ========== PROTOKOLL-DOC-IMPORT (JSON-Block aus verlinktem Google-Doc) ==========
+// Liest den Block  <<<KFK-DATA ... KFK-DATA>>>  (Schema kfk-protocol-v1) am Ende
+// des verknuepften Versuchsprotokoll-Docs. Gegenstueck zu importVersuchFromAsana
+// (Prefill) bzw. importRbdFromAsana (Sheet-Aufbau) – Quelle ist aber das Doc,
+// nicht die Asana-Notizen. Es werden NUR Werte gelesen, nie generiert.
+
+const KFK_DATA_START_ = '<<<KFK-DATA';
+const KFK_DATA_END_   = 'KFK-DATA>>>';
+
+// Findet die Protokoll-Doc-ID aus einem Asana-Task (opt_fields=notes,custom_fields):
+//   1) Custom-Field PROTOKOLL_URL_FIELD_GID (falls gesetzt), sonst
+//   2) erste docs.google.com/document/d/<id>-URL in den Notizen (Fallback).
+function resolveProtokollDocId_(task) {
+  var url = '';
+  if (PROTOKOLL_URL_FIELD_GID) {
+    (task.custom_fields || []).forEach(function(f) {
+      if (String(f.gid) === String(PROTOKOLL_URL_FIELD_GID)) {
+        url = String(f.text_value || f.display_value || '');
+      }
+    });
+  }
+  if (url) {
+    var m = url.match(/\/document\/d\/([A-Za-z0-9_-]+)/);
+    if (m) return m[1];
+    var m2 = url.match(/([A-Za-z0-9_-]{25,})/);
+    if (m2) return m2[1];
+  }
+  var notes = task.notes || '';
+  var mn = notes.match(/https?:\/\/docs\.google\.com\/document\/d\/([A-Za-z0-9_-]+)/);
+  return mn ? mn[1] : '';
+}
+
+// Liest + parst den KFK-DATA-Block aus einem Google-Doc. Wirft bei Fehlern.
+function readKfkDataFromDoc_(docId) {
+  var text = DocumentApp.openById(docId).getBody().getText();
+  var si = text.indexOf(KFK_DATA_START_);
+  if (si < 0) throw new Error('Kein "<<<KFK-DATA"-Block im Doc gefunden');
+  var after = si + KFK_DATA_START_.length;
+  var ei = text.indexOf(KFK_DATA_END_, after);
+  var jsonPart = (ei < 0) ? text.substring(after) : text.substring(after, ei);
+  // Google Docs wandelt gerade Anfuehrungszeichen teils in typografische um:
+  jsonPart = jsonPart
+    .replace(/[“”„‟″‶]/g, '"')
+    .replace(/[‘’‚‛′‵]/g, "'")
+    .trim();
+  var data;
+  try { data = JSON.parse(jsonPart); }
+  catch (e) { throw new Error('KFK-DATA-Block ist kein gueltiges JSON: ' + e.message); }
+  if (data.schema && String(data.schema).indexOf('kfk-protocol') !== 0) {
+    throw new Error('Unerwartetes Schema im KFK-DATA-Block: ' + data.schema);
+  }
+  return data;
+}
+
+// Holt einen Asana-Task und liefert das geparste data-Objekt (name, notes, custom_fields).
+function fetchAsanaTask_(taskGid) {
+  var res = UrlFetchApp.fetch(
+    'https://app.asana.com/api/1.0/tasks/' + taskGid + '?opt_fields=name,notes,custom_fields',
+    { method: 'get', headers: { Authorization: 'Bearer ' + ASANA_PAT }, muteHttpExceptions: true }
+  );
+  if (res.getResponseCode() !== 200) {
+    throw new Error('Asana HTTP ' + res.getResponseCode() + ': ' + res.getContentText().substring(0, 300));
+  }
+  return JSON.parse(res.getContentText()).data;
+}
+
+// Prefill fuers Anlege-Formular – aus dem Doc-JSON statt aus den Asana-Notizen.
+// Asana wird nur genutzt, um die Protokoll-Doc-URL zu finden.
+function importVersuchFromDoc(taskGid) {
+  if (!taskGid) return { error: 'asana_task_gid fehlt' };
+  if (!ASANA_PAT || ASANA_PAT.startsWith('__')) return { error: 'ASANA_PAT nicht konfiguriert' };
+
+  var task, docId, data;
+  try {
+    task  = fetchAsanaTask_(taskGid);
+    docId = resolveProtokollDocId_(task);
+    if (!docId) return { error: 'Keine Protokoll-Doc-URL gefunden (weder Custom-Field noch docs.google.com-Link in den Notizen)' };
+    data  = readKfkDataFromDoc_(docId);
+  } catch (e) {
+    return { error: String(e.message || e) };
+  }
+
+  var treatments = (data.treatments || []).map(function(t) {
+    return { code: t.code, color: t.color || '', label: t.label || '' };
+  });
+
   return {
     ok: true,
+    source: 'doc',
+    doc_id: docId,
+    prefill: {
+      asana_task_gid:  taskGid,
+      versuchsnr:      data.versuchsnr || '',
+      titel:           data.titel || '',
+      themenbereich:   data.themenbereich || '',
+      start_datum:     data.start_datum || '',
+      hypothese:       data.hypothese || '',
+      treatments_json: treatments.length ? JSON.stringify(treatments) : '',
+      anzahl_trays:    data.anzahl_trays   != null ? Number(data.anzahl_trays)   : null,
+      raster_cols:     data.raster_cols    != null ? Number(data.raster_cols)    : null,
+      raster_rows:     data.raster_rows    != null ? Number(data.raster_rows)    : null,
+      samen_pro_topf:  data.samen_pro_topf != null ? Number(data.samen_pro_topf) : null
+    }
+  };
+}
+
+// RBD-Layout aus dem Doc-JSON ins Daten-Sheet schreiben. Gegenstueck zu importRbdFromAsana.
+function importRbdFromDoc(versuchsnr) {
+  if (!versuchsnr) return { error: 'versuchsnr fehlt' };
+  if (!ASANA_PAT || ASANA_PAT.startsWith('__')) return { error: 'ASANA_PAT nicht konfiguriert' };
+
+  var all = readIndex();
+  var v = all.find(function(x) { return String(x.versuchsnr) === String(versuchsnr); });
+  if (!v) return { error: 'Versuch nicht gefunden: ' + versuchsnr };
+  if (!v.asana_task_gid) return { error: 'Kein Asana_Task_GID im Index fuer ' + versuchsnr };
+  if (!v.sheet_file_id)  return { error: 'Kein Sheet_File_ID im Index fuer ' + versuchsnr };
+
+  var docId, data;
+  try {
+    var task = fetchAsanaTask_(v.asana_task_gid);
+    docId = resolveProtokollDocId_(task);
+    if (!docId) return { error: 'Keine Protokoll-Doc-URL gefunden fuer ' + versuchsnr };
+    data = readKfkDataFromDoc_(docId);
+  } catch (e) {
+    return { error: String(e.message || e) };
+  }
+
+  // Struktur bevorzugt aus dem Doc-JSON (die rbd-Koordinaten leben in dessen
+  // System), Fallback auf Index-Werte.
+  var cols        = Number(data.raster_cols  || v.raster_cols  || 4);
+  var rows        = Number(data.raster_rows  || v.raster_rows  || 6);
+  var anzahlTrays = Number(data.anzahl_trays || v.anzahl_trays || 1);
+  var treatments  = (data.treatments && data.treatments.length) ? data.treatments : (v.treatments || []);
+
+  // rbdMap[tray][topf] = 'TN' – Topf spaltenweise (identisch zum Asana-Pfad):
+  //   topf = (Spaltenbuchstabe - 'A') * rows + row
+  var rbdMap = {};
+  var entries = data.rbd || [];
+  for (var i = 0; i < entries.length; i++) {
+    var en = entries[i];
+    var tray     = Number(en.tray || 1);
+    var blockIdx = String(en.col || '').toUpperCase().charCodeAt(0) - 65;   // 'A'=0
+    var rowNum   = Number(en.row || 0);
+    var tCode    = String(en.t || '').toUpperCase();
+    if (isNaN(blockIdx) || blockIdx < 0 || rowNum < 1 || !/^T\d+$/.test(tCode)) continue;
+    var topf = blockIdx * rows + rowNum;
+    if (!rbdMap[tray]) rbdMap[tray] = {};
+    rbdMap[tray][topf] = tCode;
+  }
+
+  var parsedTrays = Object.keys(rbdMap).length;
+  if (parsedTrays === 0) {
+    return { error: 'Kein gueltiges rbd-Array im KFK-DATA-Block gefunden.' };
+  }
+
+  var built = buildDatenSheetFromRbdMap_(v, rbdMap, cols, rows, anzahlTrays, treatments);
+  if (built.error) return built;
+
+  return {
+    ok: true,
+    source: 'doc',
+    doc_id: docId,
     versuchsnr: versuchsnr,
     parsedTrays: parsedTrays,
-    totalRows: dataRows.length,
-    assignedCount: assignedCount,
-    message: assignedCount + ' von ' + dataRows.length + ' Toepfen mit Treatment belegt (' +
-             parsedTrays + ' Trays aus Asana-Notizen)'
+    totalRows: built.totalRows,
+    assignedCount: built.assignedCount,
+    message: built.assignedCount + ' von ' + built.totalRows + ' Toepfen mit Treatment belegt (' +
+             parsedTrays + ' Trays aus Protokoll-Doc)'
   };
+}
+
+// Direkt aus dem Apps-Script-Editor testbar:
+function testImportRbd() {
+  Logger.log(JSON.stringify(importRbdFromAsana('26_029')));
+}
+function testImportRbdDoc() {
+  Logger.log(JSON.stringify(importRbdFromDoc('26_033')));
 }
 
 // ========== EINMALIGE RBD-PATCHES (hard-kodiert aus Protokoll) ==========

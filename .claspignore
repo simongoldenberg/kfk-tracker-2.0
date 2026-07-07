@@ -1,0 +1,4 @@
+# clasp laedt NUR das Backend hoch. Alles andere ignorieren.
+**/*
+!kfk-apps-script.gs
+!appsscript.json

@@ -1,0 +1,33 @@
+{
+  "name": "Skyseed KFK-Tracker",
+  "short_name": "KFK-Tracker",
+  "description": "Keimfähigkeits-Tracker für Skyseed-Versuche (Forschungsplan). Optimiert für Galaxy Tab Active5.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f0e6",
+  "theme_color": "#2d4a23",
+  "lang": "de",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "kfk-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "kfk-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "kfk-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

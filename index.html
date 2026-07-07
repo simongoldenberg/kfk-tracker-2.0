@@ -1,0 +1,2706 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover">
+<meta name="theme-color" content="#2d4a23">
+<meta name="description" content="Skyseed KFK-Tracker · Galaxy Tab Active5 optimiert">
+<title>Skyseed KFK-Tracker</title>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="kfk-icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="kfk-icon-512.png">
+<link rel="apple-touch-icon" href="kfk-icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KFK-Tracker">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #f4f0e6;
+    --bg-2: #ebe5d3;
+    --bg-3: #e0d8bf;
+    --ink: #2a2118;
+    --ink-muted: #6b5f4e;
+    --line: #c9bfa7;
+    --accent: #4a6b3a;
+    --accent-dark: #2d4a23;
+    --accent-2: #8aa378;
+    --warn: #a04b2a;
+    --ok: #4a6b3a;
+    --wait: #c99a3a;
+    --err: #a04b2a;
+    --t-a: #ef4444;
+    --t-b: #3b82f6;
+    --t-c: #eab308;
+    --t-d: #22c55e;
+    --safe-top: env(safe-area-inset-top, 0);
+    --safe-bottom: env(safe-area-inset-bottom, 0);
+    --touch: 64px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+  body {
+    padding: calc(14px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+    max-width: 900px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; letter-spacing: -0.01em; }
+
+  /* ============ Header ============ */
+  header {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--ink);
+  }
+  header .title-block { flex: 1; min-width: 0; }
+  header h1 { font-size: clamp(22px, 5vw, 28px); font-style: italic; line-height: 1.15; }
+  header h1 .id-nummer {
+    display: inline-block;
+    font-style: normal;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65em;
+    font-weight: 700;
+    background: var(--accent-dark);
+    color: var(--bg);
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+  .versuch-karte .nr-id {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7em;
+    font-weight: 700;
+    background: var(--accent-dark);
+    color: var(--bg);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.04em;
+  }
+  header .sub {
+    color: var(--ink-muted);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    margin-top: 4px;
+  }
+  header .back {
+    width: var(--touch); height: var(--touch);
+    min-width: var(--touch);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg); color: var(--ink);
+    border: 1.5px solid var(--ink);
+    font-size: 22px;
+    cursor: pointer;
+  }
+  header .back:active { background: var(--ink); color: var(--bg); }
+  header .qr-mini {
+    width: 56px; height: 56px;
+    min-width: 56px;
+    display: flex; align-items: center; justify-content: center;
+    background: white;
+    border: 1.5px solid var(--ink);
+    cursor: pointer;
+    padding: 4px;
+  }
+  header .qr-mini img { width: 100%; height: 100%; display: block; }
+  header .qr-mini:active { transform: scale(0.96); }
+
+  /* ============ Status-Leiste ============ */
+  .status-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sync-status { display: flex; align-items: center; gap: 8px; }
+  .sync-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
+  .sync-dot.wait { background: var(--wait); animation: pulse 1s infinite; }
+  .sync-dot.err { background: var(--err); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ============ Buttons (alle mind. 64px touchable) ============ */
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0 18px;
+    min-height: var(--touch);
+    border: 1.5px solid var(--ink);
+    background: var(--bg);
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: 0;
+    transition: transform 0.08s, background 0.15s;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  button:active { transform: scale(0.97); }
+  button:hover { background: var(--ink); color: var(--bg); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button.primary:hover { background: var(--ink); border-color: var(--ink); }
+  button.danger { border-color: var(--warn); color: var(--warn); }
+  button.danger:hover { background: var(--warn); color: var(--bg); }
+  button.small { min-height: 44px; padding: 0 12px; font-size: 12px; }
+  button[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+  .toolbar {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  /* ============ Versuchsliste (Screen 1) ============ */
+  .versuch-karte {
+    background: var(--bg);
+    border: 1.5px solid var(--line);
+    border-left-width: 6px;
+    padding: 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 96px;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .versuch-karte:active { background: var(--bg-2); }
+  .versuch-karte:hover { border-color: var(--ink); }
+  .versuch-karte .head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+  }
+  .versuch-karte .chip {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 8px;
+    color: white;
+    background: var(--accent);
+  }
+  .versuch-karte .nr {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--ink);
+  }
+  .versuch-karte .arrow { font-size: 22px; color: var(--ink-muted); }
+  .versuch-karte .titel {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+  .versuch-karte .meta {
+    display: flex; gap: 14px; flex-wrap: wrap;
+    font-size: 12px; color: var(--ink-muted);
+  }
+  .versuch-karte .meta strong { color: var(--ink); font-weight: 600; }
+  .versuch-karte .fortschritt {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+  .fortschritt-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid var(--line);
+    background: var(--bg-2);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .fortschritt-pill.done { background: var(--accent); color: white; border-color: var(--accent); }
+  .fortschritt-pill.active { background: var(--warn); color: white; border-color: var(--warn); }
+
+  /* ============ Info-Panel (Screen 2) ============ */
+  .info-panel {
+    margin-bottom: 16px;
+    border: 1px solid var(--line);
+    background: var(--bg-2);
+  }
+  .info-panel summary {
+    padding: 14px 16px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+    min-height: var(--touch);
+  }
+  .info-panel summary::-webkit-details-marker { display: none; }
+  .info-panel summary::after { content: '▼'; font-size: 10px; }
+  .info-panel[open] summary::after { content: '▲'; }
+  .info-panel[open] summary { border-bottom: 1px solid var(--line); }
+
+  .info-body { padding: 16px; }
+  .info-section { margin-bottom: 18px; }
+  .info-section:last-child { margin-bottom: 0; }
+  .info-section h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .info-kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 16px; font-size: 13px; }
+  .info-kv .k { color: var(--ink-muted); }
+  .info-kv .v { color: var(--ink); font-weight: 500; }
+  .info-hyp {
+    font-family: 'Fraunces', Georgia, serif;
+    font-style: italic;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .treatments-list { display: flex; flex-direction: column; gap: 6px; }
+  .treatment-item {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px;
+  }
+  .treatment-dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1px solid var(--ink);
+  }
+  .treatment-code { font-weight: 700; min-width: 28px; }
+  .az-fortschritt { display: flex; flex-direction: column; gap: 4px; }
+  .az-fortschritt-row {
+    display: grid;
+    grid-template-columns: 42px 110px 1fr;
+    gap: 10px;
+    font-size: 13px;
+    align-items: center;
+  }
+  .az-fortschritt-row .lbl { font-weight: 700; color: var(--ink); }
+  .az-fortschritt-row .sym { font-size: 14px; }
+  .az-fortschritt-row.done { color: var(--ok); }
+  .az-fortschritt-row.active { color: var(--warn); }
+  .az-fortschritt-row.open { color: var(--ink-muted); }
+
+  .info-links { display: flex; flex-direction: column; gap: 6px; }
+  .info-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 13px;
+    min-height: 48px;
+  }
+  .info-link:active { background: var(--bg-2); }
+
+  /* ============ AZ-Runden-Switcher ============ */
+  .az-switcher {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .az-btn {
+    min-height: var(--touch);
+    padding: 8px;
+    border: 1.5px solid var(--ink);
+    background: var(--bg);
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px;
+    transition: all 0.1s;
+  }
+  .az-btn:active { transform: scale(0.97); }
+  .az-btn .az-name { font-size: 15px; }
+  .az-btn .az-state { font-size: 10px; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.05em; }
+  .az-btn.done { background: var(--bg-2); }
+  .az-btn.done .az-state { color: var(--ok); }
+  .az-btn.active { background: var(--warn); color: white; border-color: var(--warn); }
+  .az-btn.active .az-state { color: white; }
+  .az-btn.disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ============ Meta-Row (Datum + Benutzer) ============ */
+  .meta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .meta-row .field label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-bottom: 4px;
+  }
+  .meta-row input, .meta-row select {
+    width: 100%;
+    min-height: var(--touch);
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 15px;
+    border: 1.5px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 0;
+  }
+  .meta-row select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3e%3cpath fill='%236b5f4e' d='M2 4l4 4 4-4z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px;
+  }
+  .meta-row input:focus, .meta-row select:focus {
+    outline: none; border-color: var(--accent); background: var(--bg-2);
+  }
+
+  /* ============ RBD-Raster ============ */
+  .rbd-wrap {
+    margin-bottom: 16px;
+  }
+  .rbd-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-bottom: 8px;
+  }
+  .rbd {
+    display: grid;
+    grid-template-columns: 40px repeat(var(--cols, 4), 1fr);
+    gap: 6px;
+    background: var(--bg-2);
+    padding: 10px;
+    border: 1px solid var(--line);
+  }
+  .rbd-corner, .rbd-header, .rbd-wdh-label {
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--ink-muted);
+    user-select: none;
+  }
+  .rbd-header { height: 24px; }
+
+  .topf {
+    aspect-ratio: 1 / 1;
+    min-width: var(--touch);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer;
+    border: 2px solid var(--ink);
+    background: var(--bg);
+    transition: all 0.08s;
+    padding: 4px;
+    position: relative;
+  }
+  .topf:active { transform: scale(0.96); }
+  .topf .topf-nr {
+    font-size: 10px;
+    color: var(--ink-muted);
+    font-weight: 500;
+    line-height: 1;
+    position: absolute;
+    top: 3px; left: 4px;
+  }
+  .topf .topf-treat {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .topf .topf-val {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .topf .topf-empty {
+    font-size: 22px;
+    color: var(--ink-muted);
+    font-weight: 700;
+    opacity: 0.4;
+  }
+  .topf.dark-text { color: var(--ink); }
+  .topf.light-text { color: white; }
+
+  /* ============ Tray-Fotos ============ */
+  .fotos-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+    align-items: center;
+  }
+  .fotos-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+  }
+  .foto-btn {
+    min-height: 56px;
+    border: 1.5px solid var(--ink);
+    background: var(--bg);
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+  }
+  .foto-btn.done { background: var(--accent); border-color: var(--accent); color: white; }
+  .foto-btn.uploading { background: var(--wait); border-color: var(--wait); color: white; }
+
+  /* ============ Abschluss-Button ============ */
+  .abschluss-btn {
+    width: 100%;
+    min-height: 72px;
+    background: var(--accent);
+    border: 2px solid var(--accent);
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .abschluss-btn:active { transform: scale(0.99); background: var(--accent-dark); }
+  .abschluss-btn.done {
+    background: var(--bg-2); color: var(--ok); border-color: var(--ok);
+  }
+  .abschluss-hint {
+    font-size: 11px;
+    color: var(--ink-muted);
+    text-align: center;
+    margin-bottom: 18px;
+    font-style: italic;
+  }
+
+  /* ============ Übersicht ============ */
+  .uebersicht {
+    margin-bottom: 20px;
+    padding: 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+  }
+  .uebersicht h3 {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-bottom: 10px;
+  }
+  table.stats {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  table.stats th, table.stats td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+  }
+  table.stats th {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+  }
+  table.stats td { font-weight: 500; }
+  table.stats .t-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    border: 1px solid var(--ink);
+  }
+  .cv-badge { font-weight: 600; }
+  .cv-ok { color: var(--ok); }
+  .cv-mid { color: var(--wait); }
+  .cv-bad { color: var(--err); }
+
+  .bars { display: flex; flex-direction: column; gap: 6px; }
+  .bar-row {
+    display: grid;
+    grid-template-columns: 1fr 48px;
+    gap: 10px;
+    align-items: center;
+    font-size: 12px;
+  }
+  .bar {
+    height: 14px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; transition: width 0.3s; }
+
+  /* ============ Overlay + Modals ============ */
+  .overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(42, 33, 24, 0.55);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .overlay.open { display: flex; animation: fadeIn 0.15s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal {
+    background: var(--bg);
+    width: 100%;
+    max-width: 560px;
+    padding: 20px;
+    padding-bottom: calc(20px + var(--safe-bottom));
+    border-top: 3px solid var(--ink);
+    animation: slideUp 0.22s cubic-bezier(0.2, 0, 0.2, 1);
+    max-height: 94vh;
+    overflow-y: auto;
+  }
+  @media (min-width: 600px) {
+    .overlay { align-items: center; }
+    .modal { border: 3px solid var(--ink); padding-bottom: 20px; }
+  }
+  .modal-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal-head h2 { font-size: 24px; font-style: italic; }
+  .modal-head .coord { font-size: 11px; color: var(--ink-muted); letter-spacing: 0.1em; }
+  .modal-actions {
+    display: flex; gap: 8px; margin-top: 18px;
+  }
+  .modal-actions button { flex: 1; }
+  .modal-actions button.primary { flex: 2; }
+
+  /* ============ Topf-Eingabe ============ */
+  .topf-header {
+    background: var(--bg-2);
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-left-width: 6px;
+    margin-bottom: 14px;
+  }
+  .topf-header .lbl { font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .topf-header .treatment {
+    font-size: 20px; font-weight: 700;
+    font-family: 'Fraunces', serif; font-style: italic;
+    margin-top: 4px;
+  }
+  .topf-header .meta-txt { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+
+  .value-display {
+    text-align: center;
+    background: var(--bg);
+    border: 2px solid var(--ink);
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .value-display .num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .value-display .num.empty { color: var(--ink-muted); opacity: 0.4; }
+  .value-display .kf {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-top: 8px;
+  }
+
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .numpad button {
+    min-height: 68px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .numpad button.clear { background: var(--bg-2); font-size: 14px; }
+  .numpad button.back { font-size: 18px; }
+
+  .topf-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* ============ Dropdown-Liste in Modal ============ */
+  .radio-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .radio-grid button {
+    min-height: var(--touch);
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .radio-grid button.selected {
+    background: var(--accent); color: white; border-color: var(--accent);
+  }
+
+  /* ============ QR-Modal ============ */
+  .qr-big {
+    display: block;
+    width: 100%;
+    max-width: 320px;
+    margin: 14px auto;
+    background: white;
+    padding: 12px;
+    border: 1px solid var(--line);
+  }
+  .qr-url {
+    font-size: 11px;
+    color: var(--ink-muted);
+    word-break: break-all;
+    background: var(--bg-2);
+    padding: 8px;
+    border: 1px solid var(--line);
+    text-align: center;
+  }
+
+  /* ============ Banner ============ */
+  .banner {
+    background: var(--warn); color: var(--bg);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    display: none;
+  }
+  .banner.open { display: block; }
+  .banner strong { display: block; font-weight: 700; margin-bottom: 3px; }
+  .install-banner {
+    display: none;
+    background: var(--accent-dark); color: var(--bg);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    align-items: center; gap: 10px;
+  }
+  .install-banner.open { display: flex; }
+  .install-banner strong { flex: 1; }
+  .install-banner button {
+    padding: 6px 12px; min-height: auto; font-size: 11px;
+    background: var(--bg); color: var(--accent-dark); border-color: var(--bg);
+  }
+  .install-banner .close-x {
+    cursor: pointer; font-size: 18px; padding: 4px 6px;
+    background: transparent; color: var(--bg); border: none;
+    min-height: auto;
+  }
+
+  /* ============ Toast ============ */
+  .toast {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .toast.open { opacity: 1; }
+
+  /* ============ Initial-Fotos (AZ0) ============ */
+  .initial-fotos {
+    margin-bottom: 18px;
+    padding: 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent-dark);
+  }
+  .initial-fotos-head {
+    display: flex; flex-direction: column;
+    margin-bottom: 10px;
+  }
+  .initial-fotos-label {
+    font-size: 13px; font-weight: 700;
+    color: var(--accent-dark);
+    letter-spacing: 0.02em;
+  }
+  .initial-fotos-hint {
+    font-size: 11px;
+    color: var(--ink-muted);
+    font-style: italic;
+    margin-top: 2px;
+  }
+  .initial-tray-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin: 8px 0 4px;
+  }
+  .initial-fotos-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  /* ============ Tray-Header (bei mehreren Trays) ============ */
+  .tray-header {
+    margin: 18px 0 6px;
+    padding: 8px 14px;
+    background: var(--accent-dark);
+    color: var(--bg);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  /* ============ Versuch-Ende-Button ============ */
+  .versuch-end-btn {
+    width: 100%;
+    min-height: 64px;
+    background: var(--bg);
+    border: 2px dashed var(--accent-dark);
+    color: var(--accent-dark);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+  .versuch-end-btn:active { transform: scale(0.99); background: var(--bg-2); }
+  .versuch-end-btn:hover { background: var(--accent-dark); color: var(--bg); border-style: solid; }
+
+  /* ============ Empty Slot (RBD-Loch) ============ */
+  .topf.empty-slot {
+    background: transparent;
+    border: 1px dashed var(--line);
+    cursor: default;
+    opacity: 0.4;
+  }
+  .topf.empty-slot:active { transform: none; }
+
+  /* ============ Tablet-spezifisch (Galaxy Tab Active5 = 8" WUXGA, 1920x1200) ============ */
+  @media (min-width: 700px) {
+    body { padding: calc(20px + var(--safe-top)) 24px calc(24px + var(--safe-bottom)); }
+    .rbd { --cols: 4; }
+    .topf .topf-val { font-size: 26px; }
+    .topf .topf-treat { font-size: 12px; }
+  }
+
+  /* Orientation: Landscape auf Tab Active5 */
+  @media (min-width: 900px) and (orientation: landscape) {
+    body { max-width: 1100px; }
+  }
+
+  /* Low-vision / outdoor contrast */
+  @media (prefers-contrast: more) {
+    button { border-width: 2px; }
+    .topf { border-width: 3px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== Install Banner ==================== -->
+<div class="install-banner" id="install-banner">
+  <strong>Als App installieren?</strong>
+  <button id="btn-install">Installieren</button>
+  <button class="close-x" onclick="dismissInstall()">×</button>
+</div>
+
+<!-- ==================== Error Banner ==================== -->
+<div class="banner" id="banner"></div>
+
+<!-- ==================== HEADER (wird je nach Screen angepasst) ==================== -->
+<div id="app-content"><!-- alles wird dynamisch gerendert --></div>
+
+<!-- ==================== Overlays / Modals ==================== -->
+
+<!-- Topf-Eingabe -->
+<div class="overlay" id="topf-overlay" onclick="if(event.target===this)closeTopfModal()">
+  <div class="modal" id="topf-modal">
+    <!-- dynamisch befüllt -->
+  </div>
+</div>
+
+<!-- AZ-Abschluss -->
+<div class="overlay" id="abschluss-overlay" onclick="if(event.target===this)closeAbschluss()">
+  <div class="modal" id="abschluss-modal">
+    <!-- dynamisch befüllt -->
+  </div>
+</div>
+
+<!-- QR -->
+<div class="overlay" id="qr-overlay" onclick="if(event.target===this)closeQR()">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="qr-title">QR-Code</h2>
+      <span class="coord">Scan-Ziel</span>
+    </div>
+    <img id="qr-big" class="qr-big" src="" alt="QR">
+    <div class="qr-url" id="qr-url-text"></div>
+    <div class="modal-actions">
+      <button onclick="closeQR()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- AZ-Anzahl anpassen -->
+<div class="overlay" id="azplanned-overlay" onclick="if(event.target===this)closeAZPlanned()">
+  <div class="modal" id="azplanned-modal">
+    <!-- dynamisch -->
+  </div>
+</div>
+
+<!-- Asana-Kommentar-Preview -->
+<div class="overlay" id="asana-overlay" onclick="if(event.target===this)closeAsana()">
+  <div class="modal" id="asana-modal">
+    <!-- dynamisch -->
+  </div>
+</div>
+
+<!-- Statistik-Hinweis -->
+<div class="overlay" id="stat-overlay" onclick="if(event.target===this)closeStatHint()">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Detail-Auswertung</h2>
+    </div>
+    <p style="margin-bottom:12px;line-height:1.55">
+      Für ANOVA, η², Post-hoc-Tukey und den Hypothesen-Check bitte am Laptop auswerten.
+    </p>
+    <div style="background:var(--bg-2);padding:12px;border:1px solid var(--line);margin-bottom:12px;font-size:13px">
+      <div><strong>Versuchsdatei:</strong> <span id="stat-file">—</span></div>
+      <div style="margin-top:4px"><strong>Speicherort:</strong> Team-Drive › KFK-Daten</div>
+    </div>
+    <p style="font-size:12px;color:var(--ink-muted);line-height:1.5">
+      Die Daten liegen jederzeit aktuell in der Cloud. Claude kann sie am Laptop direkt einlesen.
+    </p>
+    <div class="modal-actions">
+      <button class="primary" onclick="closeStatHint()">Verstanden</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR-Übersicht (alle aktiven Versuche) -->
+<div class="overlay" id="qrlist-overlay" onclick="if(event.target===this)closeQRList()">
+  <div class="modal" id="qrlist-modal">
+    <!-- dynamisch -->
+  </div>
+</div>
+
+<!-- Versuch vollständig abschließen -->
+<div class="overlay" id="versuch-ende-overlay" onclick="if(event.target===this)closeVersuchEnde()">
+  <div class="modal" id="versuch-ende-modal">
+    <!-- dynamisch -->
+  </div>
+</div>
+
+<!-- Versuch aus Asana importieren -->
+<div class="overlay" id="import-overlay" onclick="if(event.target===this)closeImportModal()">
+  <div class="modal" id="import-modal" style="max-height:90vh;overflow-y:auto">
+    <!-- dynamisch -->
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Hidden Input fuer Kamera -->
+<input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
+
+<script>
+/* ==========================================================
+   Skyseed KFK-Tracker · Client Logic
+   ========================================================== */
+
+// ========== KONFIGURATION ==========
+const API_URL = 'https://script.google.com/macros/s/AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw/exec';
+// ===================================
+
+const POLL_INTERVAL = 30000;
+const STORAGE_KEY = 'kfk-tracker-pref';
+
+// ========== Zustand ==========
+let state = {
+  view: 'list',                    // 'list' | 'detail'
+  listTab: 'aktiv',                // 'aktiv' | 'archiv'
+  versuche: [],
+  archivedVersuche: [],
+  currentVersuchsnr: null,
+  currentVersuch: null,
+  currentDaten: [],
+  currentFortschritt: null,
+  currentAZ: null,                 // gewählte AZ-Runde
+  currentTopf: null,               // für Modal
+  currentTray: null,               // für Modal (Mehr-Tray-Versuche)
+  datum: new Date().toISOString().slice(0,10),
+  benutzer: '',
+  deferredInstallPrompt: null,
+  pollTimer: null,
+  pendingSave: false
+};
+
+// ========== Helpers ==========
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+function toast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('open');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('open'), ms);
+}
+function showBanner(title, msg) {
+  const b = document.getElementById('banner');
+  b.innerHTML = '<strong>' + esc(title) + '</strong>' + esc(msg);
+  b.classList.add('open');
+}
+function hideBanner() { document.getElementById('banner').classList.remove('open'); }
+
+function savePref(patch) {
+  try {
+    const cur = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const next = { ...cur, ...patch };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch (e) {}
+}
+function loadPref() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (e) { return {}; }
+}
+
+function qrImg(data, size = 300) {
+  return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&margin=6&data=' + encodeURIComponent(data);
+}
+
+function appUrlFor(versuchsnr) {
+  const base = window.location.origin + window.location.pathname;
+  return base + '?versuch=' + encodeURIComponent(versuchsnr);
+}
+
+// Textfarbe für Treatment-Hintergrund (light/dark)
+function textColorFor(hex) {
+  if (!hex || !hex.startsWith('#')) return 'dark';
+  const r = parseInt(hex.substr(1,2), 16);
+  const g = parseInt(hex.substr(3,2), 16);
+  const b = parseInt(hex.substr(5,2), 16);
+  const luma = 0.299*r + 0.587*g + 0.114*b;
+  return luma > 160 ? 'dark' : 'light';
+}
+
+function cvBadge(cv) {
+  if (cv == null || isNaN(cv)) return '';
+  if (cv < 20) return '<span class="cv-badge cv-ok">✓</span>';
+  if (cv < 30) return '<span class="cv-badge cv-mid">⚠</span>';
+  return '<span class="cv-badge cv-bad">✗</span>';
+}
+
+// ========== API ==========
+async function apiGet(params) {
+  const qs = new URLSearchParams(params).toString();
+  const r = await fetch(API_URL + '?' + qs + '&_=' + Date.now());
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d;
+}
+async function apiPost(body) {
+  const r = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = await r.json();
+  if (d.error) throw new Error(d.error);
+  return d;
+}
+
+// ========== Laden ==========
+async function loadList() {
+  setSync('wait', 'lade…');
+  try {
+    const d = await apiGet({ action: 'list' });
+    state.versuche = d.versuche || [];
+    if (state.view === 'list') renderList();
+    setSync('ok', 'sync ' + timeNow());
+    hideBanner();
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Keine Verbindung', e.message);
+  }
+}
+
+async function loadArchiv() {
+  setSync('wait', 'lade Archiv…');
+  try {
+    const d = await apiGet({ action: 'listArchiv' });
+    state.archivedVersuche = d.versuche || [];
+    if (state.view === 'list') renderList();
+    setSync('ok', 'sync ' + timeNow());
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Archiv laden fehlgeschlagen', e.message);
+  }
+}
+
+async function loadVersuch(versuchsnr, silent) {
+  if (!silent) setSync('wait', 'lade…');
+  try {
+    const d = await apiGet({ action: 'get', versuchsnr });
+    if (versuchsnr !== state.currentVersuchsnr) return;
+    state.currentVersuch = d.versuch;
+    state.currentDaten = d.daten || [];
+    state.currentFortschritt = d.fortschritt;
+
+    // Default AZ: erste nicht-"fertig"-Runde oder letzte geplante
+    const azStatus = (d.fortschritt && d.fortschritt.az_status) || [];
+    let defaultAZ = null;
+    for (let i = 0; i < azStatus.length; i++) {
+      if (azStatus[i] !== 'fertig') { defaultAZ = i + 1; break; }
+    }
+    if (!defaultAZ) defaultAZ = azStatus.length || 1;
+    state.currentAZ = state.currentAZ || defaultAZ;
+
+    renderDetail();
+    setSync('ok', 'sync ' + timeNow());
+    hideBanner();
+  } catch (e) {
+    setSync('err', 'Fehler');
+    if (!silent) showBanner('Laden fehlgeschlagen', e.message);
+  }
+}
+
+function timeNow() {
+  return new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function setSync(which, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!dot || !lbl) return;
+  dot.className = 'sync-dot' + (which === 'wait' ? ' wait' : which === 'err' ? ' err' : '');
+  lbl.textContent = label;
+}
+
+// ========== Screen 1: Liste ==========
+function renderList() {
+  state.view = 'list';
+  const root = document.getElementById('app-content');
+  const pref = loadPref();
+  const isArchiv = state.listTab === 'archiv';
+  const liste = isArchiv ? state.archivedVersuche : state.versuche;
+  const leer = isArchiv
+    ? 'Keine abgeschlossenen Versuche im Index.'
+    : 'Keine aktiven Versuche im Index.';
+
+  root.innerHTML = `
+    <header>
+      <div class="title-block">
+        <h1>KFK-Tracker</h1>
+        <div class="sub">Skyseed · ${isArchiv ? liste.length + ' archivierte' : state.versuche.length + ' aktive'} Versuche</div>
+      </div>
+    </header>
+
+    <div class="status-row">
+      <div class="sync-status">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-label">sync ${timeNow()}</span>
+      </div>
+      <div>Benutzer: <strong>${esc(pref.benutzer || '—')}</strong></div>
+    </div>
+
+    <div class="toolbar">
+      <button class="primary" onclick="${isArchiv ? 'loadArchiv()' : 'loadList()'}">🔄 Aktualisieren</button>
+      ${!isArchiv ? '<button onclick="showQRListe()">📱 QR-Codes aller Versuche</button>' : ''}
+      <button onclick="openBenutzerWahl()">👤 Benutzer</button>
+      ${!isArchiv ? '<button onclick="openImportModal()">📥 Aus Asana</button>' : ''}
+    </div>
+
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:12px">
+      <button onclick="switchListTab('aktiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${!isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${!isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${!isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:13px">
+        Aktiv (${state.versuche.length})
+      </button>
+      <button onclick="switchListTab('archiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:13px">
+        Archiv (${state.archivedVersuche.length})
+      </button>
+    </div>
+
+    <div class="versuchs-liste">
+      ${liste.map(v => isArchiv ? archivCardHTML(v) : cardHTML(v)).join('')}
+    </div>
+
+    ${liste.length === 0 ? '<p style="text-align:center;padding:40px;color:var(--ink-muted);font-style:italic">' + leer + '</p>' : ''}
+  `;
+}
+
+function switchListTab(tab) {
+  state.listTab = tab;
+  if (tab === 'archiv' && state.archivedVersuche.length === 0) {
+    loadArchiv();
+  } else {
+    renderList();
+  }
+}
+
+function cardHTML(v) {
+  const f = v.fortschritt || {};
+  const statusSym = (s) => s === 'fertig' ? '✓' : s === 'teilweise' ? '●' : '–';
+  const azHTML = (f.az_status || []).map((s, i) => {
+    const cls = s === 'fertig' ? 'done' : s === 'teilweise' ? 'active' : '';
+    const kf = f.az_kf_mittel && f.az_kf_mittel[i] != null ? ` ${f.az_kf_mittel[i]}%` : '';
+    return `<span class="fortschritt-pill ${cls}">AZ${i+1} ${statusSym(s)}${kf}</span>`;
+  }).join('');
+
+  return `
+    <div class="versuch-karte" style="border-left-color:${v.themenfarbe || '#4a6b3a'}" onclick="openVersuch('${esc(v.versuchsnr)}')">
+      <div class="head">
+        <span class="chip" style="background:${v.themenfarbe || '#4a6b3a'}">${esc(shortBereich(v.themenbereich))}</span>
+        <span class="nr">${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="nr-id">ID ${esc(v.id_nummer)}</span>` : ''}</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="titel">${esc(v.titel || '—')}</div>
+      <div class="meta">
+        <span><strong>${esc(v.baumart_kurz || '?')}</strong></span>
+        <span>${esc(v.ort || '?')}</span>
+        <span>Start ${esc(v.start_datum || '?')}</span>
+      </div>
+      <div class="fortschritt">${azHTML || '<span class="fortschritt-pill">noch keine AZ</span>'}</div>
+    </div>
+  `;
+}
+
+function archivCardHTML(v) {
+  const f = v.fortschritt || {};
+  const azHTML = (f.az_status || []).map((s, i) => {
+    const kf = f.az_kf_mittel && f.az_kf_mittel[i] != null ? ` ${f.az_kf_mittel[i]}%` : '';
+    return `<span class="fortschritt-pill done">AZ${i+1} ✓${kf}</span>`;
+  }).join('');
+
+  return `
+    <div class="versuch-karte" style="border-left-color:${v.themenfarbe || '#4a6b3a'};opacity:0.75;background:var(--bg-2)" onclick="openVersuch('${esc(v.versuchsnr)}')">
+      <div class="head">
+        <span class="chip" style="background:${v.themenfarbe || '#4a6b3a'}">${esc(shortBereich(v.themenbereich))}</span>
+        <span class="nr">${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="nr-id">ID ${esc(v.id_nummer)}</span>` : ''}</span>
+        <span style="font-size:11px;color:var(--ink-muted);margin-left:auto">📦 Abgeschlossen</span>
+      </div>
+      <div class="titel">${esc(v.titel || '—')}</div>
+      <div class="meta">
+        <span><strong>${esc(v.baumart_kurz || '?')}</strong></span>
+        <span>${esc(v.ort || '?')}</span>
+        <span>Start ${esc(v.start_datum || '?')}</span>
+      </div>
+      <div class="fortschritt">${azHTML || '<span class="fortschritt-pill">keine AZ-Daten</span>'}</div>
+    </div>
+  `;
+}
+
+function shortBereich(s) {
+  if (!s) return '—';
+  const m = String(s).match(/^([A-Z]\.?\d?)/);
+  return m ? m[1] : String(s).slice(0, 6);
+}
+
+// ========== Screen 2: Detail ==========
+function openVersuch(versuchsnr) {
+  // BUG-FIX: state.view SOFORT setzen, damit nachlaufende loadList()-Aufrufe nicht zur Liste zurueckspringen
+  state.view = 'detail';
+  state.currentVersuchsnr = versuchsnr;
+  state.currentAZ = null;
+  state.currentVersuch = null;
+  savePref({ lastVersuch: versuchsnr });
+  // Sofort einen Loading-State rendern, damit die UI nicht "haengt"
+  renderDetailLoading(versuchsnr);
+  loadVersuch(versuchsnr);
+}
+
+function renderDetailLoading(versuchsnr) {
+  document.getElementById('app-content').innerHTML = `
+    <header>
+      <button class="back" onclick="backToList()" aria-label="Zurück">←</button>
+      <div class="title-block">
+        <h1>${esc(versuchsnr)}</h1>
+        <div class="sub">Lade…</div>
+      </div>
+    </header>
+    <div class="status-row">
+      <div class="sync-status">
+        <span class="sync-dot wait" id="sync-dot"></span>
+        <span id="sync-label">lädt…</span>
+      </div>
+    </div>
+    <div style="text-align:center;padding:60px 20px;color:var(--ink-muted);font-style:italic">
+      Versuchsdaten werden geladen…
+    </div>
+  `;
+}
+
+function renderDetail() {
+  state.view = 'detail';
+  const v = state.currentVersuch;
+  const f = state.currentFortschritt || {};
+  const daten = state.currentDaten || [];
+  const treatments = v.treatments || [];
+  const azGeplant = Number(v.az_geplant || 5);
+  const az = state.currentAZ || 1;
+  const pref = loadPref();
+  const qrUrl = appUrlFor(v.versuchsnr);
+
+  const isArchived = String(v.status || '').toLowerCase().includes('abgeschlossen') ||
+                     String(v.status || '').toLowerCase() === 'archiviert';
+
+  const root = document.getElementById('app-content');
+  root.innerHTML = `
+    <header>
+      <button class="back" onclick="backToList()" aria-label="Zurück">←</button>
+      <div class="title-block">
+        <h1>${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="id-nummer">· ID ${esc(v.id_nummer)}</span>` : ''}</h1>
+        <div class="sub">${esc(v.titel || '')}</div>
+      </div>
+      <div class="qr-mini" onclick="showQRFuerVersuch('${esc(v.versuchsnr)}')" title="QR anzeigen">
+        <img src="${qrImg(qrUrl, 120)}" alt="QR">
+      </div>
+    </header>
+
+    ${isArchived ? `<div style="background:#c99a3a;color:#2a2118;padding:10px 16px;font-size:12px;font-weight:700;text-align:center;letter-spacing:0.06em">📦 ARCHIVIERT – Nur-Lesen · Versuch abgeschlossen</div>` : ''}
+
+    <div class="status-row">
+      <div class="sync-status">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="sync-label">sync ${timeNow()}</span>
+      </div>
+      <div><em>${esc(v.baumart_lat || v.baumart_kurz || '')}</em></div>
+    </div>
+
+    ${renderInfoPanel(v, f)}
+
+    ${renderInitialFotosSection(v, daten)}
+
+    <div class="rbd-title">AZ wählen · geplant: ${azGeplant} Runden <button class="small" onclick="openAZPlanned()" style="margin-left:8px">Anpassen</button></div>
+    <div class="az-switcher">
+      ${[1,2,3,4,5].map(n => {
+        const s = (f.az_status || [])[n-1];
+        const disabled = n > azGeplant;
+        const active = n === az;
+        const cls = disabled ? 'disabled' : active ? 'active' : s === 'fertig' ? 'done' : '';
+        const stateLabel = disabled ? '' : s === 'fertig' ? 'fertig ✓' : s === 'teilweise' ? 'offen' : '–';
+        return `<button class="az-btn ${cls}" ${disabled ? 'disabled' : ''} onclick="selectAZ(${n})">
+          <span class="az-name">AZ${n}</span>
+          <span class="az-state">${stateLabel}</span>
+        </button>`;
+      }).join('')}
+    </div>
+
+    <div class="meta-row">
+      <div class="field">
+        <label for="f-datum">Datum</label>
+        <input type="date" id="f-datum" value="${state.datum}" onchange="state.datum=this.value">
+      </div>
+      <div class="field">
+        <label for="f-benutzer">Benutzer</label>
+        <select id="f-benutzer" onchange="onBenutzerChange(this.value)">
+          <option value="">— wählen —</option>
+          ${['D. W.','F. B.','L. G.','M. R.','S. G.','S. K.'].map(u =>
+            `<option value="${u}" ${pref.benutzer===u?'selected':''}>${u}</option>`
+          ).join('')}
+        </select>
+      </div>
+    </div>
+
+    ${renderRBDByTrays(v, daten, az, treatments)}
+
+    ${renderAbschlussButton(f, az, daten)}
+
+    ${renderUebersicht(daten, treatments, az, v)}
+
+    <div class="toolbar" style="margin-top:20px">
+      <button class="primary" onclick="openAsanaPreview()">📋 Asana-Kommentar</button>
+      <button onclick="openStatHint()">📊 Statistik-Hinweis</button>
+    </div>
+  `;
+
+  // Benutzer aus pref übernehmen
+  if (pref.benutzer) state.benutzer = pref.benutzer;
+}
+
+function renderInfoPanel(v, f) {
+  const treatments = v.treatments || [];
+  const statusMap = { 'fertig': 'done', 'teilweise': 'active', 'offen': 'open' };
+  const statusSym = { 'fertig': '✓', 'teilweise': '●', 'offen': '–' };
+  const statusTxt = { 'fertig': 'fertig', 'teilweise': 'in Arbeit', 'offen': 'offen' };
+
+  const azGeplant = Number(v.az_geplant || 5);
+  const azRows = (f.az_status || []).slice(0, azGeplant).map((s, i) => {
+    const cls = statusMap[s] || 'open';
+    const kf = f.az_kf_mittel && f.az_kf_mittel[i] != null ? `Ø ${f.az_kf_mittel[i]}% KF` : '—';
+    return `<div class="az-fortschritt-row ${cls}">
+      <span class="lbl">AZ${i+1}</span>
+      <span><span class="sym">${statusSym[s]||'–'}</span> ${statusTxt[s]||'offen'}</span>
+      <span>${kf}</span>
+    </div>`;
+  }).join('');
+
+  const treatHTML = treatments.map(t => `
+    <div class="treatment-item">
+      <span class="treatment-dot" style="background:${t.color||'#ccc'}"></span>
+      <span class="treatment-code">${esc(t.code)}</span>
+      <span>${esc(t.label||'')}</span>
+    </div>
+  `).join('');
+
+  const driveLink = v.folder_id ? `https://drive.google.com/drive/folders/${v.folder_id}` : '#';
+  const sheetLink = v.sheet_file_id ? `https://docs.google.com/spreadsheets/d/${v.sheet_file_id}` : '#';
+  const asanaLink = v.asana_task_gid ? `https://app.asana.com/0/0/${v.asana_task_gid}` : '#';
+
+  return `
+    <details class="info-panel">
+      <summary>INFO · Übersicht</summary>
+      <div class="info-body">
+        <div class="info-section">
+          <h3>Hypothese</h3>
+          <div class="info-hyp">${esc(v.hypothese || '—')}</div>
+        </div>
+        <div class="info-section">
+          <h3>Eckdaten</h3>
+          <div class="info-kv">
+            <div class="k">Themenbereich</div><div class="v">${esc(v.themenbereich||'—')}</div>
+            <div class="k">Start-Datum</div><div class="v">${esc(v.start_datum||'—')}</div>
+            <div class="k">Ort</div><div class="v">${esc(v.ort||'—')}</div>
+            <div class="k">Verantwortlich</div><div class="v">${esc(v.verantwortlich||'—')}</div>
+            <div class="k">Posten-Nr.</div><div class="v">${esc(v.posten_nr||'—')}</div>
+            <div class="k">Status</div><div class="v">${esc(v.status||'—')}</div>
+          </div>
+        </div>
+        <div class="info-section">
+          <h3>Design</h3>
+          <div class="info-kv">
+            <div class="k">RBD</div><div class="v">${v.raster_cols||4} × ${v.raster_rows||6} = ${(v.raster_cols||4)*(v.raster_rows||6)} Töpfe</div>
+            <div class="k">Samen/Topf</div><div class="v">${v.samen_pro_topf||36}</div>
+            <div class="k">AZ-Runden</div><div class="v">${azGeplant} geplant</div>
+          </div>
+        </div>
+        <div class="info-section">
+          <h3>Treatments</h3>
+          <div class="treatments-list">${treatHTML || '<em>keine Treatments definiert</em>'}</div>
+        </div>
+        <div class="info-section">
+          <h3>Fortschritt</h3>
+          <div class="az-fortschritt">${azRows}</div>
+        </div>
+        <div class="info-section">
+          <h3>Links</h3>
+          <div class="info-links">
+            ${v.folder_id ? `<a class="info-link" href="${driveLink}" target="_blank" rel="noopener">📁 Drive-Ordner</a>` : ''}
+            ${v.sheet_file_id ? `<a class="info-link" href="${sheetLink}" target="_blank" rel="noopener">📊 Daten-Sheet</a>` : ''}
+            ${v.asana_task_gid ? `<a class="info-link" href="${asanaLink}" target="_blank" rel="noopener">📋 Asana-Task</a>` : ''}
+          </div>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function renderInitialFotosSection(v, daten) {
+  const anzahlTrays = Number(v.anzahl_trays || 1);
+
+  let html = `<div class="initial-fotos">
+    <div class="initial-fotos-head">
+      <span class="initial-fotos-label">📷 Initial-Fotos (AZ0)</span>
+      <span class="initial-fotos-hint">Anfangszustand vor Versuchsstart · 1 Foto pro Tray</span>
+    </div>`;
+
+  for (let tray = 1; tray <= anzahlTrays; tray++) {
+    if (anzahlTrays > 1) {
+      html += `<div class="initial-tray-label">Tray ${tray}</div>`;
+    }
+    const trayDaten = daten.filter(d => Number(d.tray || 1) === tray);
+    let fotoUrl = null;
+    for (const d of trayDaten) {
+      if (!d.fotos) continue;
+      if (d.fotos['az0']) { fotoUrl = d.fotos['az0']; break; }
+      for (const b of ['A','B','C','D']) {
+        if (d.fotos['az0_block' + b]) { fotoUrl = d.fotos['az0_block' + b]; break; }
+      }
+      if (fotoUrl) break;
+    }
+    if (fotoUrl) {
+      html += `<div style="display:flex;gap:4px">
+        <a class="foto-btn done" href="${fotoUrl}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📷 ✓ Ansehen</a>
+        <button class="foto-btn" onclick="takeFoto(0,${tray})" style="flex:none;padding:0 14px" title="Neu hochladen">⟳</button>
+      </div>`;
+    } else {
+      html += `<button class="foto-btn" onclick="takeFoto(0,${tray})">📷 Foto</button>`;
+    }
+  }
+  html += `</div>`;
+  return html;
+}
+
+function renderRBDByTrays(v, daten, az, treatments) {
+  const anzahlTrays = Number(v.anzahl_trays || 1);
+
+  let html = '';
+  for (let tray = 1; tray <= anzahlTrays; tray++) {
+    const trayHeader = anzahlTrays > 1 ? `<div class="tray-header">Tray ${tray}</div>` : '';
+    html += `${trayHeader}
+      <div class="rbd-wrap">
+        <div class="rbd-title">RBD-Raster · AZ${az}${anzahlTrays > 1 ? ' · Tray ' + tray : ''}</div>
+        ${renderRBDForTray(v, daten, az, treatments, tray)}
+      </div>
+      <div class="fotos-row">
+        <div class="fotos-label">Foto AZ${az}${anzahlTrays > 1 ? ' Tray ' + tray : ''}</div>
+        ${renderFotoBtn(az, tray)}
+      </div>
+    `;
+  }
+  return html;
+}
+
+function renderRBDForTray(v, daten, az, treatments, tray) {
+  const cols = Number(v.raster_cols || 4);
+  const rows = Number(v.raster_rows || 6);
+  const trayDaten = daten.filter(d => Number(d.tray || 1) === tray);
+
+  // Daten nach Block+Wdh indexieren (eindeutiger als Topf-Nr, weil Tray-relativ)
+  const byPosition = {};
+  trayDaten.forEach(d => { byPosition[d.block + '_' + d.wdh] = d; });
+
+  const treatmentMap = {};
+  (treatments || []).forEach(t => treatmentMap[t.code] = t);
+
+  const blocks = ['A','B','C','D','E','F','G','H'].slice(0, cols);
+
+  let html = `<div class="rbd" style="--cols:${cols}">`;
+  html += '<div class="rbd-corner"></div>';
+  blocks.forEach(b => { html += `<div class="rbd-header">${b}</div>`; });
+
+  for (let r = 1; r <= rows; r++) {
+    html += `<div class="rbd-wdh-label">${r}</div>`;
+    for (let c = 0; c < cols; c++) {
+      const block = blocks[c];
+      const d = byPosition[block + '_' + r] || {};
+      const tCode = (d.treatment || '').split(/[\s(]/)[0];
+      const t = treatmentMap[tCode] || null;
+      const color = t ? t.color : '#ebe5d3';
+      const txtCls = t ? textColorFor(color) + '-text' : 'dark-text';
+      const val = d['az' + az + '_zahl'];
+      const valDisplay = (val !== '' && val != null && val !== undefined)
+        ? `<div class="topf-val">${val}</div>`
+        : `<div class="topf-empty">—</div>`;
+
+      // Topf-Anzeige: tray-relativ falls mehr als 1 Tray, sonst global
+      const localTopfNr = (c * rows) + r;
+      const globalTopf = d.topf || 0;
+      const displayNr = localTopfNr;
+
+      if (!d.topf) {
+        // Leerer Slot - nicht klickbar
+        html += `<div class="topf empty-slot dark-text">
+          <div class="topf-nr">${displayNr}</div>
+        </div>`;
+      } else {
+        html += `
+          <div class="topf ${txtCls}" style="background:${color}" onclick="openTopfModal(${globalTopf}, ${tray})">
+            <div class="topf-nr">${displayNr}</div>
+            <div class="topf-treat">${esc(tCode || '')}</div>
+            ${valDisplay}
+          </div>
+        `;
+      }
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderRBD(v, daten, az, treatments) {
+  const cols = Number(v.raster_cols || 4);
+  const rows = Number(v.raster_rows || 6);
+
+  // Daten nach Topf indexieren
+  const byTopf = {};
+  daten.forEach(d => byTopf[d.topf] = d);
+
+  const treatmentMap = {};
+  (treatments || []).forEach(t => treatmentMap[t.code] = t);
+
+  // Block-Labels
+  const blocks = ['A','B','C','D','E','F','G','H'].slice(0, cols);
+
+  let html = `<div class="rbd" style="--cols:${cols}">`;
+  html += '<div class="rbd-corner"></div>';
+  blocks.forEach(b => { html += `<div class="rbd-header">${b}</div>`; });
+
+  for (let r = 1; r <= rows; r++) {
+    html += `<div class="rbd-wdh-label">${r}</div>`;
+    for (let c = 0; c < cols; c++) {
+      const topf = c * rows + r;
+      const d = byTopf[topf] || {};
+      const tCode = (d.treatment || '').split(/[\s(]/)[0]; // "T0" aus "T0 Kontrolle"
+      const t = treatmentMap[tCode] || null;
+      const color = t ? t.color : '#ebe5d3';
+      const txtCls = t ? textColorFor(color) + '-text' : 'dark-text';
+      const val = d['az' + az + '_zahl'];
+      const valDisplay = (val !== '' && val != null && val !== undefined)
+        ? `<div class="topf-val">${val}</div>`
+        : `<div class="topf-empty">—</div>`;
+
+      html += `
+        <div class="topf ${txtCls}" style="background:${color}" onclick="openTopfModal(${topf})">
+          <div class="topf-nr">${topf}</div>
+          <div class="topf-treat">${esc(tCode || '')}</div>
+          ${valDisplay}
+        </div>
+      `;
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderFotoBtn(az, tray) {
+  tray = tray || 1;
+  const trayDaten = state.currentDaten.filter(d => Number(d.tray || 1) === tray);
+  let fotoUrl = null;
+  for (const d of trayDaten) {
+    if (!d.fotos) continue;
+    if (d.fotos['az' + az]) { fotoUrl = d.fotos['az' + az]; break; }
+    for (const b of ['A','B','C','D']) {
+      if (d.fotos['az' + az + '_block' + b]) { fotoUrl = d.fotos['az' + az + '_block' + b]; break; }
+    }
+    if (fotoUrl) break;
+  }
+  if (fotoUrl) {
+    return `<div style="display:flex;gap:4px">
+      <a class="foto-btn done" href="${fotoUrl}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📷 ✓ Ansehen</a>
+      <button class="foto-btn" onclick="takeFoto(${az},${tray})" style="flex:none;padding:0 14px" title="Neu hochladen">⟳</button>
+    </div>`;
+  }
+  return `<button class="foto-btn" onclick="takeFoto(${az},${tray})">📷 Foto</button>`;
+}
+
+function renderAbschlussButton(f, az, daten) {
+  const v = state.currentVersuch;
+  const azGeplant = Number(v.az_geplant || 5);
+  const status = (f.az_status || [])[az - 1];
+  const befuellt = daten.filter(d => {
+    const v = d['az' + az + '_zahl'];
+    return v !== '' && v != null && v !== undefined;
+  }).length;
+  const total = daten.length;
+
+  // Versuch vollstaendig abschliessen: Button nur bei letzter geplanter AZ und wenn diese fertig ist
+  const istLetzteAZ = az === azGeplant;
+  const alleAZsFertig = (f.az_status || []).slice(0, azGeplant).every(s => s === 'fertig');
+  const versuchAbschliessbar = istLetzteAZ && alleAZsFertig;
+
+  let html = '';
+  if (status === 'fertig') {
+    html += `<button class="abschluss-btn done" onclick="openAbschluss()">✓ AZ${az} abgeschlossen · ändern</button>`;
+  } else {
+    html += `<button class="abschluss-btn" onclick="openAbschluss()">✅ AZ${az} abschließen (${befuellt}/${total})</button>
+      <div class="abschluss-hint">Beim Abschließen werden leere Töpfe als 0 Keimlinge gewertet.</div>`;
+  }
+
+  if (versuchAbschliessbar) {
+    html += `<button class="versuch-end-btn" onclick="openVersuchEnde()">🏁 Versuch vollständig abschließen</button>
+      <div class="abschluss-hint">Status auf "Abgeschlossen", finaler Asana-Kommentar wird gepostet, Versuch verschwindet aus der aktiven Liste.</div>`;
+  }
+  return html;
+}
+
+function renderUebersicht(daten, treatments, az, v) {
+  if (!treatments.length) return '';
+  const samen = Number(v.samen_pro_topf || 36);
+
+  // Pro Treatment Werte sammeln
+  const byT = {};
+  treatments.forEach(t => { byT[t.code] = { values: [], color: t.color, label: t.label }; });
+
+  daten.forEach(d => {
+    const tCode = (d.treatment || '').split(/[\s(]/)[0];
+    const val = d['az' + az + '_zahl'];
+    if (byT[tCode] && val !== '' && val != null && val !== undefined && !isNaN(Number(val))) {
+      byT[tCode].values.push(Number(val));
+    }
+  });
+
+  const rows = [];
+  const bars = [];
+  let maxKF = 0;
+
+  Object.keys(byT).forEach(code => {
+    const { values, color, label } = byT[code];
+    const n = values.length;
+    if (n === 0) {
+      rows.push(`<tr><td><span class="t-dot" style="background:${color}"></span>${esc(code)}</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>`);
+      return;
+    }
+    const mean = values.reduce((a, b) => a + b, 0) / n;
+    const sd = n > 1 ? Math.sqrt(values.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / (n - 1)) : 0;
+    const kf = Math.round(mean / samen * 100);
+    const cv = mean > 0 ? (sd / mean * 100) : 0;
+    if (kf > maxKF) maxKF = kf;
+
+    const cvCls = cv < 20 ? 'cv-ok' : cv < 30 ? 'cv-mid' : 'cv-bad';
+    rows.push(`<tr>
+      <td><span class="t-dot" style="background:${color}"></span>${esc(code)} ${esc(label||'').slice(0,14)}</td>
+      <td>${n}</td>
+      <td>${mean.toFixed(1)}</td>
+      <td><strong>${kf}%</strong></td>
+      <td class="${cvCls}">${cv.toFixed(0)}%${cvBadge(cv)}</td>
+    </tr>`);
+    bars.push({ code, kf, color, label });
+  });
+
+  const barHTML = bars.map(b => {
+    const pct = maxKF > 0 ? (b.kf / Math.max(100, maxKF) * 100) : 0;
+    return `<div class="bar-row">
+      <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${b.color}"></div></div>
+      <div><strong>${b.kf}%</strong> ${esc(b.code)}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="uebersicht">
+      <h3>Übersicht · AZ${az} (live)</h3>
+      <table class="stats">
+        <thead><tr><th>Treatment</th><th>n</th><th>Ø</th><th>KF %</th><th>CV %</th></tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+      <div class="bars">${barHTML}</div>
+    </div>
+  `;
+}
+
+function backToList() {
+  state.currentVersuchsnr = null;
+  state.currentVersuch = null;
+  state.currentAZ = null;
+  renderList();
+  loadList();
+}
+
+function selectAZ(n) {
+  state.currentAZ = n;
+  renderDetail();
+}
+
+function onBenutzerChange(val) {
+  state.benutzer = val;
+  savePref({ benutzer: val });
+}
+
+function openBenutzerWahl() {
+  // Einfaches Modal: gleiches wie Benutzerfeld, global speichern
+  const current = loadPref().benutzer || '';
+  const list = ['D. W.','F. B.','L. G.','M. R.','S. G.','S. K.'];
+  const html = `
+    <div class="modal-head"><h2>Benutzer wählen</h2></div>
+    <p style="margin-bottom:14px;color:var(--ink-muted);font-size:13px">Wird bei allen Eingaben standardmäßig verwendet.</p>
+    <div class="radio-grid">
+      ${list.map(u => `<button class="${current===u?'selected':''}" onclick="chooseBenutzer('${u}')">${u}</button>`).join('')}
+    </div>
+    <div class="modal-actions">
+      <button class="primary" onclick="closeBenutzerWahl()">Schließen</button>
+    </div>
+  `;
+  const m = document.getElementById('topf-modal');
+  m.innerHTML = html;
+  document.getElementById('topf-overlay').classList.add('open');
+  state._overlayKind = 'benutzer';
+}
+function chooseBenutzer(u) {
+  savePref({ benutzer: u });
+  state.benutzer = u;
+  closeBenutzerWahl();
+  if (state.view === 'list') renderList(); else renderDetail();
+}
+function closeBenutzerWahl() {
+  document.getElementById('topf-overlay').classList.remove('open');
+  state._overlayKind = null;
+}
+
+// ========== Topf-Eingabe ==========
+function openTopfModal(topfNr, trayNr) {
+  state.currentTopf = topfNr;
+  state.currentTray = trayNr || null;  // null = Single-Tray oder unbekannt
+  renderTopfModal();
+  document.getElementById('topf-overlay').classList.add('open');
+  state._overlayKind = 'topf';
+}
+
+// Hilfsfunktion: findet Datensatz unter Berücksichtigung von Tray
+function findTopfDaten(topf, tray) {
+  if (tray != null) {
+    return state.currentDaten.find(x => x.topf === topf && Number(x.tray || 1) === Number(tray));
+  }
+  return state.currentDaten.find(x => x.topf === topf);
+}
+
+function renderTopfModal() {
+  const topf = state.currentTopf;
+  const tray = state.currentTray;
+  const az = state.currentAZ;
+  const v = state.currentVersuch;
+  const d = findTopfDaten(topf, tray) || { topf };
+  const tCode = (d.treatment || '').split(/[\s(]/)[0];
+  const tObj = (v.treatments || []).find(t => t.code === tCode) || {};
+  const color = tObj.color || '#ccc';
+  const currentVal = d['az' + az + '_zahl'];
+  const val = (currentVal !== '' && currentVal != null && currentVal !== undefined) ? String(currentVal) : '';
+  const samen = Number(v.samen_pro_topf || 36);
+  const kf = val ? Math.round(Number(val) / samen * 100) : null;
+
+  const topfCount = state.currentDaten.length;
+
+  const html = `
+    <div class="topf-header" style="border-left-color:${color}">
+      <div class="lbl">Topf</div>
+      <div style="font-size:28px;font-weight:700;font-family:'Fraunces',serif;font-style:italic">${topf}</div>
+      <div class="treatment">${esc(tCode)} · ${esc(tObj.label || '')}</div>
+      <div class="meta-txt">Block ${esc(d.block||'?')} · Wdh ${esc(d.wdh||'?')}${(Number(v.anzahl_trays||1) > 1) ? ' · Tray ' + esc(d.tray || tray || '?') : ''} · AZ${az}</div>
+    </div>
+
+    <div class="value-display">
+      <div class="num ${val===''?'empty':''}" id="input-val">${val || '—'}</div>
+      <div class="kf">${val!=='' ? `${val} von ${samen} Samen → <strong>${kf}% KF</strong>` : `Max. ${samen} Samen`}</div>
+    </div>
+
+    <div class="numpad">
+      <button onclick="numPress('7')">7</button>
+      <button onclick="numPress('8')">8</button>
+      <button onclick="numPress('9')">9</button>
+      <button onclick="numPress('4')">4</button>
+      <button onclick="numPress('5')">5</button>
+      <button onclick="numPress('6')">6</button>
+      <button onclick="numPress('1')">1</button>
+      <button onclick="numPress('2')">2</button>
+      <button onclick="numPress('3')">3</button>
+      <button class="clear" onclick="numClear()">Leeren</button>
+      <button onclick="numPress('0')">0</button>
+      <button class="back" onclick="numBackspace()">⌫</button>
+    </div>
+
+    <div class="topf-nav">
+      <button ${topf<=1?'disabled':''} onclick="saveAndNav(${topf-1})">← Topf ${topf-1}</button>
+      <button ${topf>=topfCount?'disabled':''} class="primary" onclick="saveAndNav(${topf+1})">Topf ${topf+1} →</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+      <button class="danger" onclick="saveTopfValue(true)">Löschen</button>
+      <button class="primary" onclick="saveTopfValue(false)">Speichern & schließen</button>
+    </div>
+  `;
+  document.getElementById('topf-modal').innerHTML = html;
+}
+
+function numPress(d) {
+  const el = document.getElementById('input-val');
+  if (!el) return;
+  let cur = el.textContent;
+  if (cur === '—') cur = '';
+  const v = state.currentVersuch;
+  const max = Number(v.samen_pro_topf || 36);
+  // Zusammensetzen, dann führende Nullen entfernen — aber "0" allein darf bleiben
+  let next = cur + d;
+  next = next.replace(/^0+(\d)/, '$1'); // strippt 0en nur wenn weitere Ziffern folgen
+  if (next === '') next = '0';
+  if (next.length > 3) return;
+  if (Number(next) > max) { toast(`Max. ${max} Samen möglich`); return; }
+  el.textContent = next;
+  el.classList.remove('empty');
+  updateKF();
+}
+function numBackspace() {
+  const el = document.getElementById('input-val');
+  if (!el) return;
+  let cur = el.textContent;
+  if (cur === '—' || cur.length <= 1) {
+    el.textContent = '—';
+    el.classList.add('empty');
+  } else {
+    el.textContent = cur.slice(0, -1);
+  }
+  updateKF();
+}
+function numClear() {
+  const el = document.getElementById('input-val');
+  if (!el) return;
+  el.textContent = '—';
+  el.classList.add('empty');
+  updateKF();
+}
+function updateKF() {
+  const el = document.getElementById('input-val');
+  const v = state.currentVersuch;
+  const samen = Number(v.samen_pro_topf || 36);
+  const cur = el.textContent;
+  const kfEl = el.nextElementSibling;
+  if (!cur || cur === '—') {
+    kfEl.innerHTML = `Max. ${samen} Samen`;
+  } else {
+    const kf = Math.round(Number(cur) / samen * 100);
+    kfEl.innerHTML = `${cur} von ${samen} Samen → <strong>${kf}% KF</strong>`;
+  }
+}
+
+function saveTopfValue(isDelete) {
+  // SCHNELL: Modal sofort schliessen, lokal updaten, API-Call im Hintergrund (fire-and-forget)
+  const topf = state.currentTopf;
+  const tray = state.currentTray;
+  const az = state.currentAZ;
+  const el = document.getElementById('input-val');
+  const raw = el ? el.textContent : '';
+  const val = isDelete ? '' : (raw === '—' ? '' : raw);
+
+  // Lokal Update sofort -> UI fuehlt sich responsiv an
+  const d = findTopfDaten(topf, tray);
+  if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+
+  // Modal sofort schliessen + neu rendern
+  closeTopfModal();
+  renderDetail();
+  setSync('wait', 'speichere…');
+
+  // API-Call im Hintergrund
+  apiPost({
+    action: 'saveTopf',
+    versuchsnr: state.currentVersuch.versuchsnr,
+    topf,
+    tray: tray || undefined,
+    az,
+    zahl: val === '' ? null : Number(val),
+    datum: state.datum,
+    benutzer: loadPref().benutzer || ''
+  }).then(() => {
+    setSync('ok', 'gespeichert');
+    toast(isDelete ? 'Topf geleert' : 'Gespeichert');
+  }).catch((e) => {
+    setSync('err', 'Speichern fehlgeschlagen');
+    showBanner('Topf ' + topf + ' nicht gespeichert', e.message + ' · Wert lokal vorhanden, App neu laden für Sync.');
+  });
+}
+
+async function saveAndNav(nextTopf) {
+  // speichern, dann direkt den nächsten Topf öffnen (ohne Modal zu schließen)
+  const el = document.getElementById('input-val');
+  const raw = el ? el.textContent : '';
+  const val = raw === '—' ? '' : raw;
+  const topf = state.currentTopf;
+  const tray = state.currentTray;
+  const az = state.currentAZ;
+
+  state.pendingSave = true;
+  setSync('wait', 'speichere…');
+  try {
+    await apiPost({
+      action: 'saveTopf',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      topf,
+      tray: tray || undefined,
+      az,
+      zahl: val === '' ? null : Number(val),
+      datum: state.datum,
+      benutzer: loadPref().benutzer || ''
+    });
+    const d = findTopfDaten(topf, tray);
+    if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+    state.pendingSave = false;
+    setSync('ok', 'gespeichert');
+
+    // Tray bleibt erhalten, solange im selben Tray ein passender Datensatz existiert.
+    // Sonst fallback: tray=null (globaler Lookup), wie früher.
+    state.currentTopf = nextTopf;
+    if (tray != null) {
+      const next = findTopfDaten(nextTopf, tray);
+      if (!next) state.currentTray = null;  // Tray wechselt automatisch
+    }
+    renderTopfModal();
+    // Rendere Detail im Hintergrund
+    renderDetail();
+    document.getElementById('topf-overlay').classList.add('open'); // Modal offen lassen
+  } catch (e) {
+    state.pendingSave = false;
+    setSync('err', 'Fehler');
+    toast('Fehler: ' + e.message);
+  }
+}
+
+function closeTopfModal() {
+  document.getElementById('topf-overlay').classList.remove('open');
+  state._overlayKind = null;
+  state.currentTopf = null;
+  state.currentTray = null;
+}
+
+// ========== Foto-Upload ==========
+let pendingFotoAZ = null;
+let pendingFotoTray = 1;
+
+function takeFoto(az, tray) {
+  pendingFotoAZ = az;
+  pendingFotoTray = tray || 1;
+  document.getElementById('camera-input').click();
+}
+
+document.getElementById('camera-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const azLabel = pendingFotoAZ === 0 ? 'AZ0/Initial' : 'AZ' + pendingFotoAZ;
+  toast('Foto verarbeitet …');
+  try {
+    const base64 = await compressAndEncode(file, 1920, 0.85);
+    setSync('wait', 'Foto-Upload …');
+    const res = await apiPost({
+      action: 'uploadFoto',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      az: pendingFotoAZ,
+      tray: pendingFotoTray,
+      datum: state.datum,
+      imageBase64: base64.data,
+      mimeType: base64.mime
+    });
+    setSync('ok', 'Foto gespeichert');
+    toast(azLabel + ' · Foto hochgeladen');
+    // Lokale daten updaten - alle Toepfe im richtigen Tray
+    state.currentDaten.forEach(d => {
+      if (Number(d.tray || 1) === pendingFotoTray) {
+        d.fotos = d.fotos || {};
+        d.fotos['az' + pendingFotoAZ] = res.url;
+      }
+    });
+    renderDetail();
+  } catch (err) {
+    setSync('err', 'Foto-Upload fehlgeschlagen');
+    showBanner('Foto-Upload fehlgeschlagen', err.message);
+  }
+  // reset input
+  e.target.value = '';
+  pendingFotoAZ = null;
+  pendingFotoTray = 1;
+});
+
+async function compressAndEncode(file, maxDim, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const base64 = dataUrl.split(',')[1];
+        resolve({ data: base64, mime: 'image/jpeg' });
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ========== AZ-Abschluss ==========
+function openAbschluss() {
+  const az = state.currentAZ;
+  const daten = state.currentDaten;
+  const befuellt = daten.filter(d => {
+    const v = d['az' + az + '_zahl'];
+    return v !== '' && v != null && v !== undefined;
+  }).length;
+  const leer = daten.length - befuellt;
+
+  const fotos = ['A','B','C','D'].map(b => {
+    const key = 'az' + az + '_block' + b;
+    const has = daten.some(d => d.fotos && d.fotos[key]);
+    return { block: b, has };
+  });
+  const fotosFehlen = fotos.filter(f => !f.has);
+
+  const html = `
+    <div class="modal-head">
+      <h2>AZ${az} abschließen?</h2>
+    </div>
+
+    <p style="margin-bottom:14px;font-size:14px"><strong>Status:</strong></p>
+    <ul style="margin:0 0 14px 18px;font-size:14px">
+      <li>${befuellt} von ${daten.length} Töpfen befüllt</li>
+      ${leer > 0 ? `<li>${leer} leere Töpfe werden als <strong>0 Keimlinge</strong> gewertet</li>` : '<li>Alle Töpfe haben Werte</li>'}
+    </ul>
+
+    <p style="margin-bottom:8px;font-size:14px"><strong>Block-Fotos:</strong></p>
+    <div style="margin-bottom:14px;font-size:13px">
+      ${fotos.map(f => `<span style="margin-right:14px">${f.has?'✓':'✗'} Block ${f.block}</span>`).join('')}
+    </div>
+
+    ${fotosFehlen.length > 0 ? `
+      <div style="background:var(--bg-2);padding:10px;border-left:3px solid var(--warn);margin-bottom:14px;font-size:13px">
+        ⚠ Fotos fehlen für Block ${fotosFehlen.map(f=>f.block).join(', ')}
+      </div>
+    ` : ''}
+
+    <div class="modal-actions">
+      <button onclick="closeAbschluss()">Abbrechen</button>
+      <button class="primary" onclick="confirmAbschluss()">✅ Abschließen</button>
+    </div>
+  `;
+  document.getElementById('abschluss-modal').innerHTML = html;
+  document.getElementById('abschluss-overlay').classList.add('open');
+}
+function closeAbschluss() { document.getElementById('abschluss-overlay').classList.remove('open'); }
+async function confirmAbschluss() {
+  setSync('wait', 'schließe AZ ab …');
+  try {
+    const res = await apiPost({
+      action: 'abschlussAZ',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      az: state.currentAZ
+    });
+    setSync('ok', 'abgeschlossen');
+    toast(`AZ${state.currentAZ} abgeschlossen (${res.leereAuf0Gesetzt} auf 0 gesetzt)`);
+    closeAbschluss();
+    await loadVersuch(state.currentVersuch.versuchsnr);
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Abschluss fehlgeschlagen', e.message);
+  }
+}
+
+// ========== VERSUCH VOLLSTAENDIG ABSCHLIESSEN ==========
+function openVersuchEnde() {
+  const v = state.currentVersuch;
+  const f = state.currentFortschritt || {};
+  const azGeplant = Number(v.az_geplant || 5);
+  const treatments = v.treatments || [];
+  const samen = Number(v.samen_pro_topf || 36);
+  const daten = state.currentDaten || [];
+
+  // Komplett-Statistik ueber alle AZs
+  const trendRows = treatments.map(t => {
+    const azKFs = [];
+    for (let az = 1; az <= azGeplant; az++) {
+      const werte = daten
+        .map((d, i) => ({ d: d, val: d['az' + az + '_zahl'] }))
+        .filter(x => x.val !== '' && x.val != null && x.val !== undefined && !isNaN(Number(x.val)))
+        .filter(x => (x.d.treatment || '').split(/[\s(]/)[0] === t.code);
+      if (werte.length === 0) { azKFs.push(null); continue; }
+      const mean = werte.reduce((a, b) => a + Number(b.val), 0) / werte.length;
+      azKFs.push(Math.round(mean / samen * 100));
+    }
+    return { t, azKFs };
+  });
+
+  const trendStr = trendRows.map(r =>
+    `<strong>${esc(r.t.code)} ${esc(r.t.label||'')}</strong>: ${r.azKFs.map((k, i) => k === null ? '–' : 'AZ'+(i+1)+'='+k+'%').join(' / ')}`
+  ).join('<br>');
+
+  const html = `
+    <div class="modal-head">
+      <h2>🏁 Versuch abschließen?</h2>
+      <span class="coord">${esc(v.versuchsnr)}</span>
+    </div>
+    <p style="margin-bottom:14px;font-size:14px">Damit wird:</p>
+    <ul style="margin:0 0 14px 18px;font-size:13px;line-height:1.7">
+      <li>Status im Index auf <strong>Abgeschlossen</strong> gesetzt</li>
+      <li>Asana-Task <strong>als erledigt markiert</strong> (✓)</li>
+      <li>Finaler <strong>Asana-Kommentar mit Komplett-Auswertung</strong> gepostet</li>
+      <li>Versuch verschwindet aus der aktiven Tracker-Liste</li>
+    </ul>
+
+    <div style="background:var(--bg-2);padding:12px;font-size:12px;border:1px solid var(--line);margin-bottom:14px;line-height:1.6">
+      <strong>Komplett-Trend:</strong><br>${trendStr}
+    </div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Abschluss-Bemerkung (optional)</label>
+      <textarea id="versuch-ende-text" style="width:100%;min-height:70px;padding:10px;font-family:inherit;font-size:14px;border:1.5px solid var(--line);background:var(--bg)" placeholder="Fazit, Auffälligkeiten, nächste Schritte …"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button onclick="closeVersuchEnde()">Abbrechen</button>
+      <button class="primary" onclick="confirmVersuchEnde()">🏁 Endgültig abschließen</button>
+    </div>
+  `;
+  document.getElementById('versuch-ende-modal').innerHTML = html;
+  document.getElementById('versuch-ende-overlay').classList.add('open');
+  state._versuchEndeTrend = trendStr;
+}
+
+function closeVersuchEnde() {
+  document.getElementById('versuch-ende-overlay').classList.remove('open');
+}
+
+async function confirmVersuchEnde() {
+  const v = state.currentVersuch;
+  const note = (document.getElementById('versuch-ende-text') || {}).value || '';
+
+  const html = `<body><strong>🏁 Versuch ${esc(v.versuchsnr)} vollständig abgeschlossen – ${state.datum}</strong><br><br>
+<strong>Komplett-Trend:</strong><br>${state._versuchEndeTrend}<br><br>
+${note ? '<strong>Abschluss-Bemerkung:</strong><br>' + esc(note) + '<br><br>' : ''}
+<em>Posted via KFK-Tracker · Benutzer: ${esc(loadPref().benutzer || '—')}</em>
+</body>`;
+
+  setSync('wait', 'schließe Versuch ab …');
+  try {
+    const res = await apiPost({
+      action: 'markVersuchAbgeschlossen',
+      versuchsnr: v.versuchsnr,
+      finalKommentarHtml: html
+    });
+    setSync('ok', 'abgeschlossen');
+    toast('Versuch ' + v.versuchsnr + ' abgeschlossen ✓');
+    closeVersuchEnde();
+    backToList();
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Versuchsabschluss fehlgeschlagen', e.message);
+  }
+}
+
+// ========== Versuch aus Asana importieren ==========
+
+function openImportModal() {
+  const html = `
+    <div class="modal-head">
+      <h2>📥 Versuch aus Asana</h2>
+    </div>
+    <p style="font-size:13px;margin-bottom:14px;color:var(--ink-muted)">Asana-Task-GID eingeben → Felder werden vorausgefüllt</p>
+
+    <div class="field" style="margin-bottom:10px">
+      <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Asana Task-GID oder Link</label>
+      <div style="display:flex;gap:8px">
+        <input id="imp-gid" type="text" placeholder="GID oder https://app.asana.com/0/…/TASKGID"
+          style="flex:1;padding:10px;font-family:inherit;font-size:13px;border:1.5px solid var(--line);background:var(--bg)">
+        <button onclick="previewAsanaTask()" style="padding:10px 14px;white-space:nowrap">Laden ▶</button>
+      </div>
+      <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Link aus dem Browser kopieren — GID wird automatisch erkannt</div>
+    </div>
+
+    <div id="imp-form" style="display:none">
+      <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+      <p style="font-size:11px;color:var(--ink-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Vorausgefüllte Felder (bearbeitbar)</p>
+
+      ${impField('imp-versuchsnr','Versuchsnr *','text','z.B. 26_014')}
+      ${impField('imp-titel','Titel *','text','z.B. SKi Biochar Wdh')}
+      ${impField('imp-themenbereich','Themenbereich','text','z.B. A) SYSTEM PELLET')}
+      ${impField('imp-start-datum','Start-Datum','date','')}
+      <div class="field" style="margin-bottom:10px">
+        <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Hypothese</label>
+        <textarea id="imp-hypothese" rows="2"
+          style="width:100%;padding:10px;font-family:inherit;font-size:13px;border:1.5px solid var(--line);background:var(--bg)"></textarea>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+      <p style="font-size:11px;color:var(--ink-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Pflichtfelder (manuell)</p>
+
+      ${impField('imp-baumart-kurz','Baumart kurz *','text','z.B. SKi')}
+      ${impField('imp-baumart-lat','Baumart lat.','text','z.B. Pinus sylvestris')}
+      ${impField('imp-ort','Ort','text','Halle')}
+      ${impField('imp-id-nummer','ID-Nummer','text','z.B. 00246 (optional)')}
+
+      <div class="field" style="margin-bottom:10px">
+        <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Treatments JSON *</label>
+        <textarea id="imp-treatments" rows="4"
+          style="width:100%;padding:10px;font-family:inherit;font-size:12px;border:1.5px solid var(--line);background:var(--bg)"
+          placeholder='[{"code":"T0","label":"Kontrolle","color":"#22c55e"},{"code":"T1","label":"Pellet","color":"#ef4444"}]'></textarea>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${impField('imp-raster-cols','Raster Spalten','number','4')}
+        ${impField('imp-raster-rows','Raster Reihen','number','6')}
+        ${impField('imp-samen','Samen/Topf','number','36')}
+        ${impField('imp-trays','Anzahl Trays','number','1')}
+        ${impField('imp-az','AZ geplant','number','5')}
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button onclick="closeImportModal()">Abbrechen</button>
+      <button id="imp-submit-btn" class="primary" onclick="confirmCreateVersuch()" style="display:none">✅ Versuch anlegen</button>
+    </div>
+  `;
+  document.getElementById('import-modal').innerHTML = html;
+  document.getElementById('import-overlay').classList.add('open');
+  // Defaults
+  document.getElementById('imp-raster-cols').value = '4';
+  document.getElementById('imp-raster-rows').value = '6';
+  document.getElementById('imp-samen').value = '36';
+  document.getElementById('imp-trays').value = '1';
+  document.getElementById('imp-az').value = '5';
+  document.getElementById('imp-ort').value = 'Halle';
+}
+
+function impField(id, label, type, placeholder) {
+  return `<div class="field" style="margin-bottom:10px">
+    <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">${label}</label>
+    <input id="${id}" type="${type}" placeholder="${placeholder}"
+      style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1.5px solid var(--line);background:var(--bg)">
+  </div>`;
+}
+
+function closeImportModal() {
+  document.getElementById('import-overlay').classList.remove('open');
+}
+
+function extractAsanaGid(input) {
+  const s = input.trim();
+  if (s.startsWith('http')) {
+    // Letztes numerisches Segment im URL-Pfad ist die Task-GID
+    const matches = s.match(/\/(\d{10,20})/g);
+    if (matches && matches.length > 0) return matches[matches.length - 1].replace('/', '');
+  }
+  return s;
+}
+
+async function previewAsanaTask() {
+  const raw = (document.getElementById('imp-gid').value || '').trim();
+  if (!raw) { alert('Bitte Task-GID oder Asana-Link eingeben'); return; }
+  const gid = extractAsanaGid(raw);
+  // Extrahierte GID ins Feld zurückschreiben
+  document.getElementById('imp-gid').value = gid;
+  setSync('wait', 'lade Task…');
+  try {
+    const res = await apiGet({ action: 'importFromAsana', asana_task_gid: gid });
+    if (res.error) throw new Error(res.error);
+    const p = res.prefill || {};
+    if (p.versuchsnr) document.getElementById('imp-versuchsnr').value = p.versuchsnr;
+    if (p.titel) document.getElementById('imp-titel').value = p.titel;
+    if (p.themenbereich) document.getElementById('imp-themenbereich').value = p.themenbereich;
+    if (p.start_datum) document.getElementById('imp-start-datum').value = p.start_datum;
+    if (p.hypothese) document.getElementById('imp-hypothese').value = p.hypothese;
+    if (p.treatments_json) document.getElementById('imp-treatments').value = p.treatments_json;
+    if (p.anzahl_trays != null) document.getElementById('imp-trays').value = p.anzahl_trays;
+    if (p.raster_cols != null) document.getElementById('imp-raster-cols').value = p.raster_cols;
+    if (p.raster_rows != null) document.getElementById('imp-raster-rows').value = p.raster_rows;
+    if (p.samen_pro_topf != null) document.getElementById('imp-samen').value = p.samen_pro_topf;
+    // Themenfarbe ableiten
+    const farbe = themenbereichToFarbe(p.themenbereich || '');
+    document.getElementById('import-modal').dataset.themenfarbe = farbe;
+    document.getElementById('imp-form').style.display = 'block';
+    document.getElementById('imp-submit-btn').style.display = '';
+    setSync('ok', 'Task geladen');
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Asana-Task konnte nicht geladen werden', e.message);
+  }
+}
+
+function themenbereichToFarbe(bereich) {
+  const s = String(bereich).toUpperCase();
+  if (s.startsWith('A')) return '#ef4444';
+  if (s.startsWith('B')) return '#3b82f6';
+  if (s.startsWith('C')) return '#eab308';
+  if (s.startsWith('D')) return '#22c55e';
+  return '#4a6b3a';
+}
+
+async function confirmCreateVersuch() {
+  const versuchsnr = (document.getElementById('imp-versuchsnr').value || '').trim();
+  const titel = (document.getElementById('imp-titel').value || '').trim();
+  if (!versuchsnr || !titel) { alert('Versuchsnr und Titel sind Pflichtfelder'); return; }
+
+  let treatments_json = (document.getElementById('imp-treatments').value || '').trim();
+  if (treatments_json) {
+    try { JSON.parse(treatments_json); } catch (e) { alert('Treatments JSON ungültig: ' + e.message); return; }
+  } else {
+    treatments_json = '[]';
+  }
+
+  const themenbereich = document.getElementById('imp-themenbereich').value || '';
+  const body = {
+    action: 'createVersuch',
+    versuchsnr,
+    titel,
+    asana_task_gid: (document.getElementById('imp-gid').value || '').trim(),
+    themenbereich,
+    themenfarbe: document.getElementById('import-modal').dataset.themenfarbe || themenbereichToFarbe(themenbereich),
+    hypothese: document.getElementById('imp-hypothese').value || '',
+    start_datum: document.getElementById('imp-start-datum').value || '',
+    baumart_kurz: document.getElementById('imp-baumart-kurz').value || '',
+    baumart_lat: document.getElementById('imp-baumart-lat').value || '',
+    ort: document.getElementById('imp-ort').value || 'Halle',
+    id_nummer: document.getElementById('imp-id-nummer').value || '',
+    treatments_json,
+    raster_cols: Number(document.getElementById('imp-raster-cols').value) || 4,
+    raster_rows: Number(document.getElementById('imp-raster-rows').value) || 6,
+    samen_pro_topf: Number(document.getElementById('imp-samen').value) || 36,
+    anzahl_trays: Number(document.getElementById('imp-trays').value) || 1,
+    az_geplant: Number(document.getElementById('imp-az').value) || 5
+  };
+
+  setSync('wait', 'lege Versuch an…');
+  try {
+    const res = await apiPost(body);
+    setSync('ok', 'angelegt');
+    toast('Versuch ' + versuchsnr + ' angelegt ✓');
+    closeImportModal();
+    await loadList();
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Versuch anlegen fehlgeschlagen', e.message);
+  }
+}
+
+// ========== AZ-Anzahl anpassen ==========
+function openAZPlanned() {
+  const v = state.currentVersuch;
+  const current = Number(v.az_geplant || 5);
+  const f = state.currentFortschritt || {};
+  const fertig = (f.az_status || []).filter(s => s === 'fertig').length;
+
+  const html = `
+    <div class="modal-head">
+      <h2>AZ-Runden anpassen</h2>
+      <span class="coord">${esc(v.versuchsnr)}</span>
+    </div>
+    <p style="margin-bottom:10px;font-size:13px">Aktuell geplant: <strong>${current}</strong></p>
+    <p style="margin-bottom:14px;font-size:13px">Bereits abgeschlossen: <strong>${fertig}</strong></p>
+    <p style="margin-bottom:8px;font-size:12px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em">Neue Anzahl:</p>
+    <div class="radio-grid">
+      ${[1,2,3,4,5].map(n => {
+        const selected = n === current ? 'selected' : '';
+        return `<button class="${selected}" onclick="chooseAZPlanned(${n})" id="azp-${n}">${n}</button>`;
+      }).join('')}
+    </div>
+    <div style="background:var(--bg-2);padding:10px;margin-top:14px;font-size:12px;line-height:1.5">
+      Bei Reduktion werden die entsprechenden AZ-Subtasks in Asana <strong>gelöscht</strong> (außer bereits abgeschlossene). Bei Erhöhung werden sie neu angelegt.<br>
+      Eingegebene Werte im Sheet bleiben erhalten.
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeAZPlanned()">Abbrechen</button>
+      <button class="primary" id="azp-confirm" onclick="confirmAZPlanned()">Übernehmen</button>
+    </div>
+  `;
+  document.getElementById('azplanned-modal').innerHTML = html;
+  document.getElementById('azplanned-overlay').classList.add('open');
+  state._azPlannedChoice = current;
+}
+function chooseAZPlanned(n) {
+  state._azPlannedChoice = n;
+  for (let i = 1; i <= 5; i++) {
+    const b = document.getElementById('azp-' + i);
+    if (b) b.classList.toggle('selected', i === n);
+  }
+}
+function closeAZPlanned() { document.getElementById('azplanned-overlay').classList.remove('open'); }
+async function confirmAZPlanned() {
+  const neueAnzahl = state._azPlannedChoice;
+  setSync('wait', 'aktualisiere …');
+  try {
+    const res = await apiPost({
+      action: 'updateAZGeplant',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      neueAnzahl
+    });
+    setSync('ok', 'aktualisiert');
+    let msg = `AZ-Runden: ${neueAnzahl}`;
+    if (res.asana && res.asana.geloescht && res.asana.geloescht.length) {
+      msg += ` · Asana: ${res.asana.geloescht.length} Subtask(s) gelöscht`;
+    }
+    if (res.asana && res.asana.erstellt && res.asana.erstellt.length) {
+      msg += ` · ${res.asana.erstellt.length} erstellt`;
+    }
+    toast(msg);
+    closeAZPlanned();
+    await loadVersuch(state.currentVersuch.versuchsnr);
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Aktualisierung fehlgeschlagen', e.message);
+  }
+}
+
+// ========== Asana-Kommentar ==========
+function openAsanaPreview() {
+  const v = state.currentVersuch;
+  const az = state.currentAZ;
+  const daten = state.currentDaten;
+  const treatments = v.treatments || [];
+  const samen = Number(v.samen_pro_topf || 36);
+
+  // Kurzstatistik
+  const rows = treatments.map(t => {
+    const werte = daten
+      .map(d => d['az' + az + '_zahl'])
+      .filter(x => x !== '' && x != null && x !== undefined && !isNaN(Number(x)))
+      .filter((x, i) => {
+        const d = daten[i];
+        return d && (d.treatment || '').split(/[\s(]/)[0] === t.code;
+      });
+    if (werte.length === 0) return { t, kf: null, cv: null };
+    const mean = werte.reduce((a, b) => a + b, 0) / werte.length;
+    const sd = werte.length > 1 ? Math.sqrt(werte.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / (werte.length - 1)) : 0;
+    return {
+      t,
+      mean: mean.toFixed(1),
+      kf: Math.round(mean / samen * 100),
+      cv: mean > 0 ? Math.round(sd / mean * 100) : 0,
+      n: werte.length
+    };
+  });
+
+  // Trend-Vorschlag
+  const withKF = rows.filter(r => r.kf !== null);
+  let trend = 'Keine Daten';
+  if (withKF.length >= 2) {
+    const sorted = [...withKF].sort((a, b) => b.kf - a.kf);
+    const hoechster = sorted[0];
+    const niedrigster = sorted[sorted.length - 1];
+    const diff = hoechster.kf - niedrigster.kf;
+    if (diff < 5) trend = 'Treatments liegen nah beieinander (Unterschied ' + diff + '%), kein klarer Effekt.';
+    else trend = `${hoechster.t.code} führt mit ${hoechster.kf}% KF gegenüber ${niedrigster.t.code} (${niedrigster.kf}%).`;
+  }
+
+  const bodyHTML = `<body>
+<strong>📊 AZ${az} – ${state.datum}</strong><br><br>
+<strong>Ergebnisse:</strong><br>
+${rows.map(r => r.kf === null
+  ? `• ${r.t.code} ${r.t.label}: keine Daten<br>`
+  : `• ${r.t.code} ${r.t.label}: Ø ${r.mean} Keimlinge = <strong>${r.kf}% KF</strong> (CV: ${r.cv}%)<br>`
+).join('')}
+<br>
+<strong>Trend:</strong> TREND_PLATZHALTER<br>
+<em>Benutzer: ${loadPref().benutzer || '—'}</em>
+</body>`;
+
+  const previewText = rows.map(r => r.kf === null
+    ? `• ${r.t.code} ${r.t.label}: keine Daten`
+    : `• ${r.t.code} ${r.t.label}: Ø ${r.mean} = ${r.kf}% KF (CV ${r.cv}%)`
+  ).join('\n');
+
+  const html = `
+    <div class="modal-head">
+      <h2>Asana-Kommentar</h2>
+      <span class="coord">${esc(v.versuchsnr)} · AZ${az}</span>
+    </div>
+    <pre style="background:var(--bg-2);padding:12px;font-size:12px;font-family:inherit;white-space:pre-wrap;margin-bottom:14px;border:1px solid var(--line)">📊 AZ${az} – ${state.datum}
+
+Ergebnisse:
+${previewText}
+
+Trend: <span id="trend-preview">${esc(trend)}</span></pre>
+    <div class="field">
+      <label for="trend-edit">Trend-Text anpassen</label>
+      <textarea id="trend-edit" style="width:100%;min-height:60px;padding:10px;font-family:inherit;font-size:14px;border:1.5px solid var(--line);background:var(--bg)" oninput="document.getElementById('trend-preview').textContent=this.value">${esc(trend)}</textarea>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeAsana()">Abbrechen</button>
+      <button class="primary" onclick="postAsana()">📋 Posten in Asana</button>
+    </div>
+  `;
+  document.getElementById('asana-modal').innerHTML = html;
+  document.getElementById('asana-overlay').classList.add('open');
+  state._asanaBodyTemplate = bodyHTML;
+}
+function closeAsana() { document.getElementById('asana-overlay').classList.remove('open'); }
+async function postAsana() {
+  const trend = document.getElementById('trend-edit').value.trim() || '—';
+  const html = state._asanaBodyTemplate.replace('TREND_PLATZHALTER', trend);
+  setSync('wait', 'poste …');
+  try {
+    const res = await apiPost({
+      action: 'postAsanaComment',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      az: state.currentAZ,
+      html
+    });
+    if (res.error) throw new Error(res.error);
+    setSync('ok', 'gepostet');
+    toast('Asana-Kommentar gepostet ✓');
+    closeAsana();
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Posten fehlgeschlagen', e.message);
+  }
+}
+
+// ========== Statistik-Hinweis ==========
+function openStatHint() {
+  const v = state.currentVersuch;
+  document.getElementById('stat-file').textContent = v.versuchsnr + '_' + (v.titel || '').slice(0, 30);
+  document.getElementById('stat-overlay').classList.add('open');
+}
+function closeStatHint() { document.getElementById('stat-overlay').classList.remove('open'); }
+
+// ========== QR-Codes ==========
+function showQRFuerVersuch(versuchsnr) {
+  const url = appUrlFor(versuchsnr);
+  document.getElementById('qr-title').textContent = 'QR · ' + versuchsnr;
+  document.getElementById('qr-big').src = qrImg(url, 400);
+  document.getElementById('qr-url-text').textContent = url;
+  document.getElementById('qr-overlay').classList.add('open');
+}
+function closeQR() { document.getElementById('qr-overlay').classList.remove('open'); }
+
+function showQRListe() {
+  const html = `
+    <div class="modal-head">
+      <h2>QR-Codes aller Versuche</h2>
+    </div>
+    <p style="margin-bottom:12px;font-size:12px;color:var(--ink-muted)">Scan → App öffnet direkt diesen Versuch. Ausdrucken, laminieren, am Topfträger anbringen.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${state.versuche.map(v => `
+        <div style="padding:10px;border:1px solid var(--line);background:var(--bg-2);text-align:center">
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${esc(v.versuchsnr)}</div>
+          <div style="font-size:10px;color:var(--ink-muted);margin-bottom:8px;line-height:1.3">${esc((v.titel||'').slice(0,40))}</div>
+          <img src="${qrImg(appUrlFor(v.versuchsnr), 200)}" style="width:100%;max-width:140px;background:white;padding:6px;border:1px solid var(--line)">
+        </div>
+      `).join('')}
+    </div>
+    <div class="modal-actions">
+      <button class="primary" onclick="closeQRList()">Schließen</button>
+    </div>
+  `;
+  document.getElementById('qrlist-modal').innerHTML = html;
+  document.getElementById('qrlist-overlay').classList.add('open');
+}
+function closeQRList() { document.getElementById('qrlist-overlay').classList.remove('open'); }
+
+// ========== Install-Banner ==========
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  state.deferredInstallPrompt = e;
+  if (!localStorage.getItem('kfk-install-dismissed')) {
+    document.getElementById('install-banner').classList.add('open');
+  }
+});
+document.getElementById('btn-install').addEventListener('click', async () => {
+  if (!state.deferredInstallPrompt) return;
+  state.deferredInstallPrompt.prompt();
+  await state.deferredInstallPrompt.userChoice;
+  document.getElementById('install-banner').classList.remove('open');
+  state.deferredInstallPrompt = null;
+});
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('open');
+  localStorage.setItem('kfk-install-dismissed', '1');
+}
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').classList.remove('open');
+});
+
+// ========== Service Worker ==========
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(err => console.warn('SW:', err));
+  });
+}
+
+window.addEventListener('online', () => { hideBanner(); if (state.view==='list') loadList(); else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true); });
+window.addEventListener('offline', () => setSync('err', 'offline'));
+
+// ========== ESC handler ==========
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    ['topf-overlay','abschluss-overlay','qr-overlay','azplanned-overlay','asana-overlay','stat-overlay','qrlist-overlay','versuch-ende-overlay','import-overlay'].forEach(id => {
+      document.getElementById(id).classList.remove('open');
+    });
+  }
+});
+
+// ========== Polling ==========
+function startPolling() {
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.pollTimer = setInterval(() => {
+    if (state.pendingSave) return;
+    if (!navigator.onLine) return;
+    // Keine Aktualisierung, wenn ein Modal offen ist
+    const anyOpen = ['topf-overlay','abschluss-overlay','qr-overlay','azplanned-overlay','asana-overlay','stat-overlay','qrlist-overlay','versuch-ende-overlay','import-overlay']
+      .some(id => document.getElementById(id).classList.contains('open'));
+    if (anyOpen) return;
+
+    if (state.view === 'list') loadList();
+    else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true);
+  }, POLL_INTERVAL);
+}
+
+// ========== Init ==========
+async function init() {
+  if (API_URL.startsWith('__') || !/^https?:\/\//.test(API_URL)) {
+    document.getElementById('app-content').innerHTML = `
+      <header><div class="title-block"><h1>KFK-Tracker</h1>
+      <div class="sub">Skyseed</div></div></header>
+      <div class="banner open"><strong>API nicht konfiguriert</strong>
+      Die Apps-Script-Webapp-URL fehlt. In der Datei <code>index.html</code> oben im &lt;script&gt;-Block die Zeile
+      <code>const API_URL = '__APPS_SCRIPT_URL__'</code> durch deine Webapp-URL ersetzen und die Seite neu hosten.</div>
+    `;
+    return;
+  }
+
+  // URL-Parameter beachten für Deep-Link per QR
+  const params = new URLSearchParams(window.location.search);
+  const versuchsParam = params.get('versuch');
+
+  await loadList();
+  if (versuchsParam) {
+    openVersuch(versuchsParam);
+  }
+  startPolling();
+}
+
+init();
+</script>
+</body>
+</html>

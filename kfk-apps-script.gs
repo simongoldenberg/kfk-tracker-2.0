@@ -647,6 +647,8 @@ function testAuswertungsBericht(versuchsnr) {
   Logger.log(html);
   return html;
 }
+// Direkt im Editor per Dropdown ausfuehrbar (kein Argument noetig):
+function testAuswertungsBericht_026_033() { return testAuswertungsBericht('26_033'); }
 
 function markVersuchAbgeschlossen(body) {
   const indexSheet = getIndexSheet();

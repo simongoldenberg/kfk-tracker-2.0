@@ -592,32 +592,13 @@ function archiveVersuch(body) {
  *
  * body: { versuchsnr, finalKommentarHtml }
  */
-function markVersuchAbgeschlossen(body) {
-  const indexSheet = getIndexSheet();
-  const data = indexSheet.getDataRange().getValues();
-  const headers = data[0];
-  const cIdx = {};
-  headers.forEach((h, i) => { cIdx[String(h).trim()] = i; });
 
-  let rowIdx = -1;
-  let asanaGid = '';
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][cIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) {
-      rowIdx = i + 1;
-      asanaGid = String(data[i][cIdx[INDEX_COLS.asana_task_gid]] || '');
-      break;
-    }
-  }
-  if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
-
-  // Status im Index auf "Abgeschlossen"
-  indexSheet.getRange(rowIdx, cIdx[INDEX_COLS.status] + 1).setValue('Abgeschlossen');
-  SpreadsheetApp.flush();
-
-  // Versuch + Statistik aus Daten-Sheet berechnen
-  const allV = readIndex();
-  const v = allV.find(x => String(x.versuchsnr) === String(body.versuchsnr));
-
+// Baut den vollstaendigen Auswertungsbericht (Kontext-Header + Client-Trend/
+// Bemerkung + Statistik/ANOVA) als ein <body>...</body>-HTML-Fragment.
+// Ausgelagert aus markVersuchAbgeschlossen, damit testAuswertungsBericht()
+// denselben Bericht ohne jede Seiteneffekte (kein Asana, kein Status-Wechsel)
+// erzeugen und im Ausfuehrungsprotokoll pruefen kann.
+function buildVersuchsberichtHtml_(v, clientFinalKommentarHtml) {
   let statistikHtml = '';
   try {
     if (v && v.sheet_file_id) {
@@ -649,10 +630,50 @@ function markVersuchAbgeschlossen(body) {
 
   // Client-Kommentar (Trend + Bemerkung) von aussenliegenden <body>-Tags befreien,
   // damit Header + Kommentar + Statistik zu einem einzigen validen Block werden.
-  const clientHtml = String(body.finalKommentarHtml || '')
+  const clientHtml = String(clientFinalKommentarHtml || '')
     .replace(/^\s*<body>/i, '')
     .replace(/<\/body>\s*$/i, '');
-  const fullReportHtml = '<body>' + headerHtml + clientHtml + statistikHtml + '</body>';
+  return '<body>' + headerHtml + clientHtml + statistikHtml + '</body>';
+}
+
+// GEFAHRLOSER Dry-Run-Test: baut den Auswertungsbericht fuer versuchsnr und
+// loggt ihn nur (Logger.log) – postet NICHTS zu Asana, aendert KEINEN Status.
+// Zum Pruefen der Berichts-Formatierung vor einem echten Abschluss.
+function testAuswertungsBericht(versuchsnr) {
+  const allV = readIndex();
+  const v = allV.find(x => String(x.versuchsnr) === String(versuchsnr));
+  if (!v) { Logger.log('Versuch nicht gefunden: ' + versuchsnr); return; }
+  const html = buildVersuchsberichtHtml_(v, '');
+  Logger.log(html);
+  return html;
+}
+
+function markVersuchAbgeschlossen(body) {
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const cIdx = {};
+  headers.forEach((h, i) => { cIdx[String(h).trim()] = i; });
+
+  let rowIdx = -1;
+  let asanaGid = '';
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][cIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) {
+      rowIdx = i + 1;
+      asanaGid = String(data[i][cIdx[INDEX_COLS.asana_task_gid]] || '');
+      break;
+    }
+  }
+  if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  // Status im Index auf "Abgeschlossen"
+  indexSheet.getRange(rowIdx, cIdx[INDEX_COLS.status] + 1).setValue('Abgeschlossen');
+  SpreadsheetApp.flush();
+
+  // Versuch + vollstaendigen Bericht (Header + Trend/Bemerkung + Statistik) bauen
+  const allV = readIndex();
+  const v = allV.find(x => String(x.versuchsnr) === String(body.versuchsnr));
+  const fullReportHtml = buildVersuchsberichtHtml_(v, body.finalKommentarHtml || '');
 
   let asanaResult = { info: 'keine Asana-Verbindung' };
   if (asanaGid && ASANA_PAT && !ASANA_PAT.startsWith('__')) {

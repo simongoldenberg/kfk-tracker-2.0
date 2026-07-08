@@ -141,6 +141,8 @@ function doPost(e) {
         return json(postAsanaComment(body));
       case 'markVersuchAbgeschlossen':
         return json(markVersuchAbgeschlossen(body));
+      case 'archiveVersuch':
+        return json(archiveVersuch(body));
       case 'createVersuch':
         return json(createVersuchInIndex(body));
       case 'field_saveParzelle':
@@ -557,6 +559,31 @@ function postAsanaComment(body) {
 }
 
 /**
+ * Schnelles Archivieren direkt aus der Uebersicht: setzt nur den Status auf
+ * "Archiviert" (kein Statistik-Post, keine Asana-Aenderung). Fuer den
+ * vollstaendigen Abschluss inkl. Auswertung siehe markVersuchAbgeschlossen().
+ * body: { versuchsnr }
+ */
+function archiveVersuch(body) {
+  if (!body || !body.versuchsnr) return { error: 'versuchsnr fehlt' };
+
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const cIdx = {};
+  headers.forEach((h, i) => { cIdx[String(h).trim()] = i; });
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][cIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) {
+      indexSheet.getRange(i + 1, cIdx[INDEX_COLS.status] + 1).setValue('Archiviert');
+      SpreadsheetApp.flush();
+      return { ok: true, versuchsnr: body.versuchsnr, status: 'Archiviert' };
+    }
+  }
+  return { error: 'Versuch nicht gefunden: ' + body.versuchsnr };
+}
+
+/**
  * Markiert einen Versuch als VOLLSTAENDIG ABGESCHLOSSEN:
  *   - Status im Index auf "Abgeschlossen" setzen
  *   - ANOVA + eta^2 + CV aus Daten-Sheet berechnen und an Kommentar anhaengen
@@ -587,11 +614,12 @@ function markVersuchAbgeschlossen(body) {
   indexSheet.getRange(rowIdx, cIdx[INDEX_COLS.status] + 1).setValue('Abgeschlossen');
   SpreadsheetApp.flush();
 
-  // Statistik aus Daten-Sheet berechnen
+  // Versuch + Statistik aus Daten-Sheet berechnen
+  const allV = readIndex();
+  const v = allV.find(x => String(x.versuchsnr) === String(body.versuchsnr));
+
   let statistikHtml = '';
   try {
-    const allV = readIndex();
-    const v = allV.find(x => String(x.versuchsnr) === String(body.versuchsnr));
     if (v && v.sheet_file_id) {
       const daten = readDaten(v);
       statistikHtml = buildStatistikHtml(v, daten);
@@ -601,27 +629,67 @@ function markVersuchAbgeschlossen(body) {
     statistikHtml = '<br><em>Statistik-Berechnung fehlgeschlagen: ' + String(e) + '</em>';
   }
 
-  // Statistik an finalen Kommentar anhaengen
-  let finalHtml = body.finalKommentarHtml || '';
-  if (statistikHtml) {
-    finalHtml = finalHtml
-      ? finalHtml.replace('</body>', statistikHtml + '</body>')
-      : '<body>' + statistikHtml + '</body>';
+  // Kontext-Header, damit der Bericht auch ohne Tracker-Zugriff verstaendlich ist
+  // (z.B. wenn man Claude nur den Asana-Task-Link gibt und "werte das aus" sagt).
+  let headerHtml = '';
+  if (v) {
+    const treatLegend = (v.treatments || [])
+      .map(t => escHtml_(t.code) + ' = ' + escHtml_(t.label || ''))
+      .join('<br>');
+    headerHtml =
+      '<strong>📋 ' + escHtml_(v.versuchsnr) + ' · ' + escHtml_(v.titel || '') + '</strong><br>' +
+      (v.baumart_lat || v.baumart_kurz
+        ? 'Art: ' + escHtml_(v.baumart_lat || '') + (v.baumart_kurz ? ' (' + escHtml_(v.baumart_kurz) + ')' : '') + '<br>'
+        : '') +
+      (v.hypothese ? 'Hypothese: ' + escHtml_(v.hypothese) + '<br>' : '') +
+      'Design: ' + (v.anzahl_trays || 1) + ' Tray(s) · ' + (v.raster_cols || 4) + '×' + (v.raster_rows || 6) +
+      ' Raster · ' + (v.samen_pro_topf || 36) + ' Samen/Topf<br>' +
+      (treatLegend ? 'Treatments:<br>' + treatLegend + '<br>' : '') + '<br>';
   }
+
+  // Client-Kommentar (Trend + Bemerkung) von aussenliegenden <body>-Tags befreien,
+  // damit Header + Kommentar + Statistik zu einem einzigen validen Block werden.
+  const clientHtml = String(body.finalKommentarHtml || '')
+    .replace(/^\s*<body>/i, '')
+    .replace(/<\/body>\s*$/i, '');
+  const fullReportHtml = '<body>' + headerHtml + clientHtml + statistikHtml + '</body>';
 
   let asanaResult = { info: 'keine Asana-Verbindung' };
   if (asanaGid && ASANA_PAT && !ASANA_PAT.startsWith('__')) {
     try {
-      if (finalHtml) {
-        const url = 'https://app.asana.com/api/1.0/tasks/' + asanaGid + '/stories';
-        UrlFetchApp.fetch(url, {
+      const sub = postAuswertungToAsana_(asanaGid, fullReportHtml);
+      asanaResult = { ok: true, subtaskGid: sub.gid, subtaskCreated: sub.created };
+      try {
+        UrlFetchApp.fetch('https://app.asana.com/api/1.0/tasks/' + asanaGid + '/stories', {
           method: 'post',
           contentType: 'application/json',
           headers: { Authorization: 'Bearer ' + ASANA_PAT },
-          payload: JSON.stringify({ data: { html_text: finalHtml } }),
+          payload: JSON.stringify({
+            data: { html_text: '<body>✅ Versuch abgeschlossen. Vollständige Auswertung siehe Subtask „' +
+                    AUSWERTUNG_SUBTASK_NAME + '".</body>' }
+          }),
           muteHttpExceptions: true
         });
+      } catch (e2) { /* Hinweis-Kommentar ist nicht kritisch */ }
+    } catch (e) {
+      // Fallback: Bericht direkt auf den Haupttask posten, damit die Auswertung
+      // nicht verloren geht, falls die Subtask-Erstellung fehlschlaegt.
+      Logger.log('Auswertungs-Subtask fehlgeschlagen, Fallback auf Haupttask: ' + e);
+      try {
+        UrlFetchApp.fetch('https://app.asana.com/api/1.0/tasks/' + asanaGid + '/stories', {
+          method: 'post',
+          contentType: 'application/json',
+          headers: { Authorization: 'Bearer ' + ASANA_PAT },
+          payload: JSON.stringify({ data: { html_text: fullReportHtml } }),
+          muteHttpExceptions: true
+        });
+        asanaResult = { ok: true, fallback: true, info: 'Subtask fehlgeschlagen, auf Haupttask gepostet: ' + String(e.message || e) };
+      } catch (e3) {
+        asanaResult = { error: String(e3) };
       }
+    }
+
+    try {
       const updRes = UrlFetchApp.fetch('https://app.asana.com/api/1.0/tasks/' + asanaGid, {
         method: 'put',
         contentType: 'application/json',
@@ -629,13 +697,76 @@ function markVersuchAbgeschlossen(body) {
         payload: JSON.stringify({ data: { completed: true } }),
         muteHttpExceptions: true
       });
-      asanaResult = { ok: updRes.getResponseCode() < 300, code: updRes.getResponseCode() };
+      asanaResult.mainTaskCompleted = updRes.getResponseCode() < 300;
     } catch (e) {
-      asanaResult = { error: String(e) };
+      asanaResult.mainTaskCompletedError = String(e);
     }
   }
 
   return { ok: true, versuchsnr: body.versuchsnr, asana: asanaResult };
+}
+
+// Escaped &, < und > fuer Asana html_text (verhindert kaputtes Markup durch
+// Sonderzeichen in Titel/Hypothese/Labels).
+function escHtml_(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// Name des Subtasks, in den beim Abschluss die vollstaendige Auswertung
+// gepostet wird (siehe markVersuchAbgeschlossen / postAuswertungToAsana_).
+const AUSWERTUNG_SUBTASK_NAME = 'Auswertung & Bericht';
+
+// Findet einen Subtask mit exakt passendem Namen (case-insensitiv) unter
+// taskGid, oder legt ihn neu an. Gibt { gid, created } zurueck.
+function findOrCreateAsanaSubtask_(taskGid, name) {
+  const listRes = UrlFetchApp.fetch(
+    'https://app.asana.com/api/1.0/tasks/' + taskGid + '/subtasks?opt_fields=name,completed',
+    { method: 'get', headers: { Authorization: 'Bearer ' + ASANA_PAT }, muteHttpExceptions: true }
+  );
+  if (listRes.getResponseCode() !== 200) {
+    throw new Error('Subtask-Liste fehlgeschlagen: ' + listRes.getContentText().substring(0, 300));
+  }
+  const subtasks = JSON.parse(listRes.getContentText()).data || [];
+  const needle = name.trim().toLowerCase();
+  const found = subtasks.find(s => String(s.name || '').trim().toLowerCase() === needle);
+  if (found) return { gid: found.gid, created: false };
+
+  const createRes = UrlFetchApp.fetch('https://app.asana.com/api/1.0/tasks', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + ASANA_PAT },
+    payload: JSON.stringify({ data: { name: name, parent: taskGid, projects: [ASANA_PROJECT_GID] } }),
+    muteHttpExceptions: true
+  });
+  if (createRes.getResponseCode() >= 300) {
+    throw new Error('Subtask-Erstellung fehlgeschlagen: ' + createRes.getContentText().substring(0, 300));
+  }
+  const created = JSON.parse(createRes.getContentText()).data;
+  return { gid: created.gid, created: true };
+}
+
+// Postet den vollstaendigen Auswertungsbericht in den (ggf. neu angelegten)
+// Subtask "Auswertung & Bericht" und markiert diesen als erledigt.
+function postAuswertungToAsana_(taskGid, htmlContent) {
+  const sub = findOrCreateAsanaSubtask_(taskGid, AUSWERTUNG_SUBTASK_NAME);
+  UrlFetchApp.fetch('https://app.asana.com/api/1.0/tasks/' + sub.gid + '/stories', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + ASANA_PAT },
+    payload: JSON.stringify({ data: { html_text: htmlContent } }),
+    muteHttpExceptions: true
+  });
+  UrlFetchApp.fetch('https://app.asana.com/api/1.0/tasks/' + sub.gid, {
+    method: 'put',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + ASANA_PAT },
+    payload: JSON.stringify({ data: { completed: true } }),
+    muteHttpExceptions: true
+  });
+  return sub;
 }
 
 function syncAsanaAZSubtasks(taskGid, neueAnzahl, alteAnzahl) {
@@ -1075,6 +1206,17 @@ function fetchAsanaTask_(taskGid) {
   return JSON.parse(res.getContentText()).data;
 }
 
+// Parst das "art"-Feld des KFK-DATA-Blocks, z.B. "Cannabis sativa (Hanf)"
+// -> { lat: "Cannabis sativa", kurz: "Hanf" }. Ohne Klammern: kompletter
+// String als baumart_lat, kurz bleibt leer (kein Raten der Abkuerzung).
+function parseArtField_(art) {
+  var s = String(art || '').trim();
+  if (!s) return { lat: '', kurz: '' };
+  var m = s.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (m) return { lat: m[1].trim(), kurz: m[2].trim() };
+  return { lat: s, kurz: '' };
+}
+
 // Prefill fuers Anlege-Formular – aus dem Doc-JSON statt aus den Asana-Notizen.
 // Asana wird nur genutzt, um die Protokoll-Doc-URL zu finden.
 function importVersuchFromDoc(taskGid) {
@@ -1094,6 +1236,7 @@ function importVersuchFromDoc(taskGid) {
   var treatments = (data.treatments || []).map(function(t) {
     return { code: t.code, color: t.color || '', label: t.label || '' };
   });
+  var artParsed = parseArtField_(data.art);
 
   return {
     ok: true,
@@ -1106,6 +1249,8 @@ function importVersuchFromDoc(taskGid) {
       themenbereich:   data.themenbereich || '',
       start_datum:     data.start_datum || '',
       hypothese:       data.hypothese || '',
+      baumart_lat:     artParsed.lat,
+      baumart_kurz:    artParsed.kurz,
       treatments_json: treatments.length ? JSON.stringify(treatments) : '',
       anzahl_trays:    data.anzahl_trays   != null ? Number(data.anzahl_trays)   : null,
       raster_cols:     data.raster_cols    != null ? Number(data.raster_cols)    : null,

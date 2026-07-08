@@ -1187,6 +1187,9 @@ function testImportRbd() {
 function testImportRbdDoc() {
   Logger.log(JSON.stringify(importRbdFromDoc('26_033')));
 }
+function testImportRbdDoc_032() {
+  Logger.log(JSON.stringify(importRbdFromDoc('26_032')));
+}
 // Smoke-Test des Doc-Imports OHNE Index-Eintrag: liest den KFK-DATA-Block
 // direkt aus dem 26_033-Protokoll-Doc. Loest beim ersten Lauf die einmalige
 // 'documents'-Autorisierung aus und prueft das Parsen (Treatments/RBD).
@@ -1345,7 +1348,22 @@ function createVersuchInIndex(body) {
   SpreadsheetApp.flush();
 
   const setupResult = setupSingleVersuch(String(body.versuchsnr));
-  return { ok: true, versuchsnr: body.versuchsnr, ...setupResult };
+
+  // Auto-RBD: Wenn ein verknuepftes Protokoll-Doc mit rbd-Array existiert,
+  // gleich Treatments/Farben ins Daten-Sheet schreiben (sonst bliebe das
+  // Raster leer und muesste manuell importiert werden). Bricht sauber ab,
+  // wenn kein Doc/RBD vorhanden ist (z.B. manuell angelegte Versuche).
+  var rbdResult = null;
+  if (body.asana_task_gid) {
+    try {
+      const r = importRbdFromDoc(String(body.versuchsnr));
+      rbdResult = (r && r.ok) ? r : { skipped: true, info: (r && r.error) || 'kein RBD importiert' };
+    } catch (e) {
+      rbdResult = { skipped: true, info: String(e.message || e) };
+    }
+  }
+
+  return { ok: true, versuchsnr: body.versuchsnr, ...setupResult, rbd: rbdResult };
 }
 
 function setupSingleVersuch(versuchsnr) {

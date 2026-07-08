@@ -15,6 +15,13 @@ Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
 4. Beim Apps-Script-Deploy: `clasp push` dann
    `clasp deploy --deploymentId <ID>` (bestehende Bereitstellung
    aktualisieren, NICHT neu anlegen — sonst aendert sich die Webapp-URL).
+   ACHTUNG: Wurde ein NEUER OAuth-Scope ergaenzt (z.B. documents fuer
+   DocumentApp), erneuert `clasp deploy` die Web-App-Autorisierung NICHT
+   -> Web-App liefert 404 fuer alle. Fix: einmalig ueber die UI neu
+   bereitstellen: Bereitstellen -> Bereitstellungen verwalten -> Stift ->
+   Version "Neue Version" -> Bereitstellen, dabei Autorisierung zulassen.
+   Zugriff-Dropdown "Jeder" = anonym (richtig fuer die PWA); "Jeder mit
+   einem Google-Konto" = Login noetig (falsch, PWA-fetch bekaeme 404).
 5. ASANA_PAT niemals im Code — liegt in den Skripteigenschaften
    (Projekteinstellungen -> Skripteigenschaften, Schluessel 'ASANA_PAT').
    Setzen/Rotieren via setupAsanaPat() oder direkt im UI.

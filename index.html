@@ -1099,6 +1099,22 @@ async function loadArchiv() {
   }
 }
 
+// Schnelles Archivieren direkt aus der Uebersichtskarte (ohne vollstaendigen
+// Abschluss/Statistik/Asana-Post – siehe confirmVersuchEnde fuer den vollen Ablauf).
+async function quickArchive(versuchsnr) {
+  if (!confirm('Versuch ' + versuchsnr + ' ins Archiv verschieben?\n(Kein Abschluss-Bericht, nur aus der Übersicht ausblenden.)')) return;
+  setSync('wait', 'archiviere…');
+  try {
+    await apiPost({ action: 'archiveVersuch', versuchsnr });
+    toast('Versuch ' + versuchsnr + ' archiviert 📦');
+    setSync('ok', 'sync ' + timeNow());
+    await loadList();
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Archivieren fehlgeschlagen', e.message);
+  }
+}
+
 async function loadVersuch(versuchsnr, silent) {
   if (!silent) setSync('wait', 'lade…');
   try {
@@ -1212,6 +1228,7 @@ function cardHTML(v) {
       <div class="head">
         <span class="chip" style="background:${v.themenfarbe || '#4a6b3a'}">${esc(shortBereich(v.themenbereich))}</span>
         <span class="nr">${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="nr-id">ID ${esc(v.id_nummer)}</span>` : ''}</span>
+        <button class="archive-btn" title="Direkt archivieren" onclick="event.stopPropagation();quickArchive('${esc(v.versuchsnr)}')" style="margin-left:auto;background:none;border:none;font-size:15px;cursor:pointer;padding:2px 6px;line-height:1">📦</button>
         <span class="arrow">▶</span>
       </div>
       <div class="titel">${esc(v.titel || '—')}</div>
@@ -2337,6 +2354,8 @@ async function previewAsanaTask() {
     if (p.themenbereich) document.getElementById('imp-themenbereich').value = p.themenbereich;
     if (p.start_datum) document.getElementById('imp-start-datum').value = p.start_datum;
     if (p.hypothese) document.getElementById('imp-hypothese').value = p.hypothese;
+    if (p.baumart_lat) document.getElementById('imp-baumart-lat').value = p.baumart_lat;
+    if (p.baumart_kurz) document.getElementById('imp-baumart-kurz').value = p.baumart_kurz;
     if (p.treatments_json) document.getElementById('imp-treatments').value = p.treatments_json;
     if (p.anzahl_trays != null) document.getElementById('imp-trays').value = p.anzahl_trays;
     if (p.raster_cols != null) document.getElementById('imp-raster-cols').value = p.raster_cols;

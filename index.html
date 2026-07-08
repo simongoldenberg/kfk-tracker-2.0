@@ -2400,8 +2400,17 @@ async function confirmCreateVersuch() {
   setSync('wait', 'lege Versuch an…');
   try {
     const res = await apiPost(body);
+    if (res && res.error) throw new Error(res.error);
     setSync('ok', 'angelegt');
-    toast('Versuch ' + versuchsnr + ' angelegt ✓');
+    // Auto-RBD-Ergebnis aus dem Backend zurueckmelden
+    const rbd = res && res.rbd;
+    if (rbd && rbd.ok) {
+      toast('Versuch ' + versuchsnr + ' angelegt ✓ · RBD: ' + rbd.assignedCount + '/' + rbd.totalRows + ' Töpfe belegt');
+    } else if (rbd && rbd.skipped) {
+      toast('Versuch ' + versuchsnr + ' angelegt ✓ · RBD nicht automatisch importiert');
+    } else {
+      toast('Versuch ' + versuchsnr + ' angelegt ✓');
+    }
     closeImportModal();
     await loadList();
   } catch (e) {

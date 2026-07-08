@@ -1187,6 +1187,17 @@ function testImportRbd() {
 function testImportRbdDoc() {
   Logger.log(JSON.stringify(importRbdFromDoc('26_033')));
 }
+// Smoke-Test des Doc-Imports OHNE Index-Eintrag: liest den KFK-DATA-Block
+// direkt aus dem 26_033-Protokoll-Doc. Loest beim ersten Lauf die einmalige
+// 'documents'-Autorisierung aus und prueft das Parsen (Treatments/RBD).
+function testDocImport_033() {
+  var data = readKfkDataFromDoc_('1RFDxlCqWxdSR39GS2IgaZNoVdlDfBoEDiq_d5MJBrtY');
+  Logger.log('schema=' + data.schema + ' | versuchsnr=' + data.versuchsnr +
+             ' | treatments=' + (data.treatments || []).length +
+             ' | rbd-Eintraege=' + (data.rbd || []).length);
+  Logger.log(JSON.stringify(data.treatments));
+  return data;
+}
 
 // ========== EINMALIGE RBD-PATCHES (hard-kodiert aus Protokoll) ==========
 

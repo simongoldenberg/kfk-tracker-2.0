@@ -663,6 +663,14 @@
     color: var(--ink-muted);
     margin-top: 8px;
   }
+  .value-display .plaus-warn {
+    font-size: 18px;
+    color: var(--warn);
+    font-weight: 600;
+    margin-top: 8px;
+    border-top: 1.5px dashed var(--warn);
+    padding-top: 8px;
+  }
 
   .numpad {
     display: grid;
@@ -1215,8 +1223,56 @@ function setSync(which, label) {
   const dot = document.getElementById('sync-dot');
   const lbl = document.getElementById('sync-label');
   if (!dot || !lbl) return;
-  dot.className = 'sync-dot' + (which === 'wait' ? ' wait' : which === 'err' ? ' err' : '');
-  lbl.textContent = label;
+  const pending = loadOfflineQueue().length;
+  dot.className = 'sync-dot' + (which === 'wait' || pending > 0 ? ' wait' : which === 'err' ? ' err' : '');
+  lbl.textContent = (which === 'ok' && pending > 0) ? `${label} · ${pending} ausstehend` : label;
+}
+
+// ========== Offline-Warteschlange (fuer saveTopf) ==========
+// Speichert fehlgeschlagene/offline saveTopf-Aufrufe in localStorage und sendet
+// sie automatisch nach, sobald wieder eine Verbindung besteht. Verhindert, dass
+// im Growzelt bei Funklöchern eingetippte Zählwerte verloren gehen.
+const OFFLINE_QUEUE_KEY = 'kfk_offline_queue';
+
+function loadOfflineQueue() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function saveOfflineQueueRaw(q) {
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
+}
+function enqueueOfflineSave(payload) {
+  const q = loadOfflineQueue();
+  q.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), payload });
+  saveOfflineQueueRaw(q);
+  setSync('wait', q.length + (q.length === 1 ? ' Wert wartet auf Sync' : ' Werte warten auf Sync'));
+  scheduleOfflineFlush();
+}
+let offlineFlushRunning = false;
+async function flushOfflineQueue() {
+  if (offlineFlushRunning || !navigator.onLine) return;
+  offlineFlushRunning = true;
+  try {
+    let q = loadOfflineQueue();
+    while (q.length > 0) {
+      try {
+        await apiPost(q[0].payload);
+      } catch (e) {
+        break; // Reihenfolge wahren: Rest bleibt gequeued, naechster Versuch spaeter
+      }
+      q.shift();
+      saveOfflineQueueRaw(q);
+    }
+    if (q.length === 0) setSync('ok', 'sync ' + timeNow());
+    else setSync('wait', q.length + (q.length === 1 ? ' Wert wartet auf Sync' : ' Werte warten auf Sync'));
+  } finally {
+    offlineFlushRunning = false;
+  }
+}
+let offlineFlushTimer = null;
+function scheduleOfflineFlush() {
+  if (offlineFlushTimer) return;
+  offlineFlushTimer = setTimeout(() => { offlineFlushTimer = null; flushOfflineQueue(); }, 1500);
 }
 
 // ========== Screen 1: Liste ==========
@@ -1875,6 +1931,24 @@ function findTopfDaten(topf, tray) {
   return state.currentDaten.find(x => x.topf === topf);
 }
 
+// Warnt (blockiert nicht), wenn ein AZ-Wert niedriger ist als der hoechste Wert einer
+// frueheren AZ-Runde desselben Topfes — Anzeichen fuer vergessenes Ziehen der Keimlinge.
+function plausibilityWarning(az, val, d) {
+  if (val === '' || val == null) return '';
+  const cur = Number(val);
+  let maxPrev = null;
+  for (let a = 1; a < Number(az); a++) {
+    const pv = d['az' + a + '_zahl'];
+    if (pv !== '' && pv != null && pv !== undefined && !isNaN(Number(pv))) {
+      if (maxPrev === null || Number(pv) > maxPrev) maxPrev = Number(pv);
+    }
+  }
+  if (maxPrev !== null && cur < maxPrev) {
+    return `⚠️ Niedriger als AZ-Vorwert (${maxPrev}) — Keimlinge vergessen zu ziehen?`;
+  }
+  return '';
+}
+
 function renderTopfModal() {
   const topf = state.currentTopf;
   const tray = state.currentTray;
@@ -1888,6 +1962,7 @@ function renderTopfModal() {
   const val = (currentVal !== '' && currentVal != null && currentVal !== undefined) ? String(currentVal) : '';
   const samen = Number(v.samen_pro_topf || 36);
   const kf = val ? Math.round(Number(val) / samen * 100) : null;
+  const warnMsg = plausibilityWarning(az, val, d);
 
   const topfCount = state.currentDaten.length;
 
@@ -1902,6 +1977,7 @@ function renderTopfModal() {
     <div class="value-display">
       <div class="num ${val===''?'empty':''}" id="input-val">${val || '—'}</div>
       <div class="kf">${val!=='' ? `${val} von ${samen} Samen → <strong>${kf}% KF</strong>` : `Max. ${samen} Samen`}</div>
+      <div class="plaus-warn" id="plaus-warn" style="${warnMsg ? '' : 'display:none'}">${esc(warnMsg)}</div>
     </div>
 
     <div class="numpad">
@@ -1979,6 +2055,13 @@ function updateKF() {
     const kf = Math.round(Number(cur) / samen * 100);
     kfEl.innerHTML = `${cur} von ${samen} Samen → <strong>${kf}% KF</strong>`;
   }
+  const warnEl = document.getElementById('plaus-warn');
+  if (warnEl) {
+    const d = findTopfDaten(state.currentTopf, state.currentTray) || {};
+    const msg = (!cur || cur === '—') ? '' : plausibilityWarning(state.currentAZ, cur, d);
+    warnEl.textContent = msg;
+    warnEl.style.display = msg ? '' : 'none';
+  }
 }
 
 function saveTopfValue(isDelete) {
@@ -2012,9 +2095,16 @@ function saveTopfValue(isDelete) {
   }).then(() => {
     setSync('ok', 'gespeichert');
     toast(isDelete ? 'Topf geleert' : 'Gespeichert');
-  }).catch((e) => {
-    setSync('err', 'Speichern fehlgeschlagen');
-    showBanner('Topf ' + topf + ' nicht gespeichert', e.message + ' · Wert lokal vorhanden, App neu laden für Sync.');
+  }).catch(() => {
+    enqueueOfflineSave({
+      action: 'saveTopf',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      topf, tray: tray || undefined, az,
+      zahl: val === '' ? null : Number(val),
+      datum: state.datum,
+      benutzer: loadPref().benutzer || ''
+    });
+    toast((isDelete ? 'Topf geleert' : 'Gespeichert') + ' (wird nachgesendet, sobald online)');
   });
 }
 
@@ -2057,9 +2147,28 @@ async function saveAndNav(nextTopf) {
     renderDetail();
     document.getElementById('topf-overlay').classList.add('open'); // Modal offen lassen
   } catch (e) {
+    // Wie im Erfolgsfall lokal uebernehmen + weiternavigieren, Sync per Warteschlange nachholen
+    const d = findTopfDaten(topf, tray);
+    if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+    enqueueOfflineSave({
+      action: 'saveTopf',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      topf, tray: tray || undefined, az,
+      zahl: val === '' ? null : Number(val),
+      datum: state.datum,
+      benutzer: loadPref().benutzer || ''
+    });
     state.pendingSave = false;
-    setSync('err', 'Fehler');
-    toast('Fehler: ' + e.message);
+    toast('Gespeichert (wird nachgesendet, sobald online)');
+
+    state.currentTopf = nextTopf;
+    if (tray != null) {
+      const next = findTopfDaten(nextTopf, tray);
+      if (!next) state.currentTray = null;
+    }
+    renderTopfModal();
+    renderDetail();
+    document.getElementById('topf-overlay').classList.add('open');
   }
 }
 
@@ -2715,7 +2824,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-window.addEventListener('online', () => { hideBanner(); if (state.view==='list') loadList(); else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true); });
+window.addEventListener('online', () => { hideBanner(); flushOfflineQueue(); if (state.view==='list') loadList(); else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true); });
 window.addEventListener('offline', () => setSync('err', 'offline'));
 
 // ========== ESC handler ==========
@@ -2731,6 +2840,7 @@ document.addEventListener('keydown', (e) => {
 function startPolling() {
   if (state.pollTimer) clearInterval(state.pollTimer);
   state.pollTimer = setInterval(() => {
+    if (loadOfflineQueue().length > 0) flushOfflineQueue();
     if (state.pendingSave) return;
     if (!navigator.onLine) return;
     // Keine Aktualisierung, wenn ein Modal offen ist
@@ -2760,6 +2870,7 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const versuchsParam = params.get('versuch');
 
+  if (loadOfflineQueue().length > 0) flushOfflineQueue();
   await loadList();
   if (versuchsParam) {
     openVersuch(versuchsParam);

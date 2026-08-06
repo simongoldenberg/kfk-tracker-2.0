@@ -128,6 +128,10 @@ function doPost(e) {
     const body = JSON.parse(e.postData.contents);
     const action = body.action;
 
+    // Jeder schreibende Call invalidiert sofort den kurzlebigen get-Cache
+    // fuer diesen Versuch (siehe getVersuch/VERSUCH_CACHE_TTL_SEC).
+    if (body.versuchsnr) invalidateVersuchCache_(body.versuchsnr);
+
     switch (action) {
       case 'saveTopf':
         return json(saveTopf(body));
@@ -235,15 +239,39 @@ function listVersuche() {
   return { versuche: versucheMitFortschritt, anzahl: versucheMitFortschritt.length };
 }
 
+// Kurzes Caching: readDaten() oeffnet per SpreadsheetApp.openById() ein fremdes
+// Sheet - das ist der dominante Latenz-Faktor bei 'get' (mehrfache Sekunden bei
+// ungluecklichem Timing). Ein kurzlebiger Cache reduziert wiederholte Reads
+// (Polling, mehrere Tabs) fast auf 0, ohne echte Frische zu verlieren: jeder
+// schreibende POST-Call invalidiert den Eintrag sofort (siehe doPost).
+const VERSUCH_CACHE_TTL_SEC = 8;
+
+function versuchCacheKey_(versuchsnr) {
+  return 'getVersuch_' + versuchsnr;
+}
+function invalidateVersuchCache_(versuchsnr) {
+  if (!versuchsnr) return;
+  try { CacheService.getScriptCache().remove(versuchCacheKey_(versuchsnr)); } catch (e) {}
+}
+
 function getVersuch(versuchsnr) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = versuchCacheKey_(versuchsnr);
+  try {
+    const cached = cache.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+
   const all = readIndex();
   const v = all.find(x => String(x.versuchsnr) === String(versuchsnr));
   if (!v) return { error: 'Versuch nicht gefunden: ' + versuchsnr };
 
   const daten = readDaten(v);
   const fortschritt = getFortschritt(v, daten);
+  const result = { versuch: v, daten, fortschritt };
 
-  return { versuch: v, daten, fortschritt };
+  try { cache.put(cacheKey, JSON.stringify(result), VERSUCH_CACHE_TTL_SEC); } catch (e) {}
+  return result;
 }
 
 // ========== DATEN-SHEET-OPERATIONEN ==========
@@ -757,10 +785,12 @@ function buildRohdatenHtml_(v, daten) {
   if (sheetUrl)  txt += 'sheet_url: ' + sheetUrl + '\n';
   if (folderUrl) txt += 'drive_url: ' + folderUrl + '\n';
   txt += '\n';
-  txt += '# Einzelwerte pro Topf. AZn = Anzahl gekeimter Samen im Topf zum Zeitpunkt der\n';
-  txt += '# Auszaehlung n (Bestandszaehlung von 0..samen_pro_topf, NICHT kumuliert und\n';
-  txt += '# nicht ueber die AZ zu summieren; Werte koennen zwischen AZ auch sinken).\n';
-  txt += '# KF% eines Topfes bei AZn = AZn / samen_pro_topf * 100. Leer = kein Wert erfasst.\n';
+  txt += '# Einzelwerte pro Topf. AZn = Anzahl NEU gekeimter Samen seit der vorherigen\n';
+  txt += '# Auszaehlung (Keimlinge werden nach dem Zaehlen aus dem Topf entfernt/gezogen).\n';
+  txt += '# Kumulative KF% bis AZn = Summe(AZ1..AZn) / samen_pro_topf * 100. Leer = kein\n';
+  txt += '# Wert erfasst. Hinweis: die App selbst (Topf-Ansicht, Statistik, ANOVA) zeigt\n';
+  txt += '# je AZ nur den rohen Einzelwert / samen_pro_topf, summiert NICHT automatisch -\n';
+  txt += '# fuer die tatsaechliche Gesamt-KF% muessen die AZn-Werte pro Topf aufsummiert werden.\n';
   txt += 'Tray;Topf;Block;Wdh;Treatment;' + azList.map(a => 'AZ' + a).join(';') + '\n';
 
   const sorted = daten.slice().sort((a, b) =>
@@ -2897,4 +2927,48 @@ function ensureTrayColumnForAll() {
   Logger.log('===== ensureTrayColumnForAll =====');
   results.forEach(r => Logger.log(JSON.stringify(r)));
   return results;
+}
+
+/**
+ * Normalisiert Baumart_lat/Baumart_kurz aller __KFK-Index-Zeilen ueber ART_LEXIKON
+ * (gleiche Zuordnung wie extractArtFromAsana_ beim Neuanlegen). Ohne Argument nur
+ * Report, es wird NICHTS geschrieben (dryRun=true). Erst mit
+ * normalizeIndexArten(false) im Apps-Script-Editor ausfuehren, um zu schreiben.
+ */
+function normalizeIndexArten(dryRun) {
+  if (dryRun === undefined) dryRun = true;
+  const sheet = getIndexSheet();
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const colIdx = {};
+  headers.forEach((h, i) => { colIdx[String(h).trim()] = i; });
+
+  const latCol = colIdx[INDEX_COLS.baumart_lat];
+  const kurzCol = colIdx[INDEX_COLS.baumart_kurz];
+  const versuchsnrCol = colIdx[INDEX_COLS.versuchsnr];
+  if (latCol === undefined || kurzCol === undefined) return { error: 'Baumart-Spalten fehlen im Index' };
+
+  const changes = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const versuchsnr = String(row[versuchsnrCol] || '');
+    if (!versuchsnr) continue;
+    const curLat = String(row[latCol] || '').trim();
+    const curKurz = String(row[kurzCol] || '').trim();
+
+    const eintrag = artLexikonByLat_(curLat) || artLexikonByKey_(curKurz) || artLexikonByKey_(curLat);
+    if (!eintrag) continue;
+    if (eintrag.lat === curLat && eintrag.kurz === curKurz) continue; // bereits normalisiert
+
+    changes.push({ versuchsnr, row: i + 1, vorher: { lat: curLat, kurz: curKurz }, nachher: { lat: eintrag.lat, kurz: eintrag.kurz } });
+    if (!dryRun) {
+      sheet.getRange(i + 1, latCol + 1).setValue(eintrag.lat);
+      sheet.getRange(i + 1, kurzCol + 1).setValue(eintrag.kurz);
+    }
+  }
+  if (!dryRun) SpreadsheetApp.flush();
+
+  Logger.log('===== normalizeIndexArten (dryRun=' + dryRun + ') =====');
+  changes.forEach(c => Logger.log(JSON.stringify(c)));
+  return { dryRun, anzahlAenderungen: changes.length, changes };
 }

@@ -83,16 +83,19 @@ wird automatisch aus dem Asana-Task erkannt (Zeile `Saatgut: …`, lateinischer 
 Text oder deutscher Name über das Arten-Lexikon). Liefert Asana ein Custom-Field „Ort"
 oder eine Zeile `Ort: …`, gewinnt dieser Wert. Alle Felder bleiben editierbar.
 
-**Auszählungen:** Je AZ wird der **Bestand** eingetragen — die Anzahl gekeimter Samen im
-Topf zu diesem Zeitpunkt (0…`Samen/Topf`). Die Eingabe ist auf `Samen/Topf` begrenzt und die
-App zeigt direkt `X von 36 Samen → Y% KF`. Die Werte werden **nicht** über die AZ summiert
-(KF% bei AZn = AZn / Samen-pro-Topf); zwischen zwei AZ kann ein Wert auch sinken, wenn
-Keimlinge ausfallen.
+**Auszählungen:** Je AZ wird nur die Anzahl **neu** gekeimter Samen seit der letzten
+Auszählung eingetragen — bereits gekeimte Samen werden nach dem Zählen aus dem Topf entfernt
+(gezogen), damit sie beim nächsten Mal nicht erneut mitgezählt werden. Die Eingabe ist auf
+`Samen/Topf` begrenzt. Die **kumulative** Gesamt-Keimfähigkeit bis AZn ergibt sich aus
+Summe(AZ1…AZn) / `Samen/Topf`.
 
-> Die frühere Formulierung „pro AZ nur *neu* gekeimte zählen, KFK kumulativ = AZ1+…+AZn"
-> passte nicht zur App und nicht zu den erfassten Daten (z. B. 26_033, Topf 1:
-> AZ1=20, AZ2=18, AZ3=18 — summiert 56 > 36 Samen, und Werte sinken). Bitte gegenprüfen,
-> dass die Laborpraxis wirklich Bestandszählung ist.
+> ⚠️ Die App selbst rechnet das aktuell **nicht** nach: Topf-Ansicht, Statistik und ANOVA
+> zeigen je AZ nur `AZn / Samen-pro-Topf` als Prozentwert dieser einzelnen Runde, ohne über
+> die Runden zu summieren. Für die echte kumulative KF% müssen die AZn-Werte pro Topf manuell
+> aufsummiert werden (z. B. beim Auswerten des Asana-Rohdaten-Blocks). Einzelne Datenpunkte aus
+> 26_033 (Topf 1: AZ1=20, AZ2=18, AZ3=18) stammen aus einer bestätigten Ausnahme: dort wurden
+> Keimlinge zwischenzeitlich nicht gezogen und beim Folgetermin versehentlich mitgezählt — kein
+> Hinweis auf ein anderes Zählverfahren.
 
 **Versuch abschließen:** 🏁 im Detail → Status „Abgeschlossen", Asana-Task erledigt,
 und in den Subtask „Auswertung & Bericht" wandert der vollständige Bericht: Kontext,

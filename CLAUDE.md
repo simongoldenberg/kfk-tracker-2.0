@@ -105,6 +105,28 @@ Wer den Bericht vor einem echten Abschluss pruefen will:
 - Alte Block-Spalten (Foto_AZ1_BlockA etc.) werden weiterhin gelesen
 - Foto-Button: grün = Foto vorhanden, Klick öffnet Google Drive; ⟳ = neu hochladen
 
+## Zählverfahren (AZ) — wichtig
+Je AZ wird nur die Anzahl **neu** gekeimter Samen seit der letzten Auszählung
+eingetragen; gekeimte Samen werden danach aus dem Topf entfernt/gezogen, damit
+sie nicht doppelt zählen. Die kumulative Keimfähigkeit ergibt sich aus
+Summe(AZ1…AZn) / Samen-pro-Topf. **Achtung:** Topf-Ansicht, Statistik und ANOVA
+rechnen aktuell nur mit dem rohen Einzelwert je Runde (`AZn / Samen-pro-Topf`),
+summieren NICHT automatisch über die Runden — das gehört bei einer echten
+Gesamt-KF%-Auswertung von Hand nachgerechnet (der Rohdaten-Block im
+Asana-Bericht liefert dafür alle Einzelwerte).
+
+## Wartungsfunktionen (Apps-Script-Editor, manuell ausführen)
+- `normalizeIndexArten(dryRun=true)`: normalisiert Baumart_lat/Baumart_kurz
+  aller Index-Zeilen über `ART_LEXIKON`. Ohne Argument nur Report;
+  `normalizeIndexArten(false)` schreibt tatsächlich.
+- `ensureTrayColumnForAll()`: legt fehlende Tray-Spalten nachträglich an.
+
+## Offline-Verhalten
+Schlägt ein `saveTopf`-Call fehl (kein Netz im Growzelt), wird der Wert in
+einer `localStorage`-Warteschlange gepuffert statt verloren zu gehen.
+Automatischer Nachversand bei Wiederverbindung, App-Start und jedem Poll-Tick.
+Sync-Anzeige zeigt "N ausstehend", solange etwas in der Warteschlange liegt.
+
 ## UI-Konventionen
 - Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px,
   alle px-Werte in index.html sind der 1,5-fache Wert der Ursprungsgroessen.

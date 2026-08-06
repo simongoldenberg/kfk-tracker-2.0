@@ -76,6 +76,12 @@ wird bei Deploy NICHT beruehrt.
   Arten-Lexikon `ART_LEXIKON`. Bekannte Arten werden auf die Lexikon-
   Schreibweise normalisiert (z.B. "Hanfsamen" -> lat. Cannabis sativa,
   kurz Hanf). Neue Arten in ART_LEXIKON ergaenzen — nie raten lassen.
+- **Verantwortlich:** wird aus dem Asana-Assignee des Tasks gezogen
+  (`extractVerantwortlichFromAsana_`, Feld `assignee.name`). Ohne
+  zugewiesenen Nutzer greift der Backend-Default `'Simon Goldenberg'`. Im
+  Import-Formular manuell korrigierbar (`imp-verantwortlich`).
+- **ID-Nummer:** (noch) kein automatischer Vorschlag — bleibt manuelles
+  Freitextfeld beim Import.
 
 ## Asana-Abschlussbericht (Auswertung durch Claude)
 Beim vollstaendigen Abschluss (`markVersuchAbgeschlossen`) postet das Backend

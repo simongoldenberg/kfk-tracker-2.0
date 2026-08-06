@@ -1077,7 +1077,7 @@ function importVersuchFromAsana(taskGid) {
 
   const res = UrlFetchApp.fetch(
     'https://app.asana.com/api/1.0/tasks/' + taskGid +
-    '?opt_fields=name,notes,custom_fields',
+    '?opt_fields=name,notes,custom_fields,assignee.name',
     { method: 'get', headers: { Authorization: 'Bearer ' + ASANA_PAT }, muteHttpExceptions: true }
   );
   if (res.getResponseCode() !== 200) {
@@ -1142,6 +1142,7 @@ function importVersuchFromAsana(taskGid) {
   // von Hand nachgetragen werden muss (s. extractArtFromAsana_/extractOrtFromAsana_)
   const art = extractArtFromAsana_(task);
   const ort = extractOrtFromAsana_(task);
+  const verantwortlich = extractVerantwortlichFromAsana_(task);
 
   return {
     ok: true,
@@ -1151,10 +1152,17 @@ function importVersuchFromAsana(taskGid) {
       baumart_lat: art.lat,
       baumart_kurz: art.kurz,
       ort: ort,
+      verantwortlich: verantwortlich,
       treatments_json,
       anzahl_trays, raster_cols, raster_rows, samen_pro_topf
     }
   };
+}
+
+// Name des im Asana-Task zugewiesenen Nutzers (Assignee). Leer, wenn keiner
+// zugewiesen ist - dann greift der Backend-Default ('Simon Goldenberg').
+function extractVerantwortlichFromAsana_(task) {
+  return (task && task.assignee && task.assignee.name) || '';
 }
 
 // ========== RBD-LAYOUT IMPORTIEREN ==========
@@ -1424,7 +1432,7 @@ function readKfkDataFromDoc_(docId) {
 // Holt einen Asana-Task und liefert das geparste data-Objekt (name, notes, custom_fields).
 function fetchAsanaTask_(taskGid) {
   var res = UrlFetchApp.fetch(
-    'https://app.asana.com/api/1.0/tasks/' + taskGid + '?opt_fields=name,notes,custom_fields',
+    'https://app.asana.com/api/1.0/tasks/' + taskGid + '?opt_fields=name,notes,custom_fields,assignee.name',
     { method: 'get', headers: { Authorization: 'Bearer ' + ASANA_PAT }, muteHttpExceptions: true }
   );
   if (res.getResponseCode() !== 200) {
@@ -1650,6 +1658,7 @@ function importVersuchFromDoc(taskGid) {
       baumart_lat:     artParsed.lat,
       baumart_kurz:    artParsed.kurz,
       ort:             data.ort || extractOrtFromAsana_(task),
+      verantwortlich:  data.verantwortlich || extractVerantwortlichFromAsana_(task),
       treatments_json: treatments.length ? JSON.stringify(treatments) : '',
       anzahl_trays:    data.anzahl_trays   != null ? Number(data.anzahl_trays)   : null,
       raster_cols:     data.raster_cols    != null ? Number(data.raster_cols)    : null,

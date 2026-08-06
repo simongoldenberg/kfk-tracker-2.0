@@ -46,6 +46,9 @@ Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
   die bestehende Baumart_lat/Baumart_kurz-Werte im Index über `ART_LEXIKON`
   normalisiert. Standardmäßig `dryRun=true` (nur Report, kein Schreiben) —
   erst `normalizeIndexArten(false)` schreibt tatsächlich.
+- **Automatische Verantwortlich-Erkennung** (`extractVerantwortlichFromAsana_`):
+  übernimmt den Namen des im Asana-Task zugewiesenen Nutzers (`assignee.name`)
+  ins Import-Formular, Fallback bleibt `'Simon Goldenberg'`.
 
 ### 🔄 Changed
 - **Standardwerte für neue Versuche**: Ort = `Growzelt` (vorher `Halle`),

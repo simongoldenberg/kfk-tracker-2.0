@@ -2451,6 +2451,7 @@ function openImportModal() {
       ${impField('imp-baumart-lat','Baumart lat.','text','z.B. Pinus sylvestris')}
       ${impField('imp-ort','Ort','text',DEFAULT_ORT)}
       ${impField('imp-id-nummer','ID-Nummer','text','z.B. 00246 (optional)')}
+      ${impField('imp-verantwortlich','Verantwortlich','text','Asana-Assignee, sonst Simon Goldenberg')}
 
       <div class="field" style="margin-bottom:10px">
         <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Treatments JSON *</label>
@@ -2532,6 +2533,7 @@ async function previewAsanaTask() {
     if (p.baumart_kurz) document.getElementById('imp-baumart-kurz').value = p.baumart_kurz;
     // Ort nur ueberschreiben, wenn Asana/Doc einen liefert — sonst bleibt der Default
     if (p.ort) document.getElementById('imp-ort').value = p.ort;
+    if (p.verantwortlich) document.getElementById('imp-verantwortlich').value = p.verantwortlich;
     if (p.treatments_json) document.getElementById('imp-treatments').value = p.treatments_json;
     if (p.anzahl_trays != null) document.getElementById('imp-trays').value = p.anzahl_trays;
     if (p.raster_cols != null) document.getElementById('imp-raster-cols').value = p.raster_cols;
@@ -2584,6 +2586,7 @@ async function confirmCreateVersuch() {
     baumart_lat: document.getElementById('imp-baumart-lat').value || '',
     ort: document.getElementById('imp-ort').value || DEFAULT_ORT,
     id_nummer: document.getElementById('imp-id-nummer').value || '',
+    verantwortlich: document.getElementById('imp-verantwortlich').value || '',
     treatments_json,
     raster_cols: Number(document.getElementById('imp-raster-cols').value) || 4,
     raster_rows: Number(document.getElementById('imp-raster-rows').value) || 6,

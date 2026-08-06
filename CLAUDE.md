@@ -1,5 +1,14 @@
 # CLAUDE.md — Standing Rules für KFK-Tracker
 
+## Projekt-Konfiguration
+- **Git-Workflow:** vereinfacht        <!-- vollständig | vereinfacht -->
+- **Doku-Sprache:** Deutsch            <!-- Deutsch | Englisch -->
+- **GitHub:** https://github.com/simongoldenberg/kfk-tracker-2.0
+
+Entwicklung läuft direkt auf `develop`; `main` bleibt stabil und wird nur per
+Version-PR aktualisiert (GitHub Pages deployt von `main` — Änderungen auf
+`develop` sind also noch NICHT live).
+
 ## Was ist das hier?
 Progressive Web App für Keimfähigkeitsversuche im Skyseed-Programm.
 Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
@@ -7,11 +16,14 @@ Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
 
 ## Wichtigste Regeln
 1. NIE die Treatment-Zuweisungen im Code neu generieren — immer aus dem
-   DOCX-Versuchsprotokoll bzw. dem Asana-Task übernehmen.
-2. Backups niemals automatisch löschen.
+   DOCX-/Doc-Versuchsprotokoll bzw. dem Asana-Task übernehmen.
+2. Backups niemals automatisch löschen. Gleiches gilt für Versuchsdaten:
+   `deleteVersuch` entfernt bewusst NUR die Index-Zeile, nie Daten-Sheet
+   oder Drive-Ordner.
 3. Vor jedem Frontend-Deploy: CACHE_VERSION in service-worker.js bumpen.
    Automatisch via `node bump-cache.js` (oder `npm run deploy:frontend`) —
-   setzt Version auf Datum+Commit-Hash. Nicht mehr manuell noetig.
+   setzt Version auf Datum+Commit-Hash und stempelt APP_VERSION_DATE in
+   index.html auf das Deploy-Datum. Nicht mehr manuell noetig.
 4. Beim Apps-Script-Deploy: `clasp push` dann
    `clasp deploy --deploymentId <ID>` (bestehende Bereitstellung
    aktualisieren, NICHT neu anlegen — sonst aendert sich die Webapp-URL).
@@ -25,11 +37,19 @@ Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
 5. ASANA_PAT niemals im Code — liegt in den Skripteigenschaften
    (Projekteinstellungen -> Skripteigenschaften, Schluessel 'ASANA_PAT').
    Setzen/Rotieren via setupAsanaPat() oder direkt im UI.
-6. kfk-apps-script.gs liegt im Haupt-Repo:
-   C:\Users\nils_\Desktop\Claude Code\Projekte\kfk-tracker\kfk-apps-script.gs
+6. kfk-apps-script.gs liegt in DIESEM Repo (2.0) und wird per `clasp`
+   deployt:
+   C:\Users\nils_\Desktop\Claude Code\Projekte\kfk-tracker 2.0\kfk-apps-script.gs
+   Das alte Repo `…\Projekte\kfk-tracker\` ist der Vorgaengerstand und wird
+   nicht mehr gepflegt.
+7. Versionierung: APP_VERSION in index.html (Anzeige in der Kopfzeile) und
+   `version` in package.json synchron halten. Nummer nur beim Release
+   (Version-PR develop -> main) erhoehen, danach Git-Tag setzen.
 
 ## Wichtige URLs / IDs
-- Frontend (GitHub Pages): https://simongoldenberg.github.io/kfk-tracker/
+- Frontend (GitHub Pages, aktuell): https://simongoldenberg.github.io/kfk-tracker-2.0/
+- Frontend ALT (Vorgaenger-Repo, laeuft noch, veralteter Stand):
+  https://simongoldenberg.github.io/kfk-tracker/
 - Netlify (inaktiv, Credit-Limit): https://kfk-tracker-app.netlify.app/
 - Apps-Script-Webapp:
   https://script.google.com/macros/s/AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw/exec
@@ -37,12 +57,39 @@ Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
 - KFK-Daten-Folder: 15X-Ri1feR3I1qGC6FgPpPLc0jgHskcoM
 
 ## Deploy-Workflow
-Frontend: `npm run deploy:frontend` (bumpt CACHE_VERSION, commit, push)
--> GitHub Pages deployt automatisch (~1 min).
+Frontend: `npm run deploy:frontend` (bumpt CACHE_VERSION + APP_VERSION_DATE,
+commit, push) -> GitHub Pages deployt automatisch (~1 min), ABER nur von
+`main`. Von `develop` aus: erst Version-PR nach `main`.
 Backend (Apps Script): `clasp push` dann
 `clasp deploy --deploymentId <ID>` (bestehende Bereitstellung, URL bleibt).
 Danach committen, damit Git = Cloud. Token liegt in Skripteigenschaften,
 wird bei Deploy NICHT beruehrt.
+
+## Standardwerte beim Anlegen eines Versuchs
+- **Ort:** `Growzelt` (Konstante DEFAULT_ORT in index.html, Fallback auch im
+  Backend in createVersuchInIndex). Liefert der Asana-Task ein Custom-Field
+  "Ort" oder eine Notizen-Zeile `Ort: …`, gewinnt dieser Wert.
+- **AZ geplant:** `3` (Konstante DEFAULT_AZ_GEPLANT). Auswaehlbar bleiben 1-5.
+- **Baumart:** wird automatisch aus dem Asana-Task gezogen
+  (`extractArtFromAsana_`): erst Zeile `Saatgut:/Art:/Baumart:/…`, dann
+  lateinischer Name im Volltext, dann deutscher Name/Kuerzel ueber das
+  Arten-Lexikon `ART_LEXIKON`. Bekannte Arten werden auf die Lexikon-
+  Schreibweise normalisiert (z.B. "Hanfsamen" -> lat. Cannabis sativa,
+  kurz Hanf). Neue Arten in ART_LEXIKON ergaenzen — nie raten lassen.
+
+## Asana-Abschlussbericht (Auswertung durch Claude)
+Beim vollstaendigen Abschluss (`markVersuchAbgeschlossen`) postet das Backend
+in den Subtask „Auswertung & Bericht":
+1. Kontext-Header (Versuchsnr, Titel, Art, Hypothese, Design, Treatments)
+2. Client-Kommentar (Komplett-Trend je Treatment + Abschluss-Bemerkung)
+3. Statistik je AZ (n, Ø Keim, KF%, SD, CV%) + ANOVA/η²
+4. **Rohdaten-Block `<<<KFK-RESULTS … KFK-RESULTS>>>`** (Schema
+   `kfk-results-v1`, `buildRohdatenHtml_`): Metadaten, AZ-Datum je Runde,
+   **CSV mit ALLEN Einzelwerten pro Topf und AZ**, Foto-Links, Sheet-/Drive-Link.
+
+Damit ist der Asana-Post allein ausreichend, um den Versuch auszuwerten.
+Wer den Bericht vor einem echten Abschluss pruefen will:
+`testAuswertungsBericht('26_0XX')` im Apps-Script-Editor (postet nichts).
 
 ## Bekannte Versuche
 - 26_005: Pinus nigra, Pellet-Schichtdicke RBD
@@ -57,3 +104,15 @@ wird bei Deploy NICHT beruehrt.
 - Spaltenname im Sheet: Foto_AZ0..5 (1 Tray) / Foto_AZ0_Tray1 (Multi-Tray)
 - Alte Block-Spalten (Foto_AZ1_BlockA etc.) werden weiterhin gelesen
 - Foto-Button: grün = Foto vorhanden, Klick öffnet Google Drive; ⟳ = neu hochladen
+
+## UI-Konventionen
+- Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px,
+  alle px-Werte in index.html sind der 1,5-fache Wert der Ursprungsgroessen.
+- Tray-Raster: Quadrate halb so breit wie die volle Spaltenaufteilung
+  (`.rbd` grid-template-columns rechnet mit `var(--cols) * 2`), Treatment-Label
+  33px (= 3x Ausgangsgroesse) mit Container-Query-Deckel `min(33px, 46cqw)`,
+  damit auf schmalen Displays nichts ueberlaeuft.
+- **Keine QR-Codes mehr** (Funktion samt api.qrserver.com-Anbindung entfernt).
+  Der Deep-Link `?versuch=26_0XX` funktioniert weiterhin.
+- Loeschen: 🗑 auf der Versuchskarte (aktiv + Archiv) -> Dialog, in dem die
+  Versuchsnr eingetippt werden muss.

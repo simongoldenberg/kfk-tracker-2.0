@@ -757,8 +757,10 @@ function buildRohdatenHtml_(v, daten) {
   if (sheetUrl)  txt += 'sheet_url: ' + sheetUrl + '\n';
   if (folderUrl) txt += 'drive_url: ' + folderUrl + '\n';
   txt += '\n';
-  txt += '# Einzelwerte pro Topf. AZn = kumulativ gekeimte Samen bei Auszaehlung n.\n';
-  txt += '# KF% eines Topfes = AZn / samen_pro_topf * 100. Leer = kein Wert erfasst.\n';
+  txt += '# Einzelwerte pro Topf. AZn = Anzahl gekeimter Samen im Topf zum Zeitpunkt der\n';
+  txt += '# Auszaehlung n (Bestandszaehlung von 0..samen_pro_topf, NICHT kumuliert und\n';
+  txt += '# nicht ueber die AZ zu summieren; Werte koennen zwischen AZ auch sinken).\n';
+  txt += '# KF% eines Topfes bei AZn = AZn / samen_pro_topf * 100. Leer = kein Wert erfasst.\n';
   txt += 'Tray;Topf;Block;Wdh;Treatment;' + azList.map(a => 'AZ' + a).join(';') + '\n';
 
   const sorted = daten.slice().sort((a, b) =>

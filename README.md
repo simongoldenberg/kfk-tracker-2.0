@@ -83,8 +83,16 @@ wird automatisch aus dem Asana-Task erkannt (Zeile `Saatgut: …`, lateinischer 
 Text oder deutscher Name über das Arten-Lexikon). Liefert Asana ein Custom-Field „Ort"
 oder eine Zeile `Ort: …`, gewinnt dieser Wert. Alle Felder bleiben editierbar.
 
-**Auszählungen:** Pro AZ nur *neu* gekeimte Samen zählen (gekeimte werden entfernt),
-KFK kumulativ = AZ1+…+AZn.
+**Auszählungen:** Je AZ wird der **Bestand** eingetragen — die Anzahl gekeimter Samen im
+Topf zu diesem Zeitpunkt (0…`Samen/Topf`). Die Eingabe ist auf `Samen/Topf` begrenzt und die
+App zeigt direkt `X von 36 Samen → Y% KF`. Die Werte werden **nicht** über die AZ summiert
+(KF% bei AZn = AZn / Samen-pro-Topf); zwischen zwei AZ kann ein Wert auch sinken, wenn
+Keimlinge ausfallen.
+
+> Die frühere Formulierung „pro AZ nur *neu* gekeimte zählen, KFK kumulativ = AZ1+…+AZn"
+> passte nicht zur App und nicht zu den erfassten Daten (z. B. 26_033, Topf 1:
+> AZ1=20, AZ2=18, AZ3=18 — summiert 56 > 36 Samen, und Werte sinken). Bitte gegenprüfen,
+> dass die Laborpraxis wirklich Bestandszählung ist.
 
 **Versuch abschließen:** 🏁 im Detail → Status „Abgeschlossen", Asana-Task erledigt,
 und in den Subtask „Auswertung & Bericht" wandert der vollständige Bericht: Kontext,

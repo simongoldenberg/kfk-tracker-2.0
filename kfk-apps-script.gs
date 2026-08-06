@@ -143,6 +143,8 @@ function doPost(e) {
         return json(markVersuchAbgeschlossen(body));
       case 'archiveVersuch':
         return json(archiveVersuch(body));
+      case 'deleteVersuch':
+        return json(deleteVersuch(body));
       case 'createVersuch':
         return json(createVersuchInIndex(body));
       case 'field_saveParzelle':
@@ -584,6 +586,46 @@ function archiveVersuch(body) {
 }
 
 /**
+ * Loescht einen Versuch aus dem Index.
+ *
+ * BEWUSST NUR die Index-Zeile: Daten-Sheet und Drive-Ordner des Versuchs
+ * bleiben erhalten (CLAUDE.md-Regel "Backups/Daten niemals automatisch
+ * loeschen"). Der Versuch verschwindet damit aus Tracker UND Index; die
+ * Rohdaten sind ueber die zurueckgegebenen IDs weiterhin in Drive auffindbar.
+ * Der Asana-Task bleibt ebenfalls unangetastet.
+ *
+ * body: { versuchsnr }
+ */
+function deleteVersuch(body) {
+  if (!body || !body.versuchsnr) return { error: 'versuchsnr fehlt' };
+
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const cIdx = {};
+  headers.forEach((h, i) => { cIdx[String(h).trim()] = i; });
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][cIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) {
+      const sheetFileId = String(data[i][cIdx[INDEX_COLS.sheet_file_id]] || '');
+      const folderId    = String(data[i][cIdx[INDEX_COLS.folder_id]] || '');
+      const titel       = String(data[i][cIdx[INDEX_COLS.titel]] || '');
+      indexSheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      return {
+        ok: true,
+        versuchsnr: body.versuchsnr,
+        titel: titel,
+        sheet_file_id: sheetFileId,
+        folder_id: folderId,
+        info: 'Index-Zeile entfernt. Daten-Sheet und Drive-Ordner bleiben erhalten.'
+      };
+    }
+  }
+  return { error: 'Versuch nicht gefunden: ' + body.versuchsnr };
+}
+
+/**
  * Markiert einen Versuch als VOLLSTAENDIG ABGESCHLOSSEN:
  *   - Status im Index auf "Abgeschlossen" setzen
  *   - ANOVA + eta^2 + CV aus Daten-Sheet berechnen und an Kommentar anhaengen
@@ -600,10 +642,12 @@ function archiveVersuch(body) {
 // erzeugen und im Ausfuehrungsprotokoll pruefen kann.
 function buildVersuchsberichtHtml_(v, clientFinalKommentarHtml) {
   let statistikHtml = '';
+  let rohdatenHtml = '';
   try {
     if (v && v.sheet_file_id) {
       const daten = readDaten(v);
       statistikHtml = buildStatistikHtml(v, daten);
+      rohdatenHtml = buildRohdatenHtml_(v, daten);
     }
   } catch (e) {
     Logger.log('Statistik-Fehler: ' + e);
@@ -633,7 +677,127 @@ function buildVersuchsberichtHtml_(v, clientFinalKommentarHtml) {
   const clientHtml = String(clientFinalKommentarHtml || '')
     .replace(/^\s*<body>/i, '')
     .replace(/<\/body>\s*$/i, '');
-  return '<body>' + headerHtml + clientHtml + statistikHtml + '</body>';
+  return '<body>' + headerHtml + clientHtml + statistikHtml + rohdatenHtml + '</body>';
+}
+
+// Numerische Zelle? (leer / '' / null / Text zaehlen nicht als Messwert)
+function isMesswert_(x) {
+  return x !== '' && x != null && x !== undefined && !isNaN(Number(x));
+}
+
+/**
+ * Baut den maschinenlesbaren Rohdaten-Block fuer den Asana-Abschlussbericht.
+ *
+ * ZWECK: Der Asana-Post soll fuer eine vollstaendige Auswertung ausreichen —
+ * ohne Zugriff auf Tracker, Index oder Daten-Sheet. Deshalb stehen hier neben
+ * den Metadaten ALLE Einzelwerte pro Topf und AZ (nicht nur die Mittelwerte
+ * aus buildStatistikHtml), dazu AZ-Datum, Foto-Links und die Cloud-Links.
+ *
+ * Format: CSV in einem <pre>-Block, umschlossen von den Markern
+ * <<<KFK-RESULTS ... KFK-RESULTS>>> (analog zum <<<KFK-DATA-Block des
+ * Protokoll-Docs), damit der Block eindeutig gefunden und geparst werden kann.
+ */
+function buildRohdatenHtml_(v, daten) {
+  if (!v || !daten || daten.length === 0) return '';
+
+  const samen = Number(v.samen_pro_topf || 36);
+  const azGeplant = Number(v.az_geplant || 3);
+  // Immer bis AZ5 scannen: az_geplant kann kleiner sein als das, was
+  // tatsaechlich im Sheet steht — es darf kein Messwert verloren gehen.
+  const azScan = Math.max(azGeplant, 5);
+
+  const azList = [];
+  for (let az = 1; az <= azScan; az++) {
+    if (daten.some(d => isMesswert_(d['az' + az + '_zahl']))) azList.push(az);
+  }
+  if (azList.length === 0) return '';
+
+  // Datum je AZ (erster gefuellter Wert; abweichende Daten werden mitgezaehlt)
+  const azDatum = azList.map(az => {
+    const daten_az = daten
+      .map(d => String(d['az' + az + '_datum'] || '').trim())
+      .filter(s => s !== '');
+    const uniq = daten_az.filter((s, i) => daten_az.indexOf(s) === i);
+    const n = daten.filter(d => isMesswert_(d['az' + az + '_zahl'])).length;
+    return 'AZ' + az + '=' + (uniq[0] || '?') +
+           (uniq.length > 1 ? ' (+' + (uniq.length - 1) + ' weitere Daten)' : '') +
+           ' [n=' + n + ']';
+  }).join('; ');
+
+  const treatLegend = (v.treatments || [])
+    .map(t => t.code + '=' + String(t.label || '').replace(/[;\r\n]/g, ' '))
+    .join(' | ');
+
+  const sheetUrl = v.sheet_file_id
+    ? 'https://docs.google.com/spreadsheets/d/' + v.sheet_file_id + '/edit'
+    : '';
+  const folderUrl = v.folder_id
+    ? 'https://drive.google.com/drive/folders/' + v.folder_id
+    : '';
+
+  let txt = '<<<KFK-RESULTS\n';
+  txt += 'schema: kfk-results-v1\n';
+  txt += 'versuchsnr: ' + (v.versuchsnr || '') + '\n';
+  txt += 'titel: ' + (v.titel || '') + '\n';
+  if (v.id_nummer)     txt += 'id_nummer: ' + v.id_nummer + '\n';
+  if (v.themenbereich) txt += 'themenbereich: ' + v.themenbereich + '\n';
+  txt += 'art_lat: ' + (v.baumart_lat || '') + '\n';
+  txt += 'art_kurz: ' + (v.baumart_kurz || '') + '\n';
+  if (v.ort)          txt += 'ort: ' + v.ort + '\n';
+  if (v.start_datum)  txt += 'start_datum: ' + v.start_datum + '\n';
+  if (v.hypothese)    txt += 'hypothese: ' + String(v.hypothese).replace(/[\r\n]+/g, ' ') + '\n';
+  txt += 'samen_pro_topf: ' + samen + '\n';
+  txt += 'anzahl_trays: ' + (v.anzahl_trays || 1) + '\n';
+  txt += 'raster_cols: ' + (v.raster_cols || 4) + '\n';
+  txt += 'raster_rows: ' + (v.raster_rows || 6) + '\n';
+  txt += 'az_geplant: ' + azGeplant + '\n';
+  txt += 'az_mit_daten: ' + azList.map(a => 'AZ' + a).join(',') + '\n';
+  txt += 'az_datum: ' + azDatum + '\n';
+  txt += 'treatments: ' + treatLegend + '\n';
+  if (sheetUrl)  txt += 'sheet_url: ' + sheetUrl + '\n';
+  if (folderUrl) txt += 'drive_url: ' + folderUrl + '\n';
+  txt += '\n';
+  txt += '# Einzelwerte pro Topf. AZn = kumulativ gekeimte Samen bei Auszaehlung n.\n';
+  txt += '# KF% eines Topfes = AZn / samen_pro_topf * 100. Leer = kein Wert erfasst.\n';
+  txt += 'Tray;Topf;Block;Wdh;Treatment;' + azList.map(a => 'AZ' + a).join(';') + '\n';
+
+  const sorted = daten.slice().sort((a, b) =>
+    (Number(a.tray || 1) - Number(b.tray || 1)) || (Number(a.topf || 0) - Number(b.topf || 0))
+  );
+  sorted.forEach(d => {
+    const code = String(d.treatment || '').split(/[\s(]/)[0];
+    txt += [
+      d.tray || 1,
+      d.topf,
+      d.block || '',
+      d.wdh || '',
+      code
+    ].join(';') + ';' +
+    azList.map(az => isMesswert_(d['az' + az + '_zahl']) ? Number(d['az' + az + '_zahl']) : '').join(';') +
+    '\n';
+  });
+
+  // Foto-Links (1 Foto pro AZ pro Tray, s. Foto-Schema in CLAUDE.md)
+  const fotoZeilen = [];
+  const trays = daten
+    .map(d => Number(d.tray || 1))
+    .filter((t, i, arr) => arr.indexOf(t) === i)
+    .sort((a, b) => a - b);
+  [0].concat(azList).forEach(az => {
+    trays.forEach(tray => {
+      const row = daten.find(d => Number(d.tray || 1) === tray && d.fotos && d.fotos['az' + az]);
+      const url = row ? row.fotos['az' + az] : '';
+      if (url) fotoZeilen.push('AZ' + az + ' Tray' + tray + ': ' + url);
+    });
+  });
+  if (fotoZeilen.length) {
+    txt += '\n# Fotos (Drive-Links, AZ0 = Initialzustand)\n' + fotoZeilen.join('\n') + '\n';
+  }
+
+  txt += 'KFK-RESULTS>>>';
+
+  return '<br><br><strong>🧾 Rohdaten (maschinenlesbar)</strong><br><pre>' +
+         escHtml_(txt) + '</pre>';
 }
 
 // GEFAHRLOSER Dry-Run-Test: baut den Auswertungsbericht fuer versuchsnr und
@@ -942,11 +1106,19 @@ function importVersuchFromAsana(taskGid) {
     if (samen_pro_topf === null || v > samen_pro_topf) samen_pro_topf = v;
   }
 
+  // Baumart + Ort direkt aus dem Task ziehen, damit im Formular nichts
+  // von Hand nachgetragen werden muss (s. extractArtFromAsana_/extractOrtFromAsana_)
+  const art = extractArtFromAsana_(task);
+  const ort = extractOrtFromAsana_(task);
+
   return {
     ok: true,
     prefill: {
       asana_task_gid: taskGid,
       versuchsnr, titel, themenbereich, start_datum, hypothese,
+      baumart_lat: art.lat,
+      baumart_kurz: art.kurz,
+      ort: ort,
       treatments_json,
       anzahl_trays, raster_cols, raster_rows, samen_pro_topf
     }
@@ -1240,6 +1412,165 @@ function parseArtField_(art) {
   return { lat: s, kurz: '' };
 }
 
+// ========== ART + ORT AUS DEM ASANA-TASK ZIEHEN ==========
+
+// Arten-Lexikon fuer die Zuordnung deutscher Namen/Kuerzel -> lateinischer Name.
+// 'keys' sind normalisierte Suchbegriffe (s. normArtKey_), 'kurz' ist die im
+// Index gebraeuchliche Kurzform. Bei neuen Arten hier ergaenzen.
+const ART_LEXIKON = [
+  { lat: 'Cannabis sativa',       kurz: 'Hanf',       keys: ['hanf'] },
+  { lat: 'Pinus nigra',           kurz: 'SKi',        keys: ['schwarzkiefer', 'ski'] },
+  { lat: 'Pinus sylvestris',      kurz: 'WKi',        keys: ['waldkiefer', 'kiefer', 'wki', 'gemeinekiefer'] },
+  { lat: 'Picea abies',           kurz: 'Fi',         keys: ['fichte', 'rotfichte', 'gemeinefichte'] },
+  { lat: 'Pseudotsuga menziesii', kurz: 'Dgl',        keys: ['douglasie', 'dgl'] },
+  { lat: 'Abies alba',            kurz: 'WTa',        keys: ['weisstanne', 'tanne', 'wta'] },
+  { lat: 'Larix decidua',         kurz: 'ELa',        keys: ['laerche', 'europaeischelaerche', 'ela'] },
+  { lat: 'Fagus sylvatica',       kurz: 'Bu',         keys: ['buche', 'rotbuche'] },
+  { lat: 'Quercus robur',         kurz: 'SEi',        keys: ['stieleiche', 'eiche', 'sei'] },
+  { lat: 'Quercus petraea',       kurz: 'TEi',        keys: ['traubeneiche', 'tei'] },
+  { lat: 'Carpinus betulus',      kurz: 'HBu',        keys: ['hainbuche', 'weissbuche', 'hbu'] },
+  { lat: 'Betula pendula',        kurz: 'Bi',         keys: ['birke', 'sandbirke', 'haengebirke'] },
+  { lat: 'Alnus glutinosa',       kurz: 'SEr',        keys: ['schwarzerle', 'erle', 'ser'] },
+  { lat: 'Tilia cordata',         kurz: 'WLi',        keys: ['winterlinde', 'linde', 'wli'] },
+  { lat: 'Tilia platyphyllos',    kurz: 'SLi',        keys: ['sommerlinde', 'sli'] },
+  { lat: 'Acer pseudoplatanus',   kurz: 'BAh',        keys: ['bergahorn', 'bah'] },
+  { lat: 'Acer platanoides',      kurz: 'SAh',        keys: ['spitzahorn', 'sah'] },
+  { lat: 'Fraxinus excelsior',    kurz: 'Es',         keys: ['esche', 'gemeineesche'] },
+  { lat: 'Sorbus aucuparia',      kurz: 'VB',         keys: ['vogelbeere', 'eberesche'] },
+  { lat: 'Prunus avium',          kurz: 'VKi',        keys: ['vogelkirsche', 'suesskirsche', 'vki'] },
+  { lat: 'Robinia pseudoacacia',  kurz: 'Rob',        keys: ['robinie', 'scheinakazie'] },
+  { lat: 'Populus tremula',       kurz: 'Asp',        keys: ['aspe', 'zitterpappel'] },
+  { lat: 'Salix caprea',          kurz: 'SWe',        keys: ['salweide', 'weide'] },
+  { lat: 'Ulmus glabra',          kurz: 'BUl',        keys: ['bergulme', 'ulme'] },
+  { lat: 'Secale cereale',        kurz: 'Roggen',     keys: ['roggen'] },
+  { lat: 'Lepidium sativum',      kurz: 'Kresse',     keys: ['gartenkresse', 'kresse'] }
+];
+
+// Normalisiert einen Artnamen fuer den Lexikon-Vergleich: Kleinschreibung,
+// Umlaute aufgeloest, Nicht-Buchstaben entfernt, angehaengtes
+// "samen"/"saatgut"/"saat" abgeschnitten ("Hanfsamen" -> "hanf").
+function normArtKey_(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z]/g, '')
+    .replace(/(samen|saatgut|saat|korn|koerner)$/, '');
+}
+
+function artLexikonByKey_(s) {
+  var key = normArtKey_(s);
+  if (!key) return null;
+  for (var i = 0; i < ART_LEXIKON.length; i++) {
+    if (ART_LEXIKON[i].keys.indexOf(key) !== -1) return ART_LEXIKON[i];
+  }
+  return null;
+}
+
+function artLexikonByLat_(lat) {
+  var l = String(lat || '').toLowerCase().trim();
+  for (var i = 0; i < ART_LEXIKON.length; i++) {
+    if (ART_LEXIKON[i].lat.toLowerCase() === l) return ART_LEXIKON[i];
+  }
+  return null;
+}
+
+// Sieht der String wie ein lateinischer Binomialname aus ("Cannabis sativa")?
+function istBinomial_(s) {
+  return /^[A-Z][a-z]{2,}\s+[a-z][a-z\-]{2,}$/.test(String(s || '').trim());
+}
+
+/**
+ * Zieht Baumart/Pflanzenart aus einem Asana-Task (Notizen + Titel).
+ *
+ * Reihenfolge:
+ *   1. Explizite Zeile "Saatgut: Hanfsamen (Cannabis sativa), ..." bzw.
+ *      "Art:/Baumart:/Pflanzenart:/Modellart:/Samen:" — Klammerinhalt gilt als
+ *      lateinischer Name, Text davor als deutscher Name.
+ *   2. Bekannter lateinischer Name irgendwo im Volltext.
+ *   3. Bekannter deutscher Name/Kuerzel irgendwo im Volltext (Arten-Lexikon).
+ * Nur eindeutig zuordenbare Namen werden gesetzt — nie geraten.
+ *
+ * Rueckgabe: { lat, kurz }
+ */
+function extractArtFromAsana_(task) {
+  var notes = String((task && task.notes) || '');
+  var name  = String((task && task.name)  || '');
+  var hay   = notes + '\n' + name;
+
+  var lat = '', kurz = '';
+
+  // 1) Explizite Zeile
+  var lines = hay.split(/[\r\n]+/);
+  for (var i = 0; i < lines.length && !lat && !kurz; i++) {
+    var m = lines[i].match(
+      /(?:^|\|)\s*(?:Saatgut|Saat|Samen|Art|Baumart|Pflanzenart|Modellart|Spezies|Species)\s*[:=]\s*([^|]+)/i
+    );
+    if (!m) continue;
+    var val = m[1].trim();
+    var par = val.match(/\(([^)]+)\)/);
+    if (par && istBinomial_(par[1])) {
+      lat  = par[1].trim();
+      kurz = val.replace(/\([^)]*\)/g, '').split(',')[0].trim();
+    } else {
+      var erst = val.split(',')[0].trim();
+      if (istBinomial_(erst)) lat = erst; else kurz = erst;
+    }
+  }
+
+  // 2) Lateinischer Name aus dem Lexikon im Volltext
+  if (!lat) {
+    for (var j = 0; j < ART_LEXIKON.length; j++) {
+      if (hay.toLowerCase().indexOf(ART_LEXIKON[j].lat.toLowerCase()) !== -1) {
+        lat = ART_LEXIKON[j].lat;
+        break;
+      }
+    }
+  }
+
+  // 3) Deutscher Name / Kuerzel im Volltext (nur als ganzes Wort)
+  if (!lat && !kurz) {
+    var woerter = hay.split(/[^A-Za-zÄÖÜäöüß]+/);
+    for (var k = 0; k < woerter.length && !lat; k++) {
+      var treffer = artLexikonByKey_(woerter[k]);
+      if (treffer) { lat = treffer.lat; kurz = treffer.kurz; }
+    }
+  }
+
+  // Bei bekannter Art gewinnt das Lexikon: es haelt die im Index gebraeuchliche
+  // Schreibweise fest ("Hanfsamen" -> "Hanf", "Schwarzkiefer" -> "SKi"), damit
+  // Baumart_kurz ueber alle Versuche hinweg einheitlich bleibt.
+  var eintrag = artLexikonByKey_(kurz) || artLexikonByLat_(lat);
+  if (eintrag) {
+    lat  = eintrag.lat;
+    kurz = eintrag.kurz;
+  } else if (kurz) {
+    // Unbekannte Art: nur das angehaengte "…samen" abschneiden, nichts raten
+    kurz = kurz.replace(/(samen|saatgut)$/i, '').trim();
+  }
+
+  return { lat: lat, kurz: kurz };
+}
+
+/**
+ * Zieht den Versuchsort aus einem Asana-Task.
+ * Prioritaet: Custom-Field "Ort" (Enum/Multi-Enum/Text) > Notizen-Zeile
+ * "Ort: Growzelt" (auch inline nach einem "|"). Leerstring, wenn nichts da ist —
+ * das Anlege-Formular setzt dann seinen Default (Growzelt).
+ */
+function extractOrtFromAsana_(task) {
+  var cfs = (task && task.custom_fields) || [];
+  for (var i = 0; i < cfs.length; i++) {
+    var f = cfs[i];
+    if (String(f.name || '').toLowerCase().trim() !== 'ort') continue;
+    if (f.multi_enum_values && f.multi_enum_values.length) return String(f.multi_enum_values[0].name || '').trim();
+    if (f.enum_value && f.enum_value.name) return String(f.enum_value.name).trim();
+    if (f.text_value) return String(f.text_value).trim();
+    if (f.display_value) return String(f.display_value).split(',')[0].trim();
+  }
+  var m = String((task && task.notes) || '').match(/(?:^|\|)\s*Ort\s*[:=]\s*([^|\r\n]+)/i);
+  return m ? m[1].trim() : '';
+}
+
 // Prefill fuers Anlege-Formular – aus dem Doc-JSON statt aus den Asana-Notizen.
 // Asana wird nur genutzt, um die Protokoll-Doc-URL zu finden.
 function importVersuchFromDoc(taskGid) {
@@ -1260,6 +1591,18 @@ function importVersuchFromDoc(taskGid) {
     return { code: t.code, color: t.color || '', label: t.label || '' };
   });
   var artParsed = parseArtField_(data.art);
+  // Faellt der art-Eintrag im Doc-Block aus, ergaenzt der Asana-Task (Notizen/
+  // Titel). Umgekehrt fuellt das Arten-Lexikon eine fehlende Haelfte auf.
+  if (!artParsed.lat || !artParsed.kurz) {
+    var artAsana = extractArtFromAsana_(task);
+    if (!artParsed.lat)  artParsed.lat  = artAsana.lat;
+    if (!artParsed.kurz) artParsed.kurz = artAsana.kurz;
+    var lex = artLexikonByLat_(artParsed.lat) || artLexikonByKey_(artParsed.kurz);
+    if (lex) {
+      if (!artParsed.lat)  artParsed.lat  = lex.lat;
+      if (!artParsed.kurz) artParsed.kurz = lex.kurz;
+    }
+  }
 
   return {
     ok: true,
@@ -1274,6 +1617,7 @@ function importVersuchFromDoc(taskGid) {
       hypothese:       data.hypothese || '',
       baumart_lat:     artParsed.lat,
       baumart_kurz:    artParsed.kurz,
+      ort:             data.ort || extractOrtFromAsana_(task),
       treatments_json: treatments.length ? JSON.stringify(treatments) : '',
       anzahl_trays:    data.anzahl_trays   != null ? Number(data.anzahl_trays)   : null,
       raster_cols:     data.raster_cols    != null ? Number(data.raster_cols)    : null,
@@ -1493,7 +1837,7 @@ function createVersuchInIndex(body) {
     themenfarbe:   body.themenfarbe || '#4a6b3a',
     hypothese:     body.hypothese || '',
     start_datum:   body.start_datum || '',
-    ort:           body.ort || 'Halle',
+    ort:           body.ort || 'Growzelt',
     verantwortlich: body.verantwortlich || 'Simon Goldenberg',
     posten_nr:     body.posten_nr || '',
     status:        'Aktiv',
@@ -1505,7 +1849,7 @@ function createVersuchInIndex(body) {
     raster_cols:   Number(body.raster_cols) || 4,
     raster_rows:   Number(body.raster_rows) || 6,
     anzahl_trays:  Number(body.anzahl_trays) || 1,
-    az_geplant:    Number(body.az_geplant) || 5
+    az_geplant:    Number(body.az_geplant) || 3
   };
   Object.entries(colMap).forEach(([key, val]) => {
     const colName = INDEX_COLS[key];
@@ -1577,12 +1921,13 @@ function setupSingleVersuch(versuchsnr) {
 function buildStatistikHtml(v, daten) {
   const treatments = v.treatments || [];
   const samen = Number(v.samen_pro_topf || 36);
-  const azGeplant = Number(v.az_geplant || 5);
+  const azGeplant = Number(v.az_geplant || 3);
   if (!daten || daten.length === 0 || treatments.length === 0) return '';
 
-  // Letzte AZ mit Daten bestimmen
+  // Letzte AZ mit Daten bestimmen. Immer bis AZ5 hoch scannen: az_geplant kann
+  // kleiner sein als die tatsaechlich erfassten Runden — kein Wert darf fehlen.
   let lastAZ = 0;
-  for (let az = azGeplant; az >= 1; az--) {
+  for (let az = Math.max(azGeplant, 5); az >= 1; az--) {
     if (daten.some(d => {
       const val = d['az' + az + '_zahl'];
       return val !== '' && val != null && val !== undefined && !isNaN(Number(val));

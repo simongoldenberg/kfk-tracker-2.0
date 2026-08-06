@@ -3,7 +3,7 @@
 // - Apps-Script-API: network-only (nie cachen)
 // - Bei Offline: letzte bekannte Daten zeigen
 
-const CACHE_VERSION = 'skyseed-kfk-20260708-538617e';
+const CACHE_VERSION = 'skyseed-kfk-20260806-2bcac2c';
 const STATIC_CACHE = [
   './',
   './index.html',
@@ -39,9 +39,6 @@ self.addEventListener('fetch', (event) => {
       url.hostname === 'docs.google.com') {
     return;
   }
-
-  // QR-API passthrough
-  if (url.hostname === 'api.qrserver.com') return;
 
   // Google Fonts cachen
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {

@@ -40,16 +40,21 @@ Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
 6. kfk-apps-script.gs liegt in DIESEM Repo (2.0) und wird per `clasp`
    deployt:
    C:\Users\nils_\Desktop\Claude Code\Projekte\kfk-tracker 2.0\kfk-apps-script.gs
-   Das alte Repo `…\Projekte\kfk-tracker\` ist der Vorgaengerstand und wird
-   nicht mehr gepflegt.
+   Das alte GitHub-Repo `kfk-tracker` (Vorgaengerstand) wurde am 2026-08-07
+   von Simon geloescht (inkl. Pages-Site). Der lokale Ordner
+   `…\Projekte\kfk-tracker\` liegt noch auf der Platte und kann geloescht
+   werden, sobald keine Claude-Code-Session mehr dort ihr Arbeitsverzeichnis
+   hat (siehe Hinweis in der Session vom 2026-08-07: `rm -rf` schlug mit
+   "Device or resource busy" fehl, weil das Verzeichnis das aktive
+   Arbeitsverzeichnis war).
 7. Versionierung: APP_VERSION in index.html (Anzeige in der Kopfzeile) und
    `version` in package.json synchron halten. Nummer nur beim Release
    (Version-PR develop -> main) erhoehen, danach Git-Tag setzen.
 
 ## Wichtige URLs / IDs
 - Frontend (GitHub Pages, aktuell): https://simongoldenberg.github.io/kfk-tracker-2.0/
-- Frontend ALT (Vorgaenger-Repo, laeuft noch, veralteter Stand):
-  https://simongoldenberg.github.io/kfk-tracker/
+- Frontend ALT: Repo `kfk-tracker` (Vorgaenger) wurde am 2026-08-07 geloescht,
+  die alte Pages-Site ist damit ebenfalls weg.
 - Netlify (inaktiv, Credit-Limit): https://kfk-tracker-app.netlify.app/
 - Apps-Script-Webapp:
   https://script.google.com/macros/s/AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw/exec

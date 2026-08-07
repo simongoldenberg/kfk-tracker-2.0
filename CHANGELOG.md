@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.3.1 — 2026-08-07
+
+### 🐛 Fixed
+- **Topf-Nummer überlappte auf echten Tablets mit dem Treatment-Label**
+  (von Simon per Foto gemeldet). Tray-Quadrate etwas vergrößert
+  (`.rbd`-Spaltenformel Divisor 2 → 1.6) und die Schriftgröße der
+  Topf-Nummer 1..N von 15px auf 11px reduziert, damit sie klar
+  untergeordnet und aus dem Weg des Treatment-Labels bleibt.
+- **`CACHE_VERSION` beim 1.3.0-Release vergessen zu bumpen** — dadurch
+  haben bereits installierte PWA-Instanzen (Tablets) weiterhin die
+  gecachte Version vom 2026-08-06 ausgeliefert, unabhängig davon was
+  seither live ging. Jetzt nachgeholt (`bump-cache.js`); künftige Deploys
+  laufen über `npm run deploy:frontend`, damit das nicht wieder passiert.
+
 ## Version 1.3.0 — 2026-08-07
 
 ### 🐛 Fixed
@@ -20,15 +34,12 @@ Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
   Samen-pro-Topf — verhindert von vornherein, dass eine kumulierte Zählung
   rechnerisch die Samenanzahl übersteigen kann (genau das Muster, das die in
   1.2.0 dokumentierte Zähl-Ausnahme verursacht hat).
-
-> [!CAUTION]
-> ### 🐙 Known Issues
-> - Die alte Pages-Site https://simongoldenberg.github.io/kfk-tracker/ ist noch
->   online und liefert einen veralteten Stand (ohne Doc-Import). Wer sie als PWA
->   installiert hat, arbeitet mit der alten App. Der aktuelle Tracker läuft unter
->   https://simongoldenberg.github.io/kfk-tracker-2.0/.
-> - GitHub Pages deployt von `main`. Änderungen auf `develop` sind erst nach dem
->   Version-PR live.
+- **Version-PR `develop` → `main` gemerged, Backend deployed, Tag `v1.3.0`
+  gesetzt.** Der aktuelle Tracker ist damit unter
+  https://simongoldenberg.github.io/kfk-tracker-2.0/ live.
+- **Altes Repo `kfk-tracker` gelöscht** (2026-08-07, auf Wunsch von Simon —
+  Settings → Pages → „None" ließ sich nicht setzen, daher direkt das ganze
+  Repo entfernt). Die alte, veraltete Pages-Site ist damit ebenfalls weg.
 
 ## Version 1.2.0 — 2026-08-07
 

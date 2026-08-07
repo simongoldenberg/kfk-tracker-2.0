@@ -12,7 +12,6 @@ Farbe pro Topf) befüllt. Danach werden pro Auszählung (AZ1–AZ5) die gekeimte
 | Was | Wert |
 |---|---|
 | **Tracker (Frontend, GitHub Pages)** | https://simongoldenberg.github.io/kfk-tracker-2.0/ |
-| **ALTE Pages-Site (noch online, veralteter Stand)** | https://simongoldenberg.github.io/kfk-tracker/ — nicht mehr verwenden |
 | **GitHub-Repo (öffentlich)** | https://github.com/simongoldenberg/kfk-tracker-2.0 |
 | **Backend-Webapp (Apps Script)** | https://script.google.com/macros/s/AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw/exec |
 | **Deployment-ID (stabil!)** | `AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw` |

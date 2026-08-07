@@ -400,12 +400,13 @@
   }
   .rbd {
     display: grid;
-    /* Topf-Spalten halb so breit wie die volle Aufteilung (= halb so grosse
-       Quadrate, da .topf aspect-ratio 1/1 hat). Die Rechnung nimmt der
-       verfuegbaren Breite die Wdh-Spalte (40px) und die Gaps ab und teilt
-       den Rest durch die doppelte Spaltenzahl. */
+    /* Topf-Quadrate kleiner als die volle Spaltenaufteilung, aber nicht mehr
+       exakt halbiert (*2) - *1.6 gibt spuerbar mehr Platz gegen das
+       Ueberlappen von Topf-Nummer und Treatment-Label auf echten Tablets.
+       Die Rechnung nimmt der verfuegbaren Breite die Wdh-Spalte (40px) und
+       die Gaps ab und teilt den Rest entsprechend auf. */
     grid-template-columns:
-      40px repeat(var(--cols, 4), minmax(0, calc((100% - 40px - var(--cols, 4) * 6px) / (var(--cols, 4) * 2))));
+      40px repeat(var(--cols, 4), minmax(0, calc((100% - 40px - var(--cols, 4) * 6px) / (var(--cols, 4) * 1.6))));
     justify-content: start;
     gap: 6px;
     background: var(--bg-2);
@@ -438,12 +439,12 @@
   }
   .topf:active { transform: scale(0.96); }
   .topf .topf-nr {
-    font-size: 15px;
+    font-size: 11px;
     color: var(--ink-muted);
     font-weight: 500;
     line-height: 1;
     position: absolute;
-    top: 3px; left: 4px;
+    top: 2px; left: 3px;
   }
   /* Treatment-Label: dreifache Ausgangsgroesse (11px -> 33px), damit T1/T6 …
      trotz der halbierten Quadrate auf Distanz lesbar bleiben. Schrumpft per

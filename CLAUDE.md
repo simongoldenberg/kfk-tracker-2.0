@@ -115,11 +115,20 @@ Wer den Bericht vor einem echten Abschluss pruefen will:
 Je AZ wird nur die Anzahl **neu** gekeimter Samen seit der letzten Auszählung
 eingetragen; gekeimte Samen werden danach aus dem Topf entfernt/gezogen, damit
 sie nicht doppelt zählen. Die kumulative Keimfähigkeit ergibt sich aus
-Summe(AZ1…AZn) / Samen-pro-Topf. **Achtung:** Topf-Ansicht, Statistik und ANOVA
-rechnen aktuell nur mit dem rohen Einzelwert je Runde (`AZn / Samen-pro-Topf`),
-summieren NICHT automatisch über die Runden — das gehört bei einer echten
-Gesamt-KF%-Auswertung von Hand nachgerechnet (der Rohdaten-Block im
-Asana-Bericht liefert dafür alle Einzelwerte).
+Summe(AZ1…AZn) / Samen-pro-Topf — und wird seit v1.3.0 überall konsistent so
+berechnet:
+- **Eingabe-Modal**: Eingabefeld bleibt der rohe Neu-Wert dieser Runde; darunter
+  „Kumulativ: X von Samen-pro-Topf → Y% KF" (`cumulativeAZSum`,
+  `sumStoredAZBefore` in index.html). Die Rundenobergrenze beim Eintippen ist
+  dynamisch `Samen-pro-Topf − Summe(vorherige Runden)`, nicht mehr pauschal
+  `Samen-pro-Topf` — verhindert, dass die Summe rechnerisch über die
+  Samenanzahl steigen kann.
+- **Fortschritts-Pills, Statistik, ANOVA** (Backend, `cumulativeAZValue_`):
+  rechnen je AZ mit der kumulierten Zahl pro Topf, nicht mehr mit dem rohen
+  Rundenwert.
+- **Rohdaten-Block im Asana-Bericht** (`buildRohdatenHtml_`) bleibt bewusst
+  roh (Einzelwerte pro Runde) — die Kumulierung steht dort nur als Formel im
+  Kommentar, nicht vorgerechnet.
 
 ## Wartungsfunktionen (Apps-Script-Editor, manuell ausführen)
 - `normalizeIndexArten(dryRun=true)`: normalisiert Baumart_lat/Baumart_kurz

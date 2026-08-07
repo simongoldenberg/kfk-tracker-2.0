@@ -2,6 +2,34 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.3.0 — 2026-08-07
+
+### 🐛 Fixed
+- **Kumulative KF% jetzt überall konsistent berechnet** (schließt das
+  1.2.0-Known-Issue): Topf-Eingabe-Modal, Fortschritts-Pills, Statistik und
+  ANOVA rechnen nicht mehr mit dem rohen Einzelwert einer AZ-Runde, sondern
+  mit der kumulierten Keimzahl (`cumulativeAZValue_` Backend,
+  `cumulativeAZSum` Frontend). Das Eingabe-Modal zeigt neu getrennt „+X neu
+  seit letzter AZ" und „Kumulativ: Y von Samen-pro-Topf → Z% KF". Für bereits
+  erfasste Versuche mit mehreren AZ-Runden ändern sich dadurch die
+  angezeigten KF%-Werte (sie werden höher, da jetzt tatsächlich aufsummiert
+  statt je Runde isoliert betrachtet) — die zugrunde liegenden Rohdaten im
+  Sheet bleiben unverändert.
+- **Rundenobergrenze bei der Eingabe ist jetzt dynamisch**: maximal
+  „Samen-pro-Topf minus Summe der vorherigen Runden" statt pauschal
+  Samen-pro-Topf — verhindert von vornherein, dass eine kumulierte Zählung
+  rechnerisch die Samenanzahl übersteigen kann (genau das Muster, das die in
+  1.2.0 dokumentierte Zähl-Ausnahme verursacht hat).
+
+> [!CAUTION]
+> ### 🐙 Known Issues
+> - Die alte Pages-Site https://simongoldenberg.github.io/kfk-tracker/ ist noch
+>   online und liefert einen veralteten Stand (ohne Doc-Import). Wer sie als PWA
+>   installiert hat, arbeitet mit der alten App. Der aktuelle Tracker läuft unter
+>   https://simongoldenberg.github.io/kfk-tracker-2.0/.
+> - GitHub Pages deployt von `main`. Änderungen auf `develop` sind erst nach dem
+>   Version-PR live.
+
 ## Version 1.2.0 — 2026-08-07
 
 ### 🚀 Added

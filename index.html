@@ -663,6 +663,12 @@
     color: var(--ink-muted);
     margin-top: 8px;
   }
+  .value-display .kf-cumulative {
+    font-size: 22px;
+    color: var(--ink);
+    font-weight: 600;
+    margin-top: 6px;
+  }
   .value-display .plaus-warn {
     font-size: 18px;
     color: var(--warn);
@@ -978,7 +984,7 @@ const STORAGE_KEY = 'kfk-tracker-pref';
 // App-Version + Stand dieser Version (wird dezent in der Kopfzeile angezeigt).
 // APP_VERSION_DATE wird von bump-cache.js beim Frontend-Deploy automatisch auf
 // das Deploy-Datum gesetzt — die Nummer selbst bleibt manuell (s. CLAUDE.md).
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const APP_VERSION_DATE = '2026-08-07';
 
 // Zeile fuer die Kopfzeile: "v1.1.0 · 06.08.2026"
@@ -1931,6 +1937,32 @@ function findTopfDaten(topf, tray) {
   return state.currentDaten.find(x => x.topf === topf);
 }
 
+// Kumulative Keimzahl eines Topfes bis (inkl.) Runde az: Summe(AZ1..az), da je
+// AZ nur die NEU seit der letzten Auszaehlung gekeimten Samen erfasst werden
+// (Keimlinge werden danach gezogen). overrideVal ersetzt den gespeicherten
+// Wert der Runde az live waehrend der Eingabe (leer = Runde az noch nicht
+// mitgezaehlt). Rueckgabe { sum, any } - any=false wenn bis dahin noch nichts erfasst ist.
+function cumulativeAZSum(d, az, overrideVal) {
+  let sum = 0, any = false;
+  for (let a = 1; a <= az; a++) {
+    const raw = (a === az) ? overrideVal : d['az' + a + '_zahl'];
+    if (raw !== '' && raw != null && raw !== undefined && !isNaN(Number(raw))) { sum += Number(raw); any = true; }
+  }
+  return { sum, any };
+}
+
+// Summe der gespeicherten (nicht ueberschriebenen) AZ-Werte VOR Runde az —
+// fuer die Rundenobergrenze beim Eintippen. Bewusst getrennt von
+// cumulativeAZSum, da dort bei a===az immer der Live-Override greift.
+function sumStoredAZBefore(d, az) {
+  let sum = 0;
+  for (let a = 1; a < Number(az); a++) {
+    const raw = d['az' + a + '_zahl'];
+    if (raw !== '' && raw != null && raw !== undefined && !isNaN(Number(raw))) sum += Number(raw);
+  }
+  return sum;
+}
+
 // Warnt (blockiert nicht), wenn ein AZ-Wert niedriger ist als der hoechste Wert einer
 // frueheren AZ-Runde desselben Topfes — Anzeichen fuer vergessenes Ziehen der Keimlinge.
 function plausibilityWarning(az, val, d) {
@@ -1961,7 +1993,10 @@ function renderTopfModal() {
   const currentVal = d['az' + az + '_zahl'];
   const val = (currentVal !== '' && currentVal != null && currentVal !== undefined) ? String(currentVal) : '';
   const samen = Number(v.samen_pro_topf || 36);
-  const kf = val ? Math.round(Number(val) / samen * 100) : null;
+  const cum = cumulativeAZSum(d, az, val === '' ? '' : Number(val));
+  const cumKf = cum.any ? Math.round(cum.sum / samen * 100) : null;
+  const prevCum = sumStoredAZBefore(d, az);
+  const rundenMax = Math.max(0, samen - prevCum);
   const warnMsg = plausibilityWarning(az, val, d);
 
   const topfCount = state.currentDaten.length;
@@ -1976,7 +2011,8 @@ function renderTopfModal() {
 
     <div class="value-display">
       <div class="num ${val===''?'empty':''}" id="input-val">${val || '—'}</div>
-      <div class="kf">${val!=='' ? `${val} von ${samen} Samen → <strong>${kf}% KF</strong>` : `Max. ${samen} Samen`}</div>
+      <div class="kf" id="kf-line">${val!=='' ? `+${val} neu seit letzter AZ (max. ${rundenMax})` : `Neu gekeimte Samen seit letzter AZ (max. ${rundenMax})`}</div>
+      <div class="kf-cumulative" id="kf-cumulative">${cum.any ? `Kumulativ: ${cum.sum} von ${samen} Samen → <strong>${cumKf}% KF</strong>` : `Kumulativ: noch keine Werte`}</div>
       <div class="plaus-warn" id="plaus-warn" style="${warnMsg ? '' : 'display:none'}">${esc(warnMsg)}</div>
     </div>
 
@@ -2007,19 +2043,25 @@ function renderTopfModal() {
   document.getElementById('topf-modal').innerHTML = html;
 }
 
-function numPress(d) {
+function numPress(digit) {
   const el = document.getElementById('input-val');
   if (!el) return;
   let cur = el.textContent;
   if (cur === '—') cur = '';
   const v = state.currentVersuch;
-  const max = Number(v.samen_pro_topf || 36);
+  const samen = Number(v.samen_pro_topf || 36);
+  const datenRow = findTopfDaten(state.currentTopf, state.currentTray) || {};
+  // Diese Runde darf hoechstens die noch nicht gekeimten Samen neu melden
+  // (Samen/Topf minus Summe der vorherigen AZ-Runden) — verhindert, dass die
+  // kumulative Keimzahl ueber Samen/Topf hinaus waechst.
+  const prevCum = sumStoredAZBefore(datenRow, state.currentAZ);
+  const max = Math.max(0, samen - prevCum);
   // Zusammensetzen, dann führende Nullen entfernen — aber "0" allein darf bleiben
-  let next = cur + d;
+  let next = cur + digit;
   next = next.replace(/^0+(\d)/, '$1'); // strippt 0en nur wenn weitere Ziffern folgen
   if (next === '') next = '0';
   if (next.length > 3) return;
-  if (Number(next) > max) { toast(`Max. ${max} Samen möglich`); return; }
+  if (Number(next) > max) { toast(`Max. noch ${max} möglich (${prevCum} von ${samen} Samen bereits erfasst)`); return; }
   el.textContent = next;
   el.classList.remove('empty');
   updateKF();
@@ -2048,17 +2090,29 @@ function updateKF() {
   const v = state.currentVersuch;
   const samen = Number(v.samen_pro_topf || 36);
   const cur = el.textContent;
-  const kfEl = el.nextElementSibling;
-  if (!cur || cur === '—') {
-    kfEl.innerHTML = `Max. ${samen} Samen`;
-  } else {
-    const kf = Math.round(Number(cur) / samen * 100);
-    kfEl.innerHTML = `${cur} von ${samen} Samen → <strong>${kf}% KF</strong>`;
+  const val = (!cur || cur === '—') ? '' : cur;
+  const d = findTopfDaten(state.currentTopf, state.currentTray) || {};
+
+  const prevCum = sumStoredAZBefore(d, state.currentAZ);
+  const rundenMax = Math.max(0, samen - prevCum);
+  const kfLineEl = document.getElementById('kf-line');
+  if (kfLineEl) {
+    kfLineEl.innerHTML = val !== ''
+      ? `+${val} neu seit letzter AZ (max. ${rundenMax})`
+      : `Neu gekeimte Samen seit letzter AZ (max. ${rundenMax})`;
   }
+
+  const cumEl = document.getElementById('kf-cumulative');
+  if (cumEl) {
+    const cum = cumulativeAZSum(d, state.currentAZ, val === '' ? '' : Number(val));
+    cumEl.innerHTML = cum.any
+      ? `Kumulativ: ${cum.sum} von ${samen} Samen → <strong>${Math.round(cum.sum / samen * 100)}% KF</strong>`
+      : `Kumulativ: noch keine Werte`;
+  }
+
   const warnEl = document.getElementById('plaus-warn');
   if (warnEl) {
-    const d = findTopfDaten(state.currentTopf, state.currentTray) || {};
-    const msg = (!cur || cur === '—') ? '' : plausibilityWarning(state.currentAZ, cur, d);
+    const msg = val === '' ? '' : plausibilityWarning(state.currentAZ, val, d);
     warnEl.textContent = msg;
     warnEl.style.display = msg ? '' : 'none';
   }

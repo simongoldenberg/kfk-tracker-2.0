@@ -85,17 +85,14 @@ oder eine Zeile `Ort: …`, gewinnt dieser Wert. Alle Felder bleiben editierbar.
 
 **Auszählungen:** Je AZ wird nur die Anzahl **neu** gekeimter Samen seit der letzten
 Auszählung eingetragen — bereits gekeimte Samen werden nach dem Zählen aus dem Topf entfernt
-(gezogen), damit sie beim nächsten Mal nicht erneut mitgezählt werden. Die Eingabe ist auf
-`Samen/Topf` begrenzt. Die **kumulative** Gesamt-Keimfähigkeit bis AZn ergibt sich aus
-Summe(AZ1…AZn) / `Samen/Topf`.
-
-> ⚠️ Die App selbst rechnet das aktuell **nicht** nach: Topf-Ansicht, Statistik und ANOVA
-> zeigen je AZ nur `AZn / Samen-pro-Topf` als Prozentwert dieser einzelnen Runde, ohne über
-> die Runden zu summieren. Für die echte kumulative KF% müssen die AZn-Werte pro Topf manuell
-> aufsummiert werden (z. B. beim Auswerten des Asana-Rohdaten-Blocks). Einzelne Datenpunkte aus
-> 26_033 (Topf 1: AZ1=20, AZ2=18, AZ3=18) stammen aus einer bestätigten Ausnahme: dort wurden
-> Keimlinge zwischenzeitlich nicht gezogen und beim Folgetermin versehentlich mitgezählt — kein
-> Hinweis auf ein anderes Zählverfahren.
+(gezogen), damit sie beim nächsten Mal nicht erneut mitgezählt werden. Das Eingabe-Modal zeigt
+getrennt den rohen Neu-Wert dieser Runde und die **kumulative** Gesamt-Keimfähigkeit
+(Summe AZ1…AZn / `Samen/Topf`) — Topf-Ansicht, Fortschritts-Pills, Statistik und ANOVA rechnen
+seit v1.3.0 durchgängig mit dieser kumulierten Zahl. Die Eingabe ist pro Runde zusätzlich auf
+die noch nicht gekeimten Samen begrenzt (`Samen/Topf` minus bisherige Summe), damit die
+Kumulierung rechnerisch nie über die Samenanzahl steigen kann. Einzelne Altdaten aus 26_033
+(Topf 1: AZ1=20, AZ2=18, AZ3=18) stammen aus einer bestätigten Ausnahme vor dieser Regel: dort
+wurden Keimlinge zwischenzeitlich nicht gezogen und beim Folgetermin versehentlich mitgezählt.
 
 **Versuch abschließen:** 🏁 im Detail → Status „Abgeschlossen", Asana-Task erledigt,
 und in den Subtask „Auswertung & Bericht" wandert der vollständige Bericht: Kontext,

@@ -713,6 +713,18 @@ function isMesswert_(x) {
   return x !== '' && x != null && x !== undefined && !isNaN(Number(x));
 }
 
+// Kumulative Keimzahl eines Topfes bis (inkl.) Runde az: Summe(AZ1..az), da je
+// AZ nur die NEU seit der letzten Auszaehlung gekeimten Samen erfasst werden
+// (Keimlinge werden danach gezogen). '' wenn bis dahin noch gar kein Wert
+// erfasst wurde - unterscheidet "0 gekeimt" von "noch nicht gezaehlt".
+function cumulativeAZValue_(d, az) {
+  let sum = 0, any = false;
+  for (let a = 1; a <= az; a++) {
+    if (isMesswert_(d['az' + a + '_zahl'])) { sum += Number(d['az' + a + '_zahl']); any = true; }
+  }
+  return any ? sum : '';
+}
+
 /**
  * Baut den maschinenlesbaren Rohdaten-Block fuer den Asana-Abschlussbericht.
  *
@@ -1976,14 +1988,14 @@ function buildStatistikHtml(v, daten) {
   }
   if (lastAZ === 0) return '';
 
-  let html = '<br><br><strong>📊 Statistik (ANOVA · η² · CV)</strong><br>';
+  let html = '<br><br><strong>📊 Statistik (ANOVA · η² · CV, kumulativ bis zur jeweiligen AZ)</strong><br>';
 
   for (let az = 1; az <= lastAZ; az++) {
     const groups = treatments.map(t => {
       const vals = daten
         .filter(d => String(d.treatment || '').split(/[\s(]/)[0] === t.code)
-        .map(d => d['az' + az + '_zahl'])
-        .filter(x => x !== '' && x != null && x !== undefined && !isNaN(Number(x)))
+        .map(d => cumulativeAZValue_(d, az))
+        .filter(x => x !== '')
         .map(Number);
       return { t, vals };
     }).filter(g => g.vals.length > 0);
@@ -2108,21 +2120,20 @@ function getFortschritt(v, daten) {
   const result = { az_geplant: azGeplant, az_status: [], az_kf_mittel: [] };
 
   for (let az = 1; az <= azGeplant; az++) {
-    const werte = daten
+    // Status (offen/teilweise/fertig) richtet sich nach den rohen Eintraegen
+    // dieser Runde; der angezeigte KF%-Mittelwert dagegen ist kumulativ
+    // (Summe AZ1..az je Topf) - siehe cumulativeAZValue_.
+    const rawWerte = daten
       .map(d => d['az' + az + '_zahl'])
       .filter(x => x !== '' && x !== null && x !== undefined && !isNaN(Number(x)));
 
-    if (werte.length === 0) {
+    if (rawWerte.length === 0) {
       result.az_status.push('offen');
       result.az_kf_mittel.push(null);
-    } else if (werte.length < daten.length) {
-      result.az_status.push('teilweise');
-      const mean = werte.reduce((a, b) => a + Number(b), 0) / werte.length;
-      const samen = Number(v.samen_pro_topf || 36);
-      result.az_kf_mittel.push(Math.round((mean / samen) * 100));
     } else {
-      result.az_status.push('fertig');
-      const mean = werte.reduce((a, b) => a + Number(b), 0) / werte.length;
+      result.az_status.push(rawWerte.length < daten.length ? 'teilweise' : 'fertig');
+      const cumWerte = daten.map(d => cumulativeAZValue_(d, az)).filter(x => x !== '').map(Number);
+      const mean = cumWerte.reduce((a, b) => a + b, 0) / cumWerte.length;
       const samen = Number(v.samen_pro_topf || 36);
       result.az_kf_mittel.push(Math.round((mean / samen) * 100));
     }

@@ -2,6 +2,20 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.3.1 — 2026-08-07
+
+### 🐛 Fixed
+- **Topf-Nummer überlappte auf echten Tablets mit dem Treatment-Label**
+  (von Simon per Foto gemeldet). Tray-Quadrate etwas vergrößert
+  (`.rbd`-Spaltenformel Divisor 2 → 1.6) und die Schriftgröße der
+  Topf-Nummer 1..N von 15px auf 11px reduziert, damit sie klar
+  untergeordnet und aus dem Weg des Treatment-Labels bleibt.
+- **`CACHE_VERSION` beim 1.3.0-Release vergessen zu bumpen** — dadurch
+  haben bereits installierte PWA-Instanzen (Tablets) weiterhin die
+  gecachte Version vom 2026-08-06 ausgeliefert, unabhängig davon was
+  seither live ging. Jetzt nachgeholt (`bump-cache.js`); künftige Deploys
+  laufen über `npm run deploy:frontend`, damit das nicht wieder passiert.
+
 ## Version 1.3.0 — 2026-08-07
 
 ### 🐛 Fixed

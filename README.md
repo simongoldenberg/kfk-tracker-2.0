@@ -12,6 +12,7 @@ Farbe pro Topf) befüllt. Danach werden pro Auszählung (AZ1–AZ5) die gekeimte
 | Was | Wert |
 |---|---|
 | **Tracker (Frontend, GitHub Pages)** | https://simongoldenberg.github.io/kfk-tracker-2.0/ |
+| **ALTE Pages-Site (noch online, veralteter Stand)** | https://simongoldenberg.github.io/kfk-tracker/ — nicht mehr verwenden |
 | **GitHub-Repo (öffentlich)** | https://github.com/simongoldenberg/kfk-tracker-2.0 |
 | **Backend-Webapp (Apps Script)** | https://script.google.com/macros/s/AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw/exec |
 | **Deployment-ID (stabil!)** | `AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw` |
@@ -77,8 +78,32 @@ steht in den Notizen des zugehörigen Asana-Tasks. (Beides erzeugt das Claude-Pr
    (Toast: „RBD: X/Y Töpfe belegt").
 4. Versuch öffnen → AZ wählen → Zählwerte/Fotos erfassen.
 
-**Auszählungen:** Pro AZ nur *neu* gekeimte Samen zählen (gekeimte werden entfernt),
-KFK kumulativ = AZ1+…+AZn.
+**Vorbelegt beim Anlegen:** Ort = `Growzelt`, AZ geplant = `3`, Baumart (lat. + kurz)
+wird automatisch aus dem Asana-Task erkannt (Zeile `Saatgut: …`, lateinischer Name im
+Text oder deutscher Name über das Arten-Lexikon). Liefert Asana ein Custom-Field „Ort"
+oder eine Zeile `Ort: …`, gewinnt dieser Wert. Alle Felder bleiben editierbar.
+
+**Auszählungen:** Je AZ wird nur die Anzahl **neu** gekeimter Samen seit der letzten
+Auszählung eingetragen — bereits gekeimte Samen werden nach dem Zählen aus dem Topf entfernt
+(gezogen), damit sie beim nächsten Mal nicht erneut mitgezählt werden. Das Eingabe-Modal zeigt
+getrennt den rohen Neu-Wert dieser Runde und die **kumulative** Gesamt-Keimfähigkeit
+(Summe AZ1…AZn / `Samen/Topf`) — Topf-Ansicht, Fortschritts-Pills, Statistik und ANOVA rechnen
+seit v1.3.0 durchgängig mit dieser kumulierten Zahl. Die Eingabe ist pro Runde zusätzlich auf
+die noch nicht gekeimten Samen begrenzt (`Samen/Topf` minus bisherige Summe), damit die
+Kumulierung rechnerisch nie über die Samenanzahl steigen kann. Einzelne Altdaten aus 26_033
+(Topf 1: AZ1=20, AZ2=18, AZ3=18) stammen aus einer bestätigten Ausnahme vor dieser Regel: dort
+wurden Keimlinge zwischenzeitlich nicht gezogen und beim Folgetermin versehentlich mitgezählt.
+
+**Versuch abschließen:** 🏁 im Detail → Status „Abgeschlossen", Asana-Task erledigt,
+und in den Subtask „Auswertung & Bericht" wandert der vollständige Bericht: Kontext,
+Trend, Statistik (ANOVA/η²/CV) **und ein maschinenlesbarer Rohdaten-Block**
+`<<<KFK-RESULTS … KFK-RESULTS>>>` mit allen Einzelwerten pro Topf und AZ, AZ-Daten,
+Foto-Links sowie Sheet-/Drive-Link. Damit kann die Auswertung allein aus Asana erfolgen.
+Vorab prüfen ohne zu posten: `testAuswertungsBericht('26_0XX')` im Apps-Script-Editor.
+
+**Versuch löschen:** 🗑 auf der Versuchskarte (aktive Liste oder Archiv) → im Dialog die
+Versuchsnummer eintippen. Entfernt **nur die Zeile im `__KFK-Index`**; Daten-Sheet,
+Drive-Ordner und Asana-Task bleiben erhalten.
 
 **RBD manuell nachladen** (nur falls nötig, z. B. Layout im Doc korrigiert): im
 Apps-Script-Editor `importRbdFromDoc('26_0XX')` bzw. die Wrapper `testImportRbdDoc…` ausführen.
@@ -140,5 +165,18 @@ Die feste Deployment-ID hält die Webapp-URL stabil.
 | `createVersuch` | POST | Versuch anlegen (+ Auto-RBD aus Doc) |
 | `importRbdDoc` | POST | RBD aus Doc ins Daten-Sheet (Fallback: `importRbd`) |
 | `saveTopf` / `abschlussAZ` / `uploadFoto` | POST | Erfassung |
+| `markVersuchAbgeschlossen` | POST | Abschluss + Bericht inkl. Rohdaten nach Asana |
+| `archiveVersuch` | POST | Status auf „Archiviert" (kein Bericht) |
+| `deleteVersuch` | POST | Index-Zeile löschen (Sheet/Drive/Asana bleiben) |
 
 Das JSON-Format des Protokoll-Blocks ist in `FORSCHUNGSPLAN-Projektanweisung.md` beschrieben.
+
+---
+
+## 7. Version
+
+Die App zeigt Version und Versionsdatum dezent in der Kopfzeile (`v1.1.0 · 06.08.2026`).
+Quelle: `APP_VERSION` / `APP_VERSION_DATE` in `index.html`, synchron mit `version` in
+`package.json`. Das Datum stempelt `bump-cache.js` beim Frontend-Deploy automatisch;
+die Nummer wird manuell beim Release (Version-PR `develop` → `main`) erhöht, danach
+Git-Tag setzen. Änderungen je Version: [`CHANGELOG.md`](CHANGELOG.md).

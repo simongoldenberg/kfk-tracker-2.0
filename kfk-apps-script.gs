@@ -128,6 +128,10 @@ function doPost(e) {
     const body = JSON.parse(e.postData.contents);
     const action = body.action;
 
+    // Jeder schreibende Call invalidiert sofort den kurzlebigen get-Cache
+    // fuer diesen Versuch (siehe getVersuch/VERSUCH_CACHE_TTL_SEC).
+    if (body.versuchsnr) invalidateVersuchCache_(body.versuchsnr);
+
     switch (action) {
       case 'saveTopf':
         return json(saveTopf(body));
@@ -143,6 +147,8 @@ function doPost(e) {
         return json(markVersuchAbgeschlossen(body));
       case 'archiveVersuch':
         return json(archiveVersuch(body));
+      case 'deleteVersuch':
+        return json(deleteVersuch(body));
       case 'createVersuch':
         return json(createVersuchInIndex(body));
       case 'field_saveParzelle':
@@ -233,15 +239,39 @@ function listVersuche() {
   return { versuche: versucheMitFortschritt, anzahl: versucheMitFortschritt.length };
 }
 
+// Kurzes Caching: readDaten() oeffnet per SpreadsheetApp.openById() ein fremdes
+// Sheet - das ist der dominante Latenz-Faktor bei 'get' (mehrfache Sekunden bei
+// ungluecklichem Timing). Ein kurzlebiger Cache reduziert wiederholte Reads
+// (Polling, mehrere Tabs) fast auf 0, ohne echte Frische zu verlieren: jeder
+// schreibende POST-Call invalidiert den Eintrag sofort (siehe doPost).
+const VERSUCH_CACHE_TTL_SEC = 8;
+
+function versuchCacheKey_(versuchsnr) {
+  return 'getVersuch_' + versuchsnr;
+}
+function invalidateVersuchCache_(versuchsnr) {
+  if (!versuchsnr) return;
+  try { CacheService.getScriptCache().remove(versuchCacheKey_(versuchsnr)); } catch (e) {}
+}
+
 function getVersuch(versuchsnr) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = versuchCacheKey_(versuchsnr);
+  try {
+    const cached = cache.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+
   const all = readIndex();
   const v = all.find(x => String(x.versuchsnr) === String(versuchsnr));
   if (!v) return { error: 'Versuch nicht gefunden: ' + versuchsnr };
 
   const daten = readDaten(v);
   const fortschritt = getFortschritt(v, daten);
+  const result = { versuch: v, daten, fortschritt };
 
-  return { versuch: v, daten, fortschritt };
+  try { cache.put(cacheKey, JSON.stringify(result), VERSUCH_CACHE_TTL_SEC); } catch (e) {}
+  return result;
 }
 
 // ========== DATEN-SHEET-OPERATIONEN ==========
@@ -584,6 +614,46 @@ function archiveVersuch(body) {
 }
 
 /**
+ * Loescht einen Versuch aus dem Index.
+ *
+ * BEWUSST NUR die Index-Zeile: Daten-Sheet und Drive-Ordner des Versuchs
+ * bleiben erhalten (CLAUDE.md-Regel "Backups/Daten niemals automatisch
+ * loeschen"). Der Versuch verschwindet damit aus Tracker UND Index; die
+ * Rohdaten sind ueber die zurueckgegebenen IDs weiterhin in Drive auffindbar.
+ * Der Asana-Task bleibt ebenfalls unangetastet.
+ *
+ * body: { versuchsnr }
+ */
+function deleteVersuch(body) {
+  if (!body || !body.versuchsnr) return { error: 'versuchsnr fehlt' };
+
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const cIdx = {};
+  headers.forEach((h, i) => { cIdx[String(h).trim()] = i; });
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][cIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) {
+      const sheetFileId = String(data[i][cIdx[INDEX_COLS.sheet_file_id]] || '');
+      const folderId    = String(data[i][cIdx[INDEX_COLS.folder_id]] || '');
+      const titel       = String(data[i][cIdx[INDEX_COLS.titel]] || '');
+      indexSheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      return {
+        ok: true,
+        versuchsnr: body.versuchsnr,
+        titel: titel,
+        sheet_file_id: sheetFileId,
+        folder_id: folderId,
+        info: 'Index-Zeile entfernt. Daten-Sheet und Drive-Ordner bleiben erhalten.'
+      };
+    }
+  }
+  return { error: 'Versuch nicht gefunden: ' + body.versuchsnr };
+}
+
+/**
  * Markiert einen Versuch als VOLLSTAENDIG ABGESCHLOSSEN:
  *   - Status im Index auf "Abgeschlossen" setzen
  *   - ANOVA + eta^2 + CV aus Daten-Sheet berechnen und an Kommentar anhaengen
@@ -592,37 +662,20 @@ function archiveVersuch(body) {
  *
  * body: { versuchsnr, finalKommentarHtml }
  */
-function markVersuchAbgeschlossen(body) {
-  const indexSheet = getIndexSheet();
-  const data = indexSheet.getDataRange().getValues();
-  const headers = data[0];
-  const cIdx = {};
-  headers.forEach((h, i) => { cIdx[String(h).trim()] = i; });
 
-  let rowIdx = -1;
-  let asanaGid = '';
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][cIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) {
-      rowIdx = i + 1;
-      asanaGid = String(data[i][cIdx[INDEX_COLS.asana_task_gid]] || '');
-      break;
-    }
-  }
-  if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
-
-  // Status im Index auf "Abgeschlossen"
-  indexSheet.getRange(rowIdx, cIdx[INDEX_COLS.status] + 1).setValue('Abgeschlossen');
-  SpreadsheetApp.flush();
-
-  // Versuch + Statistik aus Daten-Sheet berechnen
-  const allV = readIndex();
-  const v = allV.find(x => String(x.versuchsnr) === String(body.versuchsnr));
-
+// Baut den vollstaendigen Auswertungsbericht (Kontext-Header + Client-Trend/
+// Bemerkung + Statistik/ANOVA) als ein <body>...</body>-HTML-Fragment.
+// Ausgelagert aus markVersuchAbgeschlossen, damit testAuswertungsBericht()
+// denselben Bericht ohne jede Seiteneffekte (kein Asana, kein Status-Wechsel)
+// erzeugen und im Ausfuehrungsprotokoll pruefen kann.
+function buildVersuchsberichtHtml_(v, clientFinalKommentarHtml) {
   let statistikHtml = '';
+  let rohdatenHtml = '';
   try {
     if (v && v.sheet_file_id) {
       const daten = readDaten(v);
       statistikHtml = buildStatistikHtml(v, daten);
+      rohdatenHtml = buildRohdatenHtml_(v, daten);
     }
   } catch (e) {
     Logger.log('Statistik-Fehler: ' + e);
@@ -649,10 +702,188 @@ function markVersuchAbgeschlossen(body) {
 
   // Client-Kommentar (Trend + Bemerkung) von aussenliegenden <body>-Tags befreien,
   // damit Header + Kommentar + Statistik zu einem einzigen validen Block werden.
-  const clientHtml = String(body.finalKommentarHtml || '')
+  const clientHtml = String(clientFinalKommentarHtml || '')
     .replace(/^\s*<body>/i, '')
     .replace(/<\/body>\s*$/i, '');
-  const fullReportHtml = '<body>' + headerHtml + clientHtml + statistikHtml + '</body>';
+  return '<body>' + headerHtml + clientHtml + statistikHtml + rohdatenHtml + '</body>';
+}
+
+// Numerische Zelle? (leer / '' / null / Text zaehlen nicht als Messwert)
+function isMesswert_(x) {
+  return x !== '' && x != null && x !== undefined && !isNaN(Number(x));
+}
+
+// Kumulative Keimzahl eines Topfes bis (inkl.) Runde az: Summe(AZ1..az), da je
+// AZ nur die NEU seit der letzten Auszaehlung gekeimten Samen erfasst werden
+// (Keimlinge werden danach gezogen). '' wenn bis dahin noch gar kein Wert
+// erfasst wurde - unterscheidet "0 gekeimt" von "noch nicht gezaehlt".
+function cumulativeAZValue_(d, az) {
+  let sum = 0, any = false;
+  for (let a = 1; a <= az; a++) {
+    if (isMesswert_(d['az' + a + '_zahl'])) { sum += Number(d['az' + a + '_zahl']); any = true; }
+  }
+  return any ? sum : '';
+}
+
+/**
+ * Baut den maschinenlesbaren Rohdaten-Block fuer den Asana-Abschlussbericht.
+ *
+ * ZWECK: Der Asana-Post soll fuer eine vollstaendige Auswertung ausreichen —
+ * ohne Zugriff auf Tracker, Index oder Daten-Sheet. Deshalb stehen hier neben
+ * den Metadaten ALLE Einzelwerte pro Topf und AZ (nicht nur die Mittelwerte
+ * aus buildStatistikHtml), dazu AZ-Datum, Foto-Links und die Cloud-Links.
+ *
+ * Format: CSV in einem <pre>-Block, umschlossen von den Markern
+ * <<<KFK-RESULTS ... KFK-RESULTS>>> (analog zum <<<KFK-DATA-Block des
+ * Protokoll-Docs), damit der Block eindeutig gefunden und geparst werden kann.
+ */
+function buildRohdatenHtml_(v, daten) {
+  if (!v || !daten || daten.length === 0) return '';
+
+  const samen = Number(v.samen_pro_topf || 36);
+  const azGeplant = Number(v.az_geplant || 3);
+  // Immer bis AZ5 scannen: az_geplant kann kleiner sein als das, was
+  // tatsaechlich im Sheet steht — es darf kein Messwert verloren gehen.
+  const azScan = Math.max(azGeplant, 5);
+
+  const azList = [];
+  for (let az = 1; az <= azScan; az++) {
+    if (daten.some(d => isMesswert_(d['az' + az + '_zahl']))) azList.push(az);
+  }
+  if (azList.length === 0) return '';
+
+  // Datum je AZ (erster gefuellter Wert; abweichende Daten werden mitgezaehlt)
+  const azDatum = azList.map(az => {
+    const daten_az = daten
+      .map(d => String(d['az' + az + '_datum'] || '').trim())
+      .filter(s => s !== '');
+    const uniq = daten_az.filter((s, i) => daten_az.indexOf(s) === i);
+    const n = daten.filter(d => isMesswert_(d['az' + az + '_zahl'])).length;
+    return 'AZ' + az + '=' + (uniq[0] || '?') +
+           (uniq.length > 1 ? ' (+' + (uniq.length - 1) + ' weitere Daten)' : '') +
+           ' [n=' + n + ']';
+  }).join('; ');
+
+  const treatLegend = (v.treatments || [])
+    .map(t => t.code + '=' + String(t.label || '').replace(/[;\r\n]/g, ' '))
+    .join(' | ');
+
+  const sheetUrl = v.sheet_file_id
+    ? 'https://docs.google.com/spreadsheets/d/' + v.sheet_file_id + '/edit'
+    : '';
+  const folderUrl = v.folder_id
+    ? 'https://drive.google.com/drive/folders/' + v.folder_id
+    : '';
+
+  let txt = '<<<KFK-RESULTS\n';
+  txt += 'schema: kfk-results-v1\n';
+  txt += 'versuchsnr: ' + (v.versuchsnr || '') + '\n';
+  txt += 'titel: ' + (v.titel || '') + '\n';
+  if (v.id_nummer)     txt += 'id_nummer: ' + v.id_nummer + '\n';
+  if (v.themenbereich) txt += 'themenbereich: ' + v.themenbereich + '\n';
+  txt += 'art_lat: ' + (v.baumart_lat || '') + '\n';
+  txt += 'art_kurz: ' + (v.baumart_kurz || '') + '\n';
+  if (v.ort)          txt += 'ort: ' + v.ort + '\n';
+  if (v.start_datum)  txt += 'start_datum: ' + v.start_datum + '\n';
+  if (v.hypothese)    txt += 'hypothese: ' + String(v.hypothese).replace(/[\r\n]+/g, ' ') + '\n';
+  txt += 'samen_pro_topf: ' + samen + '\n';
+  txt += 'anzahl_trays: ' + (v.anzahl_trays || 1) + '\n';
+  txt += 'raster_cols: ' + (v.raster_cols || 4) + '\n';
+  txt += 'raster_rows: ' + (v.raster_rows || 6) + '\n';
+  txt += 'az_geplant: ' + azGeplant + '\n';
+  txt += 'az_mit_daten: ' + azList.map(a => 'AZ' + a).join(',') + '\n';
+  txt += 'az_datum: ' + azDatum + '\n';
+  txt += 'treatments: ' + treatLegend + '\n';
+  if (sheetUrl)  txt += 'sheet_url: ' + sheetUrl + '\n';
+  if (folderUrl) txt += 'drive_url: ' + folderUrl + '\n';
+  txt += '\n';
+  txt += '# Einzelwerte pro Topf. AZn = Anzahl NEU gekeimter Samen seit der vorherigen\n';
+  txt += '# Auszaehlung (Keimlinge werden nach dem Zaehlen aus dem Topf entfernt/gezogen).\n';
+  txt += '# Kumulative KF% bis AZn = Summe(AZ1..AZn) / samen_pro_topf * 100. Leer = kein\n';
+  txt += '# Wert erfasst. Hinweis: die App selbst (Topf-Ansicht, Statistik, ANOVA) zeigt\n';
+  txt += '# je AZ nur den rohen Einzelwert / samen_pro_topf, summiert NICHT automatisch -\n';
+  txt += '# fuer die tatsaechliche Gesamt-KF% muessen die AZn-Werte pro Topf aufsummiert werden.\n';
+  txt += 'Tray;Topf;Block;Wdh;Treatment;' + azList.map(a => 'AZ' + a).join(';') + '\n';
+
+  const sorted = daten.slice().sort((a, b) =>
+    (Number(a.tray || 1) - Number(b.tray || 1)) || (Number(a.topf || 0) - Number(b.topf || 0))
+  );
+  sorted.forEach(d => {
+    const code = String(d.treatment || '').split(/[\s(]/)[0];
+    txt += [
+      d.tray || 1,
+      d.topf,
+      d.block || '',
+      d.wdh || '',
+      code
+    ].join(';') + ';' +
+    azList.map(az => isMesswert_(d['az' + az + '_zahl']) ? Number(d['az' + az + '_zahl']) : '').join(';') +
+    '\n';
+  });
+
+  // Foto-Links (1 Foto pro AZ pro Tray, s. Foto-Schema in CLAUDE.md)
+  const fotoZeilen = [];
+  const trays = daten
+    .map(d => Number(d.tray || 1))
+    .filter((t, i, arr) => arr.indexOf(t) === i)
+    .sort((a, b) => a - b);
+  [0].concat(azList).forEach(az => {
+    trays.forEach(tray => {
+      const row = daten.find(d => Number(d.tray || 1) === tray && d.fotos && d.fotos['az' + az]);
+      const url = row ? row.fotos['az' + az] : '';
+      if (url) fotoZeilen.push('AZ' + az + ' Tray' + tray + ': ' + url);
+    });
+  });
+  if (fotoZeilen.length) {
+    txt += '\n# Fotos (Drive-Links, AZ0 = Initialzustand)\n' + fotoZeilen.join('\n') + '\n';
+  }
+
+  txt += 'KFK-RESULTS>>>';
+
+  return '<br><br><strong>🧾 Rohdaten (maschinenlesbar)</strong><br><pre>' +
+         escHtml_(txt) + '</pre>';
+}
+
+// GEFAHRLOSER Dry-Run-Test: baut den Auswertungsbericht fuer versuchsnr und
+// loggt ihn nur (Logger.log) – postet NICHTS zu Asana, aendert KEINEN Status.
+// Zum Pruefen der Berichts-Formatierung vor einem echten Abschluss.
+function testAuswertungsBericht(versuchsnr) {
+  const allV = readIndex();
+  const v = allV.find(x => String(x.versuchsnr) === String(versuchsnr));
+  if (!v) { Logger.log('Versuch nicht gefunden: ' + versuchsnr); return; }
+  const html = buildVersuchsberichtHtml_(v, '');
+  Logger.log(html);
+  return html;
+}
+// Direkt im Editor per Dropdown ausfuehrbar (kein Argument noetig):
+function testAuswertungsBericht_026_033() { return testAuswertungsBericht('26_033'); }
+
+function markVersuchAbgeschlossen(body) {
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const cIdx = {};
+  headers.forEach((h, i) => { cIdx[String(h).trim()] = i; });
+
+  let rowIdx = -1;
+  let asanaGid = '';
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][cIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) {
+      rowIdx = i + 1;
+      asanaGid = String(data[i][cIdx[INDEX_COLS.asana_task_gid]] || '');
+      break;
+    }
+  }
+  if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  // Status im Index auf "Abgeschlossen"
+  indexSheet.getRange(rowIdx, cIdx[INDEX_COLS.status] + 1).setValue('Abgeschlossen');
+  SpreadsheetApp.flush();
+
+  // Versuch + vollstaendigen Bericht (Header + Trend/Bemerkung + Statistik) bauen
+  const allV = readIndex();
+  const v = allV.find(x => String(x.versuchsnr) === String(body.versuchsnr));
+  const fullReportHtml = buildVersuchsberichtHtml_(v, body.finalKommentarHtml || '');
 
   let asanaResult = { info: 'keine Asana-Verbindung' };
   if (asanaGid && ASANA_PAT && !ASANA_PAT.startsWith('__')) {
@@ -858,7 +1089,7 @@ function importVersuchFromAsana(taskGid) {
 
   const res = UrlFetchApp.fetch(
     'https://app.asana.com/api/1.0/tasks/' + taskGid +
-    '?opt_fields=name,notes,custom_fields',
+    '?opt_fields=name,notes,custom_fields,assignee.name',
     { method: 'get', headers: { Authorization: 'Bearer ' + ASANA_PAT }, muteHttpExceptions: true }
   );
   if (res.getResponseCode() !== 200) {
@@ -919,15 +1150,31 @@ function importVersuchFromAsana(taskGid) {
     if (samen_pro_topf === null || v > samen_pro_topf) samen_pro_topf = v;
   }
 
+  // Baumart + Ort direkt aus dem Task ziehen, damit im Formular nichts
+  // von Hand nachgetragen werden muss (s. extractArtFromAsana_/extractOrtFromAsana_)
+  const art = extractArtFromAsana_(task);
+  const ort = extractOrtFromAsana_(task);
+  const verantwortlich = extractVerantwortlichFromAsana_(task);
+
   return {
     ok: true,
     prefill: {
       asana_task_gid: taskGid,
       versuchsnr, titel, themenbereich, start_datum, hypothese,
+      baumart_lat: art.lat,
+      baumart_kurz: art.kurz,
+      ort: ort,
+      verantwortlich: verantwortlich,
       treatments_json,
       anzahl_trays, raster_cols, raster_rows, samen_pro_topf
     }
   };
+}
+
+// Name des im Asana-Task zugewiesenen Nutzers (Assignee). Leer, wenn keiner
+// zugewiesen ist - dann greift der Backend-Default ('Simon Goldenberg').
+function extractVerantwortlichFromAsana_(task) {
+  return (task && task.assignee && task.assignee.name) || '';
 }
 
 // ========== RBD-LAYOUT IMPORTIEREN ==========
@@ -1197,7 +1444,7 @@ function readKfkDataFromDoc_(docId) {
 // Holt einen Asana-Task und liefert das geparste data-Objekt (name, notes, custom_fields).
 function fetchAsanaTask_(taskGid) {
   var res = UrlFetchApp.fetch(
-    'https://app.asana.com/api/1.0/tasks/' + taskGid + '?opt_fields=name,notes,custom_fields',
+    'https://app.asana.com/api/1.0/tasks/' + taskGid + '?opt_fields=name,notes,custom_fields,assignee.name',
     { method: 'get', headers: { Authorization: 'Bearer ' + ASANA_PAT }, muteHttpExceptions: true }
   );
   if (res.getResponseCode() !== 200) {
@@ -1215,6 +1462,165 @@ function parseArtField_(art) {
   var m = s.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
   if (m) return { lat: m[1].trim(), kurz: m[2].trim() };
   return { lat: s, kurz: '' };
+}
+
+// ========== ART + ORT AUS DEM ASANA-TASK ZIEHEN ==========
+
+// Arten-Lexikon fuer die Zuordnung deutscher Namen/Kuerzel -> lateinischer Name.
+// 'keys' sind normalisierte Suchbegriffe (s. normArtKey_), 'kurz' ist die im
+// Index gebraeuchliche Kurzform. Bei neuen Arten hier ergaenzen.
+const ART_LEXIKON = [
+  { lat: 'Cannabis sativa',       kurz: 'Hanf',       keys: ['hanf'] },
+  { lat: 'Pinus nigra',           kurz: 'SKi',        keys: ['schwarzkiefer', 'ski'] },
+  { lat: 'Pinus sylvestris',      kurz: 'WKi',        keys: ['waldkiefer', 'kiefer', 'wki', 'gemeinekiefer'] },
+  { lat: 'Picea abies',           kurz: 'Fi',         keys: ['fichte', 'rotfichte', 'gemeinefichte'] },
+  { lat: 'Pseudotsuga menziesii', kurz: 'Dgl',        keys: ['douglasie', 'dgl'] },
+  { lat: 'Abies alba',            kurz: 'WTa',        keys: ['weisstanne', 'tanne', 'wta'] },
+  { lat: 'Larix decidua',         kurz: 'ELa',        keys: ['laerche', 'europaeischelaerche', 'ela'] },
+  { lat: 'Fagus sylvatica',       kurz: 'Bu',         keys: ['buche', 'rotbuche'] },
+  { lat: 'Quercus robur',         kurz: 'SEi',        keys: ['stieleiche', 'eiche', 'sei'] },
+  { lat: 'Quercus petraea',       kurz: 'TEi',        keys: ['traubeneiche', 'tei'] },
+  { lat: 'Carpinus betulus',      kurz: 'HBu',        keys: ['hainbuche', 'weissbuche', 'hbu'] },
+  { lat: 'Betula pendula',        kurz: 'Bi',         keys: ['birke', 'sandbirke', 'haengebirke'] },
+  { lat: 'Alnus glutinosa',       kurz: 'SEr',        keys: ['schwarzerle', 'erle', 'ser'] },
+  { lat: 'Tilia cordata',         kurz: 'WLi',        keys: ['winterlinde', 'linde', 'wli'] },
+  { lat: 'Tilia platyphyllos',    kurz: 'SLi',        keys: ['sommerlinde', 'sli'] },
+  { lat: 'Acer pseudoplatanus',   kurz: 'BAh',        keys: ['bergahorn', 'bah'] },
+  { lat: 'Acer platanoides',      kurz: 'SAh',        keys: ['spitzahorn', 'sah'] },
+  { lat: 'Fraxinus excelsior',    kurz: 'Es',         keys: ['esche', 'gemeineesche'] },
+  { lat: 'Sorbus aucuparia',      kurz: 'VB',         keys: ['vogelbeere', 'eberesche'] },
+  { lat: 'Prunus avium',          kurz: 'VKi',        keys: ['vogelkirsche', 'suesskirsche', 'vki'] },
+  { lat: 'Robinia pseudoacacia',  kurz: 'Rob',        keys: ['robinie', 'scheinakazie'] },
+  { lat: 'Populus tremula',       kurz: 'Asp',        keys: ['aspe', 'zitterpappel'] },
+  { lat: 'Salix caprea',          kurz: 'SWe',        keys: ['salweide', 'weide'] },
+  { lat: 'Ulmus glabra',          kurz: 'BUl',        keys: ['bergulme', 'ulme'] },
+  { lat: 'Secale cereale',        kurz: 'Roggen',     keys: ['roggen'] },
+  { lat: 'Lepidium sativum',      kurz: 'Kresse',     keys: ['gartenkresse', 'kresse'] }
+];
+
+// Normalisiert einen Artnamen fuer den Lexikon-Vergleich: Kleinschreibung,
+// Umlaute aufgeloest, Nicht-Buchstaben entfernt, angehaengtes
+// "samen"/"saatgut"/"saat" abgeschnitten ("Hanfsamen" -> "hanf").
+function normArtKey_(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-z]/g, '')
+    .replace(/(samen|saatgut|saat|korn|koerner)$/, '');
+}
+
+function artLexikonByKey_(s) {
+  var key = normArtKey_(s);
+  if (!key) return null;
+  for (var i = 0; i < ART_LEXIKON.length; i++) {
+    if (ART_LEXIKON[i].keys.indexOf(key) !== -1) return ART_LEXIKON[i];
+  }
+  return null;
+}
+
+function artLexikonByLat_(lat) {
+  var l = String(lat || '').toLowerCase().trim();
+  for (var i = 0; i < ART_LEXIKON.length; i++) {
+    if (ART_LEXIKON[i].lat.toLowerCase() === l) return ART_LEXIKON[i];
+  }
+  return null;
+}
+
+// Sieht der String wie ein lateinischer Binomialname aus ("Cannabis sativa")?
+function istBinomial_(s) {
+  return /^[A-Z][a-z]{2,}\s+[a-z][a-z\-]{2,}$/.test(String(s || '').trim());
+}
+
+/**
+ * Zieht Baumart/Pflanzenart aus einem Asana-Task (Notizen + Titel).
+ *
+ * Reihenfolge:
+ *   1. Explizite Zeile "Saatgut: Hanfsamen (Cannabis sativa), ..." bzw.
+ *      "Art:/Baumart:/Pflanzenart:/Modellart:/Samen:" — Klammerinhalt gilt als
+ *      lateinischer Name, Text davor als deutscher Name.
+ *   2. Bekannter lateinischer Name irgendwo im Volltext.
+ *   3. Bekannter deutscher Name/Kuerzel irgendwo im Volltext (Arten-Lexikon).
+ * Nur eindeutig zuordenbare Namen werden gesetzt — nie geraten.
+ *
+ * Rueckgabe: { lat, kurz }
+ */
+function extractArtFromAsana_(task) {
+  var notes = String((task && task.notes) || '');
+  var name  = String((task && task.name)  || '');
+  var hay   = notes + '\n' + name;
+
+  var lat = '', kurz = '';
+
+  // 1) Explizite Zeile
+  var lines = hay.split(/[\r\n]+/);
+  for (var i = 0; i < lines.length && !lat && !kurz; i++) {
+    var m = lines[i].match(
+      /(?:^|\|)\s*(?:Saatgut|Saat|Samen|Art|Baumart|Pflanzenart|Modellart|Spezies|Species)\s*[:=]\s*([^|]+)/i
+    );
+    if (!m) continue;
+    var val = m[1].trim();
+    var par = val.match(/\(([^)]+)\)/);
+    if (par && istBinomial_(par[1])) {
+      lat  = par[1].trim();
+      kurz = val.replace(/\([^)]*\)/g, '').split(',')[0].trim();
+    } else {
+      var erst = val.split(',')[0].trim();
+      if (istBinomial_(erst)) lat = erst; else kurz = erst;
+    }
+  }
+
+  // 2) Lateinischer Name aus dem Lexikon im Volltext
+  if (!lat) {
+    for (var j = 0; j < ART_LEXIKON.length; j++) {
+      if (hay.toLowerCase().indexOf(ART_LEXIKON[j].lat.toLowerCase()) !== -1) {
+        lat = ART_LEXIKON[j].lat;
+        break;
+      }
+    }
+  }
+
+  // 3) Deutscher Name / Kuerzel im Volltext (nur als ganzes Wort)
+  if (!lat && !kurz) {
+    var woerter = hay.split(/[^A-Za-zÄÖÜäöüß]+/);
+    for (var k = 0; k < woerter.length && !lat; k++) {
+      var treffer = artLexikonByKey_(woerter[k]);
+      if (treffer) { lat = treffer.lat; kurz = treffer.kurz; }
+    }
+  }
+
+  // Bei bekannter Art gewinnt das Lexikon: es haelt die im Index gebraeuchliche
+  // Schreibweise fest ("Hanfsamen" -> "Hanf", "Schwarzkiefer" -> "SKi"), damit
+  // Baumart_kurz ueber alle Versuche hinweg einheitlich bleibt.
+  var eintrag = artLexikonByKey_(kurz) || artLexikonByLat_(lat);
+  if (eintrag) {
+    lat  = eintrag.lat;
+    kurz = eintrag.kurz;
+  } else if (kurz) {
+    // Unbekannte Art: nur das angehaengte "…samen" abschneiden, nichts raten
+    kurz = kurz.replace(/(samen|saatgut)$/i, '').trim();
+  }
+
+  return { lat: lat, kurz: kurz };
+}
+
+/**
+ * Zieht den Versuchsort aus einem Asana-Task.
+ * Prioritaet: Custom-Field "Ort" (Enum/Multi-Enum/Text) > Notizen-Zeile
+ * "Ort: Growzelt" (auch inline nach einem "|"). Leerstring, wenn nichts da ist —
+ * das Anlege-Formular setzt dann seinen Default (Growzelt).
+ */
+function extractOrtFromAsana_(task) {
+  var cfs = (task && task.custom_fields) || [];
+  for (var i = 0; i < cfs.length; i++) {
+    var f = cfs[i];
+    if (String(f.name || '').toLowerCase().trim() !== 'ort') continue;
+    if (f.multi_enum_values && f.multi_enum_values.length) return String(f.multi_enum_values[0].name || '').trim();
+    if (f.enum_value && f.enum_value.name) return String(f.enum_value.name).trim();
+    if (f.text_value) return String(f.text_value).trim();
+    if (f.display_value) return String(f.display_value).split(',')[0].trim();
+  }
+  var m = String((task && task.notes) || '').match(/(?:^|\|)\s*Ort\s*[:=]\s*([^|\r\n]+)/i);
+  return m ? m[1].trim() : '';
 }
 
 // Prefill fuers Anlege-Formular – aus dem Doc-JSON statt aus den Asana-Notizen.
@@ -1237,6 +1643,18 @@ function importVersuchFromDoc(taskGid) {
     return { code: t.code, color: t.color || '', label: t.label || '' };
   });
   var artParsed = parseArtField_(data.art);
+  // Faellt der art-Eintrag im Doc-Block aus, ergaenzt der Asana-Task (Notizen/
+  // Titel). Umgekehrt fuellt das Arten-Lexikon eine fehlende Haelfte auf.
+  if (!artParsed.lat || !artParsed.kurz) {
+    var artAsana = extractArtFromAsana_(task);
+    if (!artParsed.lat)  artParsed.lat  = artAsana.lat;
+    if (!artParsed.kurz) artParsed.kurz = artAsana.kurz;
+    var lex = artLexikonByLat_(artParsed.lat) || artLexikonByKey_(artParsed.kurz);
+    if (lex) {
+      if (!artParsed.lat)  artParsed.lat  = lex.lat;
+      if (!artParsed.kurz) artParsed.kurz = lex.kurz;
+    }
+  }
 
   return {
     ok: true,
@@ -1251,6 +1669,8 @@ function importVersuchFromDoc(taskGid) {
       hypothese:       data.hypothese || '',
       baumart_lat:     artParsed.lat,
       baumart_kurz:    artParsed.kurz,
+      ort:             data.ort || extractOrtFromAsana_(task),
+      verantwortlich:  data.verantwortlich || extractVerantwortlichFromAsana_(task),
       treatments_json: treatments.length ? JSON.stringify(treatments) : '',
       anzahl_trays:    data.anzahl_trays   != null ? Number(data.anzahl_trays)   : null,
       raster_cols:     data.raster_cols    != null ? Number(data.raster_cols)    : null,
@@ -1470,7 +1890,7 @@ function createVersuchInIndex(body) {
     themenfarbe:   body.themenfarbe || '#4a6b3a',
     hypothese:     body.hypothese || '',
     start_datum:   body.start_datum || '',
-    ort:           body.ort || 'Halle',
+    ort:           body.ort || 'Growzelt',
     verantwortlich: body.verantwortlich || 'Simon Goldenberg',
     posten_nr:     body.posten_nr || '',
     status:        'Aktiv',
@@ -1482,7 +1902,7 @@ function createVersuchInIndex(body) {
     raster_cols:   Number(body.raster_cols) || 4,
     raster_rows:   Number(body.raster_rows) || 6,
     anzahl_trays:  Number(body.anzahl_trays) || 1,
-    az_geplant:    Number(body.az_geplant) || 5
+    az_geplant:    Number(body.az_geplant) || 3
   };
   Object.entries(colMap).forEach(([key, val]) => {
     const colName = INDEX_COLS[key];
@@ -1554,12 +1974,13 @@ function setupSingleVersuch(versuchsnr) {
 function buildStatistikHtml(v, daten) {
   const treatments = v.treatments || [];
   const samen = Number(v.samen_pro_topf || 36);
-  const azGeplant = Number(v.az_geplant || 5);
+  const azGeplant = Number(v.az_geplant || 3);
   if (!daten || daten.length === 0 || treatments.length === 0) return '';
 
-  // Letzte AZ mit Daten bestimmen
+  // Letzte AZ mit Daten bestimmen. Immer bis AZ5 hoch scannen: az_geplant kann
+  // kleiner sein als die tatsaechlich erfassten Runden — kein Wert darf fehlen.
   let lastAZ = 0;
-  for (let az = azGeplant; az >= 1; az--) {
+  for (let az = Math.max(azGeplant, 5); az >= 1; az--) {
     if (daten.some(d => {
       const val = d['az' + az + '_zahl'];
       return val !== '' && val != null && val !== undefined && !isNaN(Number(val));
@@ -1567,14 +1988,14 @@ function buildStatistikHtml(v, daten) {
   }
   if (lastAZ === 0) return '';
 
-  let html = '<br><br><strong>📊 Statistik (ANOVA · η² · CV)</strong><br>';
+  let html = '<br><br><strong>📊 Statistik (ANOVA · η² · CV, kumulativ bis zur jeweiligen AZ)</strong><br>';
 
   for (let az = 1; az <= lastAZ; az++) {
     const groups = treatments.map(t => {
       const vals = daten
         .filter(d => String(d.treatment || '').split(/[\s(]/)[0] === t.code)
-        .map(d => d['az' + az + '_zahl'])
-        .filter(x => x !== '' && x != null && x !== undefined && !isNaN(Number(x)))
+        .map(d => cumulativeAZValue_(d, az))
+        .filter(x => x !== '')
         .map(Number);
       return { t, vals };
     }).filter(g => g.vals.length > 0);
@@ -1699,21 +2120,20 @@ function getFortschritt(v, daten) {
   const result = { az_geplant: azGeplant, az_status: [], az_kf_mittel: [] };
 
   for (let az = 1; az <= azGeplant; az++) {
-    const werte = daten
+    // Status (offen/teilweise/fertig) richtet sich nach den rohen Eintraegen
+    // dieser Runde; der angezeigte KF%-Mittelwert dagegen ist kumulativ
+    // (Summe AZ1..az je Topf) - siehe cumulativeAZValue_.
+    const rawWerte = daten
       .map(d => d['az' + az + '_zahl'])
       .filter(x => x !== '' && x !== null && x !== undefined && !isNaN(Number(x)));
 
-    if (werte.length === 0) {
+    if (rawWerte.length === 0) {
       result.az_status.push('offen');
       result.az_kf_mittel.push(null);
-    } else if (werte.length < daten.length) {
-      result.az_status.push('teilweise');
-      const mean = werte.reduce((a, b) => a + Number(b), 0) / werte.length;
-      const samen = Number(v.samen_pro_topf || 36);
-      result.az_kf_mittel.push(Math.round((mean / samen) * 100));
     } else {
-      result.az_status.push('fertig');
-      const mean = werte.reduce((a, b) => a + Number(b), 0) / werte.length;
+      result.az_status.push(rawWerte.length < daten.length ? 'teilweise' : 'fertig');
+      const cumWerte = daten.map(d => cumulativeAZValue_(d, az)).filter(x => x !== '').map(Number);
+      const mean = cumWerte.reduce((a, b) => a + b, 0) / cumWerte.length;
       const samen = Number(v.samen_pro_topf || 36);
       result.az_kf_mittel.push(Math.round((mean / samen) * 100));
     }
@@ -2527,4 +2947,48 @@ function ensureTrayColumnForAll() {
   Logger.log('===== ensureTrayColumnForAll =====');
   results.forEach(r => Logger.log(JSON.stringify(r)));
   return results;
+}
+
+/**
+ * Normalisiert Baumart_lat/Baumart_kurz aller __KFK-Index-Zeilen ueber ART_LEXIKON
+ * (gleiche Zuordnung wie extractArtFromAsana_ beim Neuanlegen). Ohne Argument nur
+ * Report, es wird NICHTS geschrieben (dryRun=true). Erst mit
+ * normalizeIndexArten(false) im Apps-Script-Editor ausfuehren, um zu schreiben.
+ */
+function normalizeIndexArten(dryRun) {
+  if (dryRun === undefined) dryRun = true;
+  const sheet = getIndexSheet();
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const colIdx = {};
+  headers.forEach((h, i) => { colIdx[String(h).trim()] = i; });
+
+  const latCol = colIdx[INDEX_COLS.baumart_lat];
+  const kurzCol = colIdx[INDEX_COLS.baumart_kurz];
+  const versuchsnrCol = colIdx[INDEX_COLS.versuchsnr];
+  if (latCol === undefined || kurzCol === undefined) return { error: 'Baumart-Spalten fehlen im Index' };
+
+  const changes = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const versuchsnr = String(row[versuchsnrCol] || '');
+    if (!versuchsnr) continue;
+    const curLat = String(row[latCol] || '').trim();
+    const curKurz = String(row[kurzCol] || '').trim();
+
+    const eintrag = artLexikonByLat_(curLat) || artLexikonByKey_(curKurz) || artLexikonByKey_(curLat);
+    if (!eintrag) continue;
+    if (eintrag.lat === curLat && eintrag.kurz === curKurz) continue; // bereits normalisiert
+
+    changes.push({ versuchsnr, row: i + 1, vorher: { lat: curLat, kurz: curKurz }, nachher: { lat: eintrag.lat, kurz: eintrag.kurz } });
+    if (!dryRun) {
+      sheet.getRange(i + 1, latCol + 1).setValue(eintrag.lat);
+      sheet.getRange(i + 1, kurzCol + 1).setValue(eintrag.kurz);
+    }
+  }
+  if (!dryRun) SpreadsheetApp.flush();
+
+  Logger.log('===== normalizeIndexArten (dryRun=' + dryRun + ') =====');
+  changes.forEach(c => Logger.log(JSON.stringify(c)));
+  return { dryRun, anzahlAenderungen: changes.length, changes };
 }

@@ -6,3 +6,5 @@ Thumbs.db
 node_modules/
 .clasp.json
 .clasprc.json
+# Claude-Code: nur launch.json (Preview-Server) teilen, lokale Settings nicht
+.claude/settings.local.json

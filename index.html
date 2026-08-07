@@ -48,7 +48,7 @@
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     background: var(--bg);
     color: var(--ink);
-    font-size: 15px;
+    font-size: 22px;
     line-height: 1.5;
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
@@ -70,7 +70,7 @@
     border-bottom: 2px solid var(--ink);
   }
   header .title-block { flex: 1; min-width: 0; }
-  header h1 { font-size: clamp(22px, 5vw, 28px); font-style: italic; line-height: 1.15; }
+  header h1 { font-size: clamp(33px, 7.5vw, 42px); font-style: italic; line-height: 1.15; }
   header h1 .id-nummer {
     display: inline-block;
     font-style: normal;
@@ -100,7 +100,7 @@
   }
   header .sub {
     color: var(--ink-muted);
-    font-size: 12px;
+    font-size: 18px;
     letter-spacing: 0.02em;
     margin-top: 4px;
   }
@@ -110,27 +110,24 @@
     display: flex; align-items: center; justify-content: center;
     background: var(--bg); color: var(--ink);
     border: 1.5px solid var(--ink);
-    font-size: 22px;
+    font-size: 33px;
     cursor: pointer;
   }
   header .back:active { background: var(--ink); color: var(--bg); }
-  header .qr-mini {
-    width: 56px; height: 56px;
-    min-width: 56px;
-    display: flex; align-items: center; justify-content: center;
-    background: white;
-    border: 1.5px solid var(--ink);
-    cursor: pointer;
-    padding: 4px;
+  /* Version + Stand der Version — dezent, aber lesbar */
+  header .version {
+    color: var(--ink-muted);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    margin-top: 3px;
+    opacity: 0.75;
   }
-  header .qr-mini img { width: 100%; height: 100%; display: block; }
-  header .qr-mini:active { transform: scale(0.96); }
 
   /* ============ Status-Leiste ============ */
   .status-row {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 12px;
-    font-size: 11px;
+    font-size: 16px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--ink-muted);
@@ -146,7 +143,7 @@
   /* ============ Buttons (alle mind. 64px touchable) ============ */
   button {
     font-family: inherit;
-    font-size: 14px;
+    font-size: 21px;
     font-weight: 600;
     padding: 0 18px;
     min-height: var(--touch);
@@ -165,7 +162,7 @@
   button.primary:hover { background: var(--ink); border-color: var(--ink); }
   button.danger { border-color: var(--warn); color: var(--warn); }
   button.danger:hover { background: var(--warn); color: var(--bg); }
-  button.small { min-height: 44px; padding: 0 12px; font-size: 12px; }
+  button.small { min-height: 44px; padding: 0 12px; font-size: 18px; }
   button[disabled] { opacity: 0.4; cursor: not-allowed; }
 
   .toolbar {
@@ -194,7 +191,7 @@
     gap: 10px;
   }
   .versuch-karte .chip {
-    font-size: 10px;
+    font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -205,26 +202,26 @@
   .versuch-karte .nr {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    font-size: 18px;
+    font-size: 27px;
     color: var(--ink);
   }
-  .versuch-karte .arrow { font-size: 22px; color: var(--ink-muted); }
+  .versuch-karte .arrow { font-size: 33px; color: var(--ink-muted); }
   .versuch-karte .titel {
     font-family: 'Fraunces', serif;
     font-style: italic;
-    font-size: 17px;
+    font-size: 26px;
     font-weight: 600;
     color: var(--ink);
     line-height: 1.25;
   }
   .versuch-karte .meta {
     display: flex; gap: 14px; flex-wrap: wrap;
-    font-size: 12px; color: var(--ink-muted);
+    font-size: 18px; color: var(--ink-muted);
   }
   .versuch-karte .meta strong { color: var(--ink); font-weight: 600; }
   .versuch-karte .fortschritt {
     display: flex; align-items: center; gap: 6px;
-    font-size: 12px;
+    font-size: 18px;
     color: var(--ink-muted);
   }
   .fortschritt-pill {
@@ -232,7 +229,7 @@
     padding: 2px 8px;
     border: 1px solid var(--line);
     background: var(--bg-2);
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 600;
   }
   .fortschritt-pill.done { background: var(--accent); color: white; border-color: var(--accent); }
@@ -247,7 +244,7 @@
   .info-panel summary {
     padding: 14px 16px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 18px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -257,7 +254,7 @@
     min-height: var(--touch);
   }
   .info-panel summary::-webkit-details-marker { display: none; }
-  .info-panel summary::after { content: '▼'; font-size: 10px; }
+  .info-panel summary::after { content: '▼'; font-size: 15px; }
   .info-panel[open] summary::after { content: '▲'; }
   .info-panel[open] summary { border-bottom: 1px solid var(--line); }
 
@@ -266,7 +263,7 @@
   .info-section:last-child { margin-bottom: 0; }
   .info-section h3 {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; font-weight: 700;
+    font-size: 16px; font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--accent);
@@ -274,20 +271,20 @@
     padding-bottom: 4px;
     border-bottom: 1px solid var(--line);
   }
-  .info-kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 16px; font-size: 13px; }
+  .info-kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 16px; font-size: 20px; }
   .info-kv .k { color: var(--ink-muted); }
   .info-kv .v { color: var(--ink); font-weight: 500; }
   .info-hyp {
     font-family: 'Fraunces', Georgia, serif;
     font-style: italic;
-    font-size: 15px;
+    font-size: 22px;
     line-height: 1.45;
     color: var(--ink);
   }
   .treatments-list { display: flex; flex-direction: column; gap: 6px; }
   .treatment-item {
     display: flex; align-items: center; gap: 10px;
-    font-size: 13px;
+    font-size: 20px;
   }
   .treatment-dot {
     width: 18px; height: 18px;
@@ -300,11 +297,11 @@
     display: grid;
     grid-template-columns: 42px 110px 1fr;
     gap: 10px;
-    font-size: 13px;
+    font-size: 20px;
     align-items: center;
   }
   .az-fortschritt-row .lbl { font-weight: 700; color: var(--ink); }
-  .az-fortschritt-row .sym { font-size: 14px; }
+  .az-fortschritt-row .sym { font-size: 21px; }
   .az-fortschritt-row.done { color: var(--ok); }
   .az-fortschritt-row.active { color: var(--warn); }
   .az-fortschritt-row.open { color: var(--ink-muted); }
@@ -317,7 +314,7 @@
     border: 1px solid var(--line);
     color: var(--ink);
     text-decoration: none;
-    font-size: 13px;
+    font-size: 20px;
     min-height: 48px;
   }
   .info-link:active { background: var(--bg-2); }
@@ -337,14 +334,14 @@
     cursor: pointer;
     font-family: inherit;
     font-weight: 700;
-    font-size: 14px;
+    font-size: 21px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 2px;
     transition: all 0.1s;
   }
   .az-btn:active { transform: scale(0.97); }
-  .az-btn .az-name { font-size: 15px; }
-  .az-btn .az-state { font-size: 10px; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.05em; }
+  .az-btn .az-name { font-size: 22px; }
+  .az-btn .az-state { font-size: 15px; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.05em; }
   .az-btn.done { background: var(--bg-2); }
   .az-btn.done .az-state { color: var(--ok); }
   .az-btn.active { background: var(--warn); color: white; border-color: var(--warn); }
@@ -360,7 +357,7 @@
   }
   .meta-row .field label {
     display: block;
-    font-size: 10px;
+    font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -372,7 +369,7 @@
     min-height: var(--touch);
     padding: 8px 12px;
     font-family: inherit;
-    font-size: 15px;
+    font-size: 22px;
     border: 1.5px solid var(--line);
     background: var(--bg);
     color: var(--ink);
@@ -394,7 +391,7 @@
     margin-bottom: 16px;
   }
   .rbd-title {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -403,7 +400,13 @@
   }
   .rbd {
     display: grid;
-    grid-template-columns: 40px repeat(var(--cols, 4), 1fr);
+    /* Topf-Spalten halb so breit wie die volle Aufteilung (= halb so grosse
+       Quadrate, da .topf aspect-ratio 1/1 hat). Die Rechnung nimmt der
+       verfuegbaren Breite die Wdh-Spalte (40px) und die Gaps ab und teilt
+       den Rest durch die doppelte Spaltenzahl. */
+    grid-template-columns:
+      40px repeat(var(--cols, 4), minmax(0, calc((100% - 40px - var(--cols, 4) * 6px) / (var(--cols, 4) * 2))));
+    justify-content: start;
     gap: 6px;
     background: var(--bg-2);
     padding: 10px;
@@ -412,7 +415,7 @@
   .rbd-corner, .rbd-header, .rbd-wdh-label {
     display: flex; align-items: center; justify-content: center;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 18px;
     color: var(--ink-muted);
     user-select: none;
   }
@@ -420,7 +423,9 @@
 
   .topf {
     aspect-ratio: 1 / 1;
-    min-width: var(--touch);
+    /* Kein min-width: var(--touch) mehr — das wuerde die halbierten
+       Quadrate wieder auf 64px aufblasen. */
+    min-width: 40px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     cursor: pointer;
     border: 2px solid var(--ink);
@@ -428,31 +433,36 @@
     transition: all 0.08s;
     padding: 4px;
     position: relative;
+    /* Bezugsgroesse fuer die cqw-Schriftgroessen der Kinder */
+    container-type: inline-size;
   }
   .topf:active { transform: scale(0.96); }
   .topf .topf-nr {
-    font-size: 10px;
+    font-size: 15px;
     color: var(--ink-muted);
     font-weight: 500;
     line-height: 1;
     position: absolute;
     top: 3px; left: 4px;
   }
+  /* Treatment-Label: dreifache Ausgangsgroesse (11px -> 33px), damit T1/T6 …
+     trotz der halbierten Quadrate auf Distanz lesbar bleiben. Schrumpft per
+     Container-Query mit, wenn das Quadrat dafuer zu klein wird. */
   .topf .topf-treat {
-    font-size: 11px;
+    font-size: min(33px, 46cqw);
     font-weight: 700;
     line-height: 1;
   }
   .topf .topf-val {
     font-family: 'Fraunces', serif;
     font-style: italic;
-    font-size: 22px;
+    font-size: min(33px, 34cqw);
     font-weight: 700;
     line-height: 1;
     margin-top: 2px;
   }
   .topf .topf-empty {
-    font-size: 22px;
+    font-size: min(33px, 34cqw);
     color: var(--ink-muted);
     font-weight: 700;
     opacity: 0.4;
@@ -469,7 +479,7 @@
     align-items: center;
   }
   .fotos-label {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -482,7 +492,7 @@
     cursor: pointer;
     font-family: inherit;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 20px;
     display: flex; align-items: center; justify-content: center;
     gap: 6px;
   }
@@ -496,7 +506,7 @@
     background: var(--accent);
     border: 2px solid var(--accent);
     color: white;
-    font-size: 16px;
+    font-size: 24px;
     font-weight: 700;
     cursor: pointer;
     margin-bottom: 8px;
@@ -508,7 +518,7 @@
     background: var(--bg-2); color: var(--ok); border-color: var(--ok);
   }
   .abschluss-hint {
-    font-size: 11px;
+    font-size: 16px;
     color: var(--ink-muted);
     text-align: center;
     margin-bottom: 18px;
@@ -523,14 +533,14 @@
     border: 1px solid var(--line);
   }
   .uebersicht h3 {
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--ink-muted);
     margin-bottom: 10px;
   }
   table.stats {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 20px;
     margin-bottom: 12px;
   }
   table.stats th, table.stats td {
@@ -539,7 +549,7 @@
     border-bottom: 1px solid var(--line);
   }
   table.stats th {
-    font-size: 10px;
+    font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -565,7 +575,7 @@
     grid-template-columns: 1fr 48px;
     gap: 10px;
     align-items: center;
-    font-size: 12px;
+    font-size: 18px;
   }
   .bar {
     height: 14px;
@@ -608,8 +618,8 @@
     padding-bottom: 10px;
     border-bottom: 1px solid var(--line);
   }
-  .modal-head h2 { font-size: 24px; font-style: italic; }
-  .modal-head .coord { font-size: 11px; color: var(--ink-muted); letter-spacing: 0.1em; }
+  .modal-head h2 { font-size: 36px; font-style: italic; }
+  .modal-head .coord { font-size: 16px; color: var(--ink-muted); letter-spacing: 0.1em; }
   .modal-actions {
     display: flex; gap: 8px; margin-top: 18px;
   }
@@ -624,13 +634,13 @@
     border-left-width: 6px;
     margin-bottom: 14px;
   }
-  .topf-header .lbl { font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .topf-header .lbl { font-size: 16px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; }
   .topf-header .treatment {
-    font-size: 20px; font-weight: 700;
+    font-size: 30px; font-weight: 700;
     font-family: 'Fraunces', serif; font-style: italic;
     margin-top: 4px;
   }
-  .topf-header .meta-txt { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+  .topf-header .meta-txt { font-size: 18px; color: var(--ink-muted); margin-top: 2px; }
 
   .value-display {
     text-align: center;
@@ -642,16 +652,30 @@
   .value-display .num {
     font-family: 'Fraunces', serif;
     font-style: italic;
-    font-size: 56px;
+    font-size: 84px;
     font-weight: 700;
     color: var(--accent);
     line-height: 1;
   }
   .value-display .num.empty { color: var(--ink-muted); opacity: 0.4; }
   .value-display .kf {
-    font-size: 13px;
+    font-size: 20px;
     color: var(--ink-muted);
     margin-top: 8px;
+  }
+  .value-display .kf-cumulative {
+    font-size: 22px;
+    color: var(--ink);
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  .value-display .plaus-warn {
+    font-size: 18px;
+    color: var(--warn);
+    font-weight: 600;
+    margin-top: 8px;
+    border-top: 1.5px dashed var(--warn);
+    padding-top: 8px;
   }
 
   .numpad {
@@ -662,11 +686,11 @@
   }
   .numpad button {
     min-height: 68px;
-    font-size: 22px;
+    font-size: 33px;
     font-weight: 700;
   }
-  .numpad button.clear { background: var(--bg-2); font-size: 14px; }
-  .numpad button.back { font-size: 18px; }
+  .numpad button.clear { background: var(--bg-2); font-size: 21px; }
+  .numpad button.back { font-size: 27px; }
 
   .topf-nav {
     display: grid;
@@ -682,31 +706,32 @@
   }
   .radio-grid button {
     min-height: var(--touch);
-    font-size: 16px;
+    font-size: 24px;
     font-weight: 700;
   }
   .radio-grid button.selected {
     background: var(--accent); color: white; border-color: var(--accent);
   }
 
-  /* ============ QR-Modal ============ */
-  .qr-big {
-    display: block;
-    width: 100%;
-    max-width: 320px;
-    margin: 14px auto;
-    background: white;
-    padding: 12px;
-    border: 1px solid var(--line);
-  }
-  .qr-url {
-    font-size: 11px;
-    color: var(--ink-muted);
-    word-break: break-all;
+  /* ============ Löschen-Dialog ============ */
+  .del-warn {
     background: var(--bg-2);
-    padding: 8px;
-    border: 1px solid var(--line);
-    text-align: center;
+    border-left: 4px solid var(--warn);
+    padding: 12px;
+    margin-bottom: 14px;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+  .del-input {
+    width: 100%;
+    min-height: var(--touch);
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    border: 1.5px solid var(--warn);
+    background: var(--bg);
+    color: var(--ink);
   }
 
   /* ============ Banner ============ */
@@ -714,7 +739,7 @@
     background: var(--warn); color: var(--bg);
     padding: 10px 14px;
     margin-bottom: 12px;
-    font-size: 13px;
+    font-size: 20px;
     display: none;
   }
   .banner.open { display: block; }
@@ -724,17 +749,17 @@
     background: var(--accent-dark); color: var(--bg);
     padding: 10px 14px;
     margin-bottom: 12px;
-    font-size: 13px;
+    font-size: 20px;
     align-items: center; gap: 10px;
   }
   .install-banner.open { display: flex; }
   .install-banner strong { flex: 1; }
   .install-banner button {
-    padding: 6px 12px; min-height: auto; font-size: 11px;
+    padding: 6px 12px; min-height: auto; font-size: 16px;
     background: var(--bg); color: var(--accent-dark); border-color: var(--bg);
   }
   .install-banner .close-x {
-    cursor: pointer; font-size: 18px; padding: 4px 6px;
+    cursor: pointer; font-size: 27px; padding: 4px 6px;
     background: transparent; color: var(--bg); border: none;
     min-height: auto;
   }
@@ -747,7 +772,7 @@
     background: var(--ink);
     color: var(--bg);
     padding: 12px 20px;
-    font-size: 13px;
+    font-size: 20px;
     font-weight: 500;
     z-index: 200;
     opacity: 0;
@@ -769,18 +794,18 @@
     margin-bottom: 10px;
   }
   .initial-fotos-label {
-    font-size: 13px; font-weight: 700;
+    font-size: 20px; font-weight: 700;
     color: var(--accent-dark);
     letter-spacing: 0.02em;
   }
   .initial-fotos-hint {
-    font-size: 11px;
+    font-size: 16px;
     color: var(--ink-muted);
     font-style: italic;
     margin-top: 2px;
   }
   .initial-tray-label {
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -801,7 +826,7 @@
     color: var(--bg);
     font-family: 'Fraunces', serif;
     font-style: italic;
-    font-size: 17px;
+    font-size: 26px;
     font-weight: 600;
     letter-spacing: 0.02em;
   }
@@ -813,7 +838,7 @@
     background: var(--bg);
     border: 2px dashed var(--accent-dark);
     color: var(--accent-dark);
-    font-size: 15px;
+    font-size: 22px;
     font-weight: 700;
     cursor: pointer;
     margin-top: 14px;
@@ -836,8 +861,6 @@
   @media (min-width: 700px) {
     body { padding: calc(20px + var(--safe-top)) 24px calc(24px + var(--safe-bottom)); }
     .rbd { --cols: 4; }
-    .topf .topf-val { font-size: 26px; }
-    .topf .topf-treat { font-size: 12px; }
   }
 
   /* Orientation: Landscape auf Tab Active5 */
@@ -883,18 +906,10 @@
   </div>
 </div>
 
-<!-- QR -->
-<div class="overlay" id="qr-overlay" onclick="if(event.target===this)closeQR()">
-  <div class="modal">
-    <div class="modal-head">
-      <h2 id="qr-title">QR-Code</h2>
-      <span class="coord">Scan-Ziel</span>
-    </div>
-    <img id="qr-big" class="qr-big" src="" alt="QR">
-    <div class="qr-url" id="qr-url-text"></div>
-    <div class="modal-actions">
-      <button onclick="closeQR()">Schließen</button>
-    </div>
+<!-- Versuch löschen -->
+<div class="overlay" id="delete-overlay" onclick="if(event.target===this)closeDeleteVersuch()">
+  <div class="modal" id="delete-modal">
+    <!-- dynamisch -->
   </div>
 </div>
 
@@ -921,23 +936,16 @@
     <p style="margin-bottom:12px;line-height:1.55">
       Für ANOVA, η², Post-hoc-Tukey und den Hypothesen-Check bitte am Laptop auswerten.
     </p>
-    <div style="background:var(--bg-2);padding:12px;border:1px solid var(--line);margin-bottom:12px;font-size:13px">
+    <div style="background:var(--bg-2);padding:12px;border:1px solid var(--line);margin-bottom:12px;font-size:20px">
       <div><strong>Versuchsdatei:</strong> <span id="stat-file">—</span></div>
       <div style="margin-top:4px"><strong>Speicherort:</strong> Team-Drive › KFK-Daten</div>
     </div>
-    <p style="font-size:12px;color:var(--ink-muted);line-height:1.5">
+    <p style="font-size:18px;color:var(--ink-muted);line-height:1.5">
       Die Daten liegen jederzeit aktuell in der Cloud. Claude kann sie am Laptop direkt einlesen.
     </p>
     <div class="modal-actions">
       <button class="primary" onclick="closeStatHint()">Verstanden</button>
     </div>
-  </div>
-</div>
-
-<!-- QR-Übersicht (alle aktiven Versuche) -->
-<div class="overlay" id="qrlist-overlay" onclick="if(event.target===this)closeQRList()">
-  <div class="modal" id="qrlist-modal">
-    <!-- dynamisch -->
   </div>
 </div>
 
@@ -972,6 +980,23 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyCtrEP1wsfkUsfaGMhLjou
 
 const POLL_INTERVAL = 30000;
 const STORAGE_KEY = 'kfk-tracker-pref';
+
+// App-Version + Stand dieser Version (wird dezent in der Kopfzeile angezeigt).
+// APP_VERSION_DATE wird von bump-cache.js beim Frontend-Deploy automatisch auf
+// das Deploy-Datum gesetzt — die Nummer selbst bleibt manuell (s. CLAUDE.md).
+const APP_VERSION = '1.3.0';
+const APP_VERSION_DATE = '2026-08-07';
+
+// Zeile fuer die Kopfzeile: "v1.1.0 · 06.08.2026"
+function versionLabel() {
+  const p = String(APP_VERSION_DATE).split('-');
+  const datum = p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : APP_VERSION_DATE;
+  return `v${APP_VERSION} · ${datum}`;
+}
+
+// Standardwerte fuer neue Versuche
+const DEFAULT_AZ_GEPLANT = 3;
+const DEFAULT_ORT = 'Growzelt';
 
 // ========== Zustand ==========
 let state = {
@@ -1022,15 +1047,6 @@ function savePref(patch) {
 }
 function loadPref() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (e) { return {}; }
-}
-
-function qrImg(data, size = 300) {
-  return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&margin=6&data=' + encodeURIComponent(data);
-}
-
-function appUrlFor(versuchsnr) {
-  const base = window.location.origin + window.location.pathname;
-  return base + '?versuch=' + encodeURIComponent(versuchsnr);
 }
 
 // Textfarbe für Treatment-Hintergrund (light/dark)
@@ -1115,6 +1131,69 @@ async function quickArchive(versuchsnr) {
   }
 }
 
+// ========== Versuch löschen ==========
+// Entfernt NUR die Zeile im __KFK-Index. Daten-Sheet und Drive-Ordner bleiben
+// erhalten (Backend: deleteVersuch). Zur Sicherheit muss die Versuchsnr getippt
+// werden — ein Fehlgriff auf dem Tablet loescht so nichts.
+function openDeleteVersuch(versuchsnr) {
+  const liste = state.listTab === 'archiv' ? state.archivedVersuche : state.versuche;
+  const v = liste.find(x => String(x.versuchsnr) === String(versuchsnr)) || { versuchsnr };
+  state._deleteVersuchsnr = versuchsnr;
+
+  document.getElementById('delete-modal').innerHTML = `
+    <div class="modal-head">
+      <h2>🗑 Versuch löschen?</h2>
+      <span class="coord">${esc(versuchsnr)}</span>
+    </div>
+    <div class="del-warn">
+      <strong>${esc(versuchsnr)}</strong>${v.titel ? ' · ' + esc(v.titel) : ''}<br><br>
+      Der Versuch wird <strong>aus dem Index entfernt</strong> und verschwindet damit
+      vollständig aus dem Tracker.<br>
+      <strong>Daten-Sheet und Drive-Ordner bleiben erhalten</strong>, ebenso der Asana-Task.
+      Rückgängig machen lässt sich der Eintrag nur durch erneutes Anlegen.
+    </div>
+    <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">
+      Zum Bestätigen Versuchsnr eintippen
+    </label>
+    <input id="del-confirm-input" class="del-input" type="text" inputmode="text"
+      placeholder="${esc(versuchsnr)}" autocomplete="off"
+      oninput="document.getElementById('del-confirm-btn').disabled = this.value.trim() !== '${esc(versuchsnr)}'">
+    <div class="modal-actions">
+      <button onclick="closeDeleteVersuch()">Abbrechen</button>
+      <button class="danger" id="del-confirm-btn" disabled onclick="confirmDeleteVersuch()">🗑 Endgültig löschen</button>
+    </div>
+  `;
+  document.getElementById('delete-overlay').classList.add('open');
+}
+
+function closeDeleteVersuch() {
+  document.getElementById('delete-overlay').classList.remove('open');
+  state._deleteVersuchsnr = null;
+}
+
+async function confirmDeleteVersuch() {
+  const versuchsnr = state._deleteVersuchsnr;
+  if (!versuchsnr) return;
+  setSync('wait', 'lösche…');
+  try {
+    const res = await apiPost({ action: 'deleteVersuch', versuchsnr });
+    if (res && res.error) throw new Error(res.error);
+    closeDeleteVersuch();
+    toast('Versuch ' + versuchsnr + ' aus dem Index gelöscht 🗑');
+    setSync('ok', 'sync ' + timeNow());
+    // Zurueck zur Liste, falls der geloeschte Versuch offen war
+    if (state.currentVersuchsnr === versuchsnr) {
+      state.currentVersuchsnr = null;
+      state.currentVersuch = null;
+      backToList();
+    }
+    await (state.listTab === 'archiv' ? loadArchiv() : loadList());
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Löschen fehlgeschlagen', e.message);
+  }
+}
+
 async function loadVersuch(versuchsnr, silent) {
   if (!silent) setSync('wait', 'lade…');
   try {
@@ -1150,8 +1229,56 @@ function setSync(which, label) {
   const dot = document.getElementById('sync-dot');
   const lbl = document.getElementById('sync-label');
   if (!dot || !lbl) return;
-  dot.className = 'sync-dot' + (which === 'wait' ? ' wait' : which === 'err' ? ' err' : '');
-  lbl.textContent = label;
+  const pending = loadOfflineQueue().length;
+  dot.className = 'sync-dot' + (which === 'wait' || pending > 0 ? ' wait' : which === 'err' ? ' err' : '');
+  lbl.textContent = (which === 'ok' && pending > 0) ? `${label} · ${pending} ausstehend` : label;
+}
+
+// ========== Offline-Warteschlange (fuer saveTopf) ==========
+// Speichert fehlgeschlagene/offline saveTopf-Aufrufe in localStorage und sendet
+// sie automatisch nach, sobald wieder eine Verbindung besteht. Verhindert, dass
+// im Growzelt bei Funklöchern eingetippte Zählwerte verloren gehen.
+const OFFLINE_QUEUE_KEY = 'kfk_offline_queue';
+
+function loadOfflineQueue() {
+  try { return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function saveOfflineQueueRaw(q) {
+  localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
+}
+function enqueueOfflineSave(payload) {
+  const q = loadOfflineQueue();
+  q.push({ id: Date.now() + '_' + Math.random().toString(36).slice(2), payload });
+  saveOfflineQueueRaw(q);
+  setSync('wait', q.length + (q.length === 1 ? ' Wert wartet auf Sync' : ' Werte warten auf Sync'));
+  scheduleOfflineFlush();
+}
+let offlineFlushRunning = false;
+async function flushOfflineQueue() {
+  if (offlineFlushRunning || !navigator.onLine) return;
+  offlineFlushRunning = true;
+  try {
+    let q = loadOfflineQueue();
+    while (q.length > 0) {
+      try {
+        await apiPost(q[0].payload);
+      } catch (e) {
+        break; // Reihenfolge wahren: Rest bleibt gequeued, naechster Versuch spaeter
+      }
+      q.shift();
+      saveOfflineQueueRaw(q);
+    }
+    if (q.length === 0) setSync('ok', 'sync ' + timeNow());
+    else setSync('wait', q.length + (q.length === 1 ? ' Wert wartet auf Sync' : ' Werte warten auf Sync'));
+  } finally {
+    offlineFlushRunning = false;
+  }
+}
+let offlineFlushTimer = null;
+function scheduleOfflineFlush() {
+  if (offlineFlushTimer) return;
+  offlineFlushTimer = setTimeout(() => { offlineFlushTimer = null; flushOfflineQueue(); }, 1500);
 }
 
 // ========== Screen 1: Liste ==========
@@ -1170,6 +1297,7 @@ function renderList() {
       <div class="title-block">
         <h1>KFK-Tracker</h1>
         <div class="sub">Skyseed · ${isArchiv ? liste.length + ' archivierte' : state.versuche.length + ' aktive'} Versuche</div>
+        <div class="version">${versionLabel()}</div>
       </div>
     </header>
 
@@ -1183,16 +1311,15 @@ function renderList() {
 
     <div class="toolbar">
       <button class="primary" onclick="${isArchiv ? 'loadArchiv()' : 'loadList()'}">🔄 Aktualisieren</button>
-      ${!isArchiv ? '<button onclick="showQRListe()">📱 QR-Codes aller Versuche</button>' : ''}
       <button onclick="openBenutzerWahl()">👤 Benutzer</button>
       ${!isArchiv ? '<button onclick="openImportModal()">📥 Aus Asana</button>' : ''}
     </div>
 
     <div style="display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:12px">
-      <button onclick="switchListTab('aktiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${!isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${!isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${!isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:13px">
+      <button onclick="switchListTab('aktiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${!isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${!isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${!isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:20px">
         Aktiv (${state.versuche.length})
       </button>
-      <button onclick="switchListTab('archiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:13px">
+      <button onclick="switchListTab('archiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:20px">
         Archiv (${state.archivedVersuche.length})
       </button>
     </div>
@@ -1228,7 +1355,8 @@ function cardHTML(v) {
       <div class="head">
         <span class="chip" style="background:${v.themenfarbe || '#4a6b3a'}">${esc(shortBereich(v.themenbereich))}</span>
         <span class="nr">${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="nr-id">ID ${esc(v.id_nummer)}</span>` : ''}</span>
-        <button class="archive-btn" title="Direkt archivieren" onclick="event.stopPropagation();quickArchive('${esc(v.versuchsnr)}')" style="margin-left:auto;background:none;border:none;font-size:15px;cursor:pointer;padding:2px 6px;line-height:1">📦</button>
+        <button class="archive-btn" title="Direkt archivieren" onclick="event.stopPropagation();quickArchive('${esc(v.versuchsnr)}')" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;line-height:1">📦</button>
+        <button class="delete-btn" title="Versuch löschen" onclick="event.stopPropagation();openDeleteVersuch('${esc(v.versuchsnr)}')" style="background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;line-height:1">🗑</button>
         <span class="arrow">▶</span>
       </div>
       <div class="titel">${esc(v.titel || '—')}</div>
@@ -1254,7 +1382,8 @@ function archivCardHTML(v) {
       <div class="head">
         <span class="chip" style="background:${v.themenfarbe || '#4a6b3a'}">${esc(shortBereich(v.themenbereich))}</span>
         <span class="nr">${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="nr-id">ID ${esc(v.id_nummer)}</span>` : ''}</span>
-        <span style="font-size:11px;color:var(--ink-muted);margin-left:auto">📦 Abgeschlossen</span>
+        <span style="font-size:16px;color:var(--ink-muted);margin-left:auto">📦 Abgeschlossen</span>
+        <button class="delete-btn" title="Versuch löschen" onclick="event.stopPropagation();openDeleteVersuch('${esc(v.versuchsnr)}')" style="background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;line-height:1">🗑</button>
       </div>
       <div class="titel">${esc(v.titel || '—')}</div>
       <div class="meta">
@@ -1293,6 +1422,7 @@ function renderDetailLoading(versuchsnr) {
       <div class="title-block">
         <h1>${esc(versuchsnr)}</h1>
         <div class="sub">Lade…</div>
+        <div class="version">${versionLabel()}</div>
       </div>
     </header>
     <div class="status-row">
@@ -1313,10 +1443,9 @@ function renderDetail() {
   const f = state.currentFortschritt || {};
   const daten = state.currentDaten || [];
   const treatments = v.treatments || [];
-  const azGeplant = Number(v.az_geplant || 5);
+  const azGeplant = Number(v.az_geplant || DEFAULT_AZ_GEPLANT);
   const az = state.currentAZ || 1;
   const pref = loadPref();
-  const qrUrl = appUrlFor(v.versuchsnr);
 
   const isArchived = String(v.status || '').toLowerCase().includes('abgeschlossen') ||
                      String(v.status || '').toLowerCase() === 'archiviert';
@@ -1328,13 +1457,11 @@ function renderDetail() {
       <div class="title-block">
         <h1>${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="id-nummer">· ID ${esc(v.id_nummer)}</span>` : ''}</h1>
         <div class="sub">${esc(v.titel || '')}</div>
-      </div>
-      <div class="qr-mini" onclick="showQRFuerVersuch('${esc(v.versuchsnr)}')" title="QR anzeigen">
-        <img src="${qrImg(qrUrl, 120)}" alt="QR">
+        <div class="version">${versionLabel()}</div>
       </div>
     </header>
 
-    ${isArchived ? `<div style="background:#c99a3a;color:#2a2118;padding:10px 16px;font-size:12px;font-weight:700;text-align:center;letter-spacing:0.06em">📦 ARCHIVIERT – Nur-Lesen · Versuch abgeschlossen</div>` : ''}
+    ${isArchived ? `<div style="background:#c99a3a;color:#2a2118;padding:10px 16px;font-size:18px;font-weight:700;text-align:center;letter-spacing:0.06em">📦 ARCHIVIERT – Nur-Lesen · Versuch abgeschlossen</div>` : ''}
 
     <div class="status-row">
       <div class="sync-status">
@@ -1401,7 +1528,7 @@ function renderInfoPanel(v, f) {
   const statusSym = { 'fertig': '✓', 'teilweise': '●', 'offen': '–' };
   const statusTxt = { 'fertig': 'fertig', 'teilweise': 'in Arbeit', 'offen': 'offen' };
 
-  const azGeplant = Number(v.az_geplant || 5);
+  const azGeplant = Number(v.az_geplant || DEFAULT_AZ_GEPLANT);
   const azRows = (f.az_status || []).slice(0, azGeplant).map((s, i) => {
     const cls = statusMap[s] || 'open';
     const kf = f.az_kf_mittel && f.az_kf_mittel[i] != null ? `Ø ${f.az_kf_mittel[i]}% KF` : '—';
@@ -1653,7 +1780,7 @@ function renderFotoBtn(az, tray) {
 
 function renderAbschlussButton(f, az, daten) {
   const v = state.currentVersuch;
-  const azGeplant = Number(v.az_geplant || 5);
+  const azGeplant = Number(v.az_geplant || DEFAULT_AZ_GEPLANT);
   const status = (f.az_status || [])[az - 1];
   const befuellt = daten.filter(d => {
     const v = d['az' + az + '_zahl'];
@@ -1769,7 +1896,7 @@ function openBenutzerWahl() {
   const list = ['D. W.','F. B.','L. G.','M. R.','S. G.','S. K.'];
   const html = `
     <div class="modal-head"><h2>Benutzer wählen</h2></div>
-    <p style="margin-bottom:14px;color:var(--ink-muted);font-size:13px">Wird bei allen Eingaben standardmäßig verwendet.</p>
+    <p style="margin-bottom:14px;color:var(--ink-muted);font-size:20px">Wird bei allen Eingaben standardmäßig verwendet.</p>
     <div class="radio-grid">
       ${list.map(u => `<button class="${current===u?'selected':''}" onclick="chooseBenutzer('${u}')">${u}</button>`).join('')}
     </div>
@@ -1810,6 +1937,50 @@ function findTopfDaten(topf, tray) {
   return state.currentDaten.find(x => x.topf === topf);
 }
 
+// Kumulative Keimzahl eines Topfes bis (inkl.) Runde az: Summe(AZ1..az), da je
+// AZ nur die NEU seit der letzten Auszaehlung gekeimten Samen erfasst werden
+// (Keimlinge werden danach gezogen). overrideVal ersetzt den gespeicherten
+// Wert der Runde az live waehrend der Eingabe (leer = Runde az noch nicht
+// mitgezaehlt). Rueckgabe { sum, any } - any=false wenn bis dahin noch nichts erfasst ist.
+function cumulativeAZSum(d, az, overrideVal) {
+  let sum = 0, any = false;
+  for (let a = 1; a <= az; a++) {
+    const raw = (a === az) ? overrideVal : d['az' + a + '_zahl'];
+    if (raw !== '' && raw != null && raw !== undefined && !isNaN(Number(raw))) { sum += Number(raw); any = true; }
+  }
+  return { sum, any };
+}
+
+// Summe der gespeicherten (nicht ueberschriebenen) AZ-Werte VOR Runde az —
+// fuer die Rundenobergrenze beim Eintippen. Bewusst getrennt von
+// cumulativeAZSum, da dort bei a===az immer der Live-Override greift.
+function sumStoredAZBefore(d, az) {
+  let sum = 0;
+  for (let a = 1; a < Number(az); a++) {
+    const raw = d['az' + a + '_zahl'];
+    if (raw !== '' && raw != null && raw !== undefined && !isNaN(Number(raw))) sum += Number(raw);
+  }
+  return sum;
+}
+
+// Warnt (blockiert nicht), wenn ein AZ-Wert niedriger ist als der hoechste Wert einer
+// frueheren AZ-Runde desselben Topfes — Anzeichen fuer vergessenes Ziehen der Keimlinge.
+function plausibilityWarning(az, val, d) {
+  if (val === '' || val == null) return '';
+  const cur = Number(val);
+  let maxPrev = null;
+  for (let a = 1; a < Number(az); a++) {
+    const pv = d['az' + a + '_zahl'];
+    if (pv !== '' && pv != null && pv !== undefined && !isNaN(Number(pv))) {
+      if (maxPrev === null || Number(pv) > maxPrev) maxPrev = Number(pv);
+    }
+  }
+  if (maxPrev !== null && cur < maxPrev) {
+    return `⚠️ Niedriger als AZ-Vorwert (${maxPrev}) — Keimlinge vergessen zu ziehen?`;
+  }
+  return '';
+}
+
 function renderTopfModal() {
   const topf = state.currentTopf;
   const tray = state.currentTray;
@@ -1822,21 +1993,27 @@ function renderTopfModal() {
   const currentVal = d['az' + az + '_zahl'];
   const val = (currentVal !== '' && currentVal != null && currentVal !== undefined) ? String(currentVal) : '';
   const samen = Number(v.samen_pro_topf || 36);
-  const kf = val ? Math.round(Number(val) / samen * 100) : null;
+  const cum = cumulativeAZSum(d, az, val === '' ? '' : Number(val));
+  const cumKf = cum.any ? Math.round(cum.sum / samen * 100) : null;
+  const prevCum = sumStoredAZBefore(d, az);
+  const rundenMax = Math.max(0, samen - prevCum);
+  const warnMsg = plausibilityWarning(az, val, d);
 
   const topfCount = state.currentDaten.length;
 
   const html = `
     <div class="topf-header" style="border-left-color:${color}">
       <div class="lbl">Topf</div>
-      <div style="font-size:28px;font-weight:700;font-family:'Fraunces',serif;font-style:italic">${topf}</div>
+      <div style="font-size:42px;font-weight:700;font-family:'Fraunces',serif;font-style:italic">${topf}</div>
       <div class="treatment">${esc(tCode)} · ${esc(tObj.label || '')}</div>
       <div class="meta-txt">Block ${esc(d.block||'?')} · Wdh ${esc(d.wdh||'?')}${(Number(v.anzahl_trays||1) > 1) ? ' · Tray ' + esc(d.tray || tray || '?') : ''} · AZ${az}</div>
     </div>
 
     <div class="value-display">
       <div class="num ${val===''?'empty':''}" id="input-val">${val || '—'}</div>
-      <div class="kf">${val!=='' ? `${val} von ${samen} Samen → <strong>${kf}% KF</strong>` : `Max. ${samen} Samen`}</div>
+      <div class="kf" id="kf-line">${val!=='' ? `+${val} neu seit letzter AZ (max. ${rundenMax})` : `Neu gekeimte Samen seit letzter AZ (max. ${rundenMax})`}</div>
+      <div class="kf-cumulative" id="kf-cumulative">${cum.any ? `Kumulativ: ${cum.sum} von ${samen} Samen → <strong>${cumKf}% KF</strong>` : `Kumulativ: noch keine Werte`}</div>
+      <div class="plaus-warn" id="plaus-warn" style="${warnMsg ? '' : 'display:none'}">${esc(warnMsg)}</div>
     </div>
 
     <div class="numpad">
@@ -1866,19 +2043,25 @@ function renderTopfModal() {
   document.getElementById('topf-modal').innerHTML = html;
 }
 
-function numPress(d) {
+function numPress(digit) {
   const el = document.getElementById('input-val');
   if (!el) return;
   let cur = el.textContent;
   if (cur === '—') cur = '';
   const v = state.currentVersuch;
-  const max = Number(v.samen_pro_topf || 36);
+  const samen = Number(v.samen_pro_topf || 36);
+  const datenRow = findTopfDaten(state.currentTopf, state.currentTray) || {};
+  // Diese Runde darf hoechstens die noch nicht gekeimten Samen neu melden
+  // (Samen/Topf minus Summe der vorherigen AZ-Runden) — verhindert, dass die
+  // kumulative Keimzahl ueber Samen/Topf hinaus waechst.
+  const prevCum = sumStoredAZBefore(datenRow, state.currentAZ);
+  const max = Math.max(0, samen - prevCum);
   // Zusammensetzen, dann führende Nullen entfernen — aber "0" allein darf bleiben
-  let next = cur + d;
+  let next = cur + digit;
   next = next.replace(/^0+(\d)/, '$1'); // strippt 0en nur wenn weitere Ziffern folgen
   if (next === '') next = '0';
   if (next.length > 3) return;
-  if (Number(next) > max) { toast(`Max. ${max} Samen möglich`); return; }
+  if (Number(next) > max) { toast(`Max. noch ${max} möglich (${prevCum} von ${samen} Samen bereits erfasst)`); return; }
   el.textContent = next;
   el.classList.remove('empty');
   updateKF();
@@ -1907,12 +2090,31 @@ function updateKF() {
   const v = state.currentVersuch;
   const samen = Number(v.samen_pro_topf || 36);
   const cur = el.textContent;
-  const kfEl = el.nextElementSibling;
-  if (!cur || cur === '—') {
-    kfEl.innerHTML = `Max. ${samen} Samen`;
-  } else {
-    const kf = Math.round(Number(cur) / samen * 100);
-    kfEl.innerHTML = `${cur} von ${samen} Samen → <strong>${kf}% KF</strong>`;
+  const val = (!cur || cur === '—') ? '' : cur;
+  const d = findTopfDaten(state.currentTopf, state.currentTray) || {};
+
+  const prevCum = sumStoredAZBefore(d, state.currentAZ);
+  const rundenMax = Math.max(0, samen - prevCum);
+  const kfLineEl = document.getElementById('kf-line');
+  if (kfLineEl) {
+    kfLineEl.innerHTML = val !== ''
+      ? `+${val} neu seit letzter AZ (max. ${rundenMax})`
+      : `Neu gekeimte Samen seit letzter AZ (max. ${rundenMax})`;
+  }
+
+  const cumEl = document.getElementById('kf-cumulative');
+  if (cumEl) {
+    const cum = cumulativeAZSum(d, state.currentAZ, val === '' ? '' : Number(val));
+    cumEl.innerHTML = cum.any
+      ? `Kumulativ: ${cum.sum} von ${samen} Samen → <strong>${Math.round(cum.sum / samen * 100)}% KF</strong>`
+      : `Kumulativ: noch keine Werte`;
+  }
+
+  const warnEl = document.getElementById('plaus-warn');
+  if (warnEl) {
+    const msg = val === '' ? '' : plausibilityWarning(state.currentAZ, val, d);
+    warnEl.textContent = msg;
+    warnEl.style.display = msg ? '' : 'none';
   }
 }
 
@@ -1947,9 +2149,16 @@ function saveTopfValue(isDelete) {
   }).then(() => {
     setSync('ok', 'gespeichert');
     toast(isDelete ? 'Topf geleert' : 'Gespeichert');
-  }).catch((e) => {
-    setSync('err', 'Speichern fehlgeschlagen');
-    showBanner('Topf ' + topf + ' nicht gespeichert', e.message + ' · Wert lokal vorhanden, App neu laden für Sync.');
+  }).catch(() => {
+    enqueueOfflineSave({
+      action: 'saveTopf',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      topf, tray: tray || undefined, az,
+      zahl: val === '' ? null : Number(val),
+      datum: state.datum,
+      benutzer: loadPref().benutzer || ''
+    });
+    toast((isDelete ? 'Topf geleert' : 'Gespeichert') + ' (wird nachgesendet, sobald online)');
   });
 }
 
@@ -1992,9 +2201,28 @@ async function saveAndNav(nextTopf) {
     renderDetail();
     document.getElementById('topf-overlay').classList.add('open'); // Modal offen lassen
   } catch (e) {
+    // Wie im Erfolgsfall lokal uebernehmen + weiternavigieren, Sync per Warteschlange nachholen
+    const d = findTopfDaten(topf, tray);
+    if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+    enqueueOfflineSave({
+      action: 'saveTopf',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      topf, tray: tray || undefined, az,
+      zahl: val === '' ? null : Number(val),
+      datum: state.datum,
+      benutzer: loadPref().benutzer || ''
+    });
     state.pendingSave = false;
-    setSync('err', 'Fehler');
-    toast('Fehler: ' + e.message);
+    toast('Gespeichert (wird nachgesendet, sobald online)');
+
+    state.currentTopf = nextTopf;
+    if (tray != null) {
+      const next = findTopfDaten(nextTopf, tray);
+      if (!next) state.currentTray = null;
+    }
+    renderTopfModal();
+    renderDetail();
+    document.getElementById('topf-overlay').classList.add('open');
   }
 }
 
@@ -2102,19 +2330,19 @@ function openAbschluss() {
       <h2>AZ${az} abschließen?</h2>
     </div>
 
-    <p style="margin-bottom:14px;font-size:14px"><strong>Status:</strong></p>
-    <ul style="margin:0 0 14px 18px;font-size:14px">
+    <p style="margin-bottom:14px;font-size:21px"><strong>Status:</strong></p>
+    <ul style="margin:0 0 14px 18px;font-size:21px">
       <li>${befuellt} von ${daten.length} Töpfen befüllt</li>
       ${leer > 0 ? `<li>${leer} leere Töpfe werden als <strong>0 Keimlinge</strong> gewertet</li>` : '<li>Alle Töpfe haben Werte</li>'}
     </ul>
 
-    <p style="margin-bottom:8px;font-size:14px"><strong>Block-Fotos:</strong></p>
-    <div style="margin-bottom:14px;font-size:13px">
+    <p style="margin-bottom:8px;font-size:21px"><strong>Block-Fotos:</strong></p>
+    <div style="margin-bottom:14px;font-size:20px">
       ${fotos.map(f => `<span style="margin-right:14px">${f.has?'✓':'✗'} Block ${f.block}</span>`).join('')}
     </div>
 
     ${fotosFehlen.length > 0 ? `
-      <div style="background:var(--bg-2);padding:10px;border-left:3px solid var(--warn);margin-bottom:14px;font-size:13px">
+      <div style="background:var(--bg-2);padding:10px;border-left:3px solid var(--warn);margin-bottom:14px;font-size:20px">
         ⚠ Fotos fehlen für Block ${fotosFehlen.map(f=>f.block).join(', ')}
       </div>
     ` : ''}
@@ -2150,7 +2378,7 @@ async function confirmAbschluss() {
 function openVersuchEnde() {
   const v = state.currentVersuch;
   const f = state.currentFortschritt || {};
-  const azGeplant = Number(v.az_geplant || 5);
+  const azGeplant = Number(v.az_geplant || DEFAULT_AZ_GEPLANT);
   const treatments = v.treatments || [];
   const samen = Number(v.samen_pro_topf || 36);
   const daten = state.currentDaten || [];
@@ -2179,21 +2407,21 @@ function openVersuchEnde() {
       <h2>🏁 Versuch abschließen?</h2>
       <span class="coord">${esc(v.versuchsnr)}</span>
     </div>
-    <p style="margin-bottom:14px;font-size:14px">Damit wird:</p>
-    <ul style="margin:0 0 14px 18px;font-size:13px;line-height:1.7">
+    <p style="margin-bottom:14px;font-size:21px">Damit wird:</p>
+    <ul style="margin:0 0 14px 18px;font-size:20px;line-height:1.7">
       <li>Status im Index auf <strong>Abgeschlossen</strong> gesetzt</li>
       <li>Asana-Task <strong>als erledigt markiert</strong> (✓)</li>
       <li>Finaler <strong>Asana-Kommentar mit Komplett-Auswertung</strong> gepostet</li>
       <li>Versuch verschwindet aus der aktiven Tracker-Liste</li>
     </ul>
 
-    <div style="background:var(--bg-2);padding:12px;font-size:12px;border:1px solid var(--line);margin-bottom:14px;line-height:1.6">
+    <div style="background:var(--bg-2);padding:12px;font-size:18px;border:1px solid var(--line);margin-bottom:14px;line-height:1.6">
       <strong>Komplett-Trend:</strong><br>${trendStr}
     </div>
 
     <div class="field" style="margin-bottom:12px">
-      <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Abschluss-Bemerkung (optional)</label>
-      <textarea id="versuch-ende-text" style="width:100%;min-height:70px;padding:10px;font-family:inherit;font-size:14px;border:1.5px solid var(--line);background:var(--bg)" placeholder="Fazit, Auffälligkeiten, nächste Schritte …"></textarea>
+      <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Abschluss-Bemerkung (optional)</label>
+      <textarea id="versuch-ende-text" style="width:100%;min-height:70px;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)" placeholder="Fazit, Auffälligkeiten, nächste Schritte …"></textarea>
     </div>
 
     <div class="modal-actions">
@@ -2244,44 +2472,45 @@ function openImportModal() {
     <div class="modal-head">
       <h2>📥 Versuch aus Asana</h2>
     </div>
-    <p style="font-size:13px;margin-bottom:14px;color:var(--ink-muted)">Asana-Task-GID eingeben → Felder werden vorausgefüllt</p>
+    <p style="font-size:20px;margin-bottom:14px;color:var(--ink-muted)">Asana-Task-GID eingeben → Felder werden vorausgefüllt</p>
 
     <div class="field" style="margin-bottom:10px">
-      <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Asana Task-GID oder Link</label>
+      <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Asana Task-GID oder Link</label>
       <div style="display:flex;gap:8px">
         <input id="imp-gid" type="text" placeholder="GID oder https://app.asana.com/0/…/TASKGID"
-          style="flex:1;padding:10px;font-family:inherit;font-size:13px;border:1.5px solid var(--line);background:var(--bg)">
+          style="flex:1;padding:10px;font-family:inherit;font-size:20px;border:1.5px solid var(--line);background:var(--bg)">
         <button onclick="previewAsanaTask()" style="padding:10px 14px;white-space:nowrap">Laden ▶</button>
       </div>
-      <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">Link aus dem Browser kopieren — GID wird automatisch erkannt</div>
+      <div style="font-size:16px;color:var(--ink-muted);margin-top:4px">Link aus dem Browser kopieren — GID wird automatisch erkannt</div>
     </div>
 
     <div id="imp-form" style="display:none">
       <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
-      <p style="font-size:11px;color:var(--ink-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Vorausgefüllte Felder (bearbeitbar)</p>
+      <p style="font-size:16px;color:var(--ink-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Vorausgefüllte Felder (bearbeitbar)</p>
 
       ${impField('imp-versuchsnr','Versuchsnr *','text','z.B. 26_014')}
       ${impField('imp-titel','Titel *','text','z.B. SKi Biochar Wdh')}
       ${impField('imp-themenbereich','Themenbereich','text','z.B. A) SYSTEM PELLET')}
       ${impField('imp-start-datum','Start-Datum','date','')}
       <div class="field" style="margin-bottom:10px">
-        <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Hypothese</label>
+        <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Hypothese</label>
         <textarea id="imp-hypothese" rows="2"
-          style="width:100%;padding:10px;font-family:inherit;font-size:13px;border:1.5px solid var(--line);background:var(--bg)"></textarea>
+          style="width:100%;padding:10px;font-family:inherit;font-size:20px;border:1.5px solid var(--line);background:var(--bg)"></textarea>
       </div>
 
       <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
-      <p style="font-size:11px;color:var(--ink-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Pflichtfelder (manuell)</p>
+      <p style="font-size:16px;color:var(--ink-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Pflichtfelder (manuell)</p>
 
       ${impField('imp-baumart-kurz','Baumart kurz *','text','z.B. SKi')}
       ${impField('imp-baumart-lat','Baumart lat.','text','z.B. Pinus sylvestris')}
-      ${impField('imp-ort','Ort','text','Halle')}
+      ${impField('imp-ort','Ort','text',DEFAULT_ORT)}
       ${impField('imp-id-nummer','ID-Nummer','text','z.B. 00246 (optional)')}
+      ${impField('imp-verantwortlich','Verantwortlich','text','Asana-Assignee, sonst Simon Goldenberg')}
 
       <div class="field" style="margin-bottom:10px">
-        <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Treatments JSON *</label>
+        <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Treatments JSON *</label>
         <textarea id="imp-treatments" rows="4"
-          style="width:100%;padding:10px;font-family:inherit;font-size:12px;border:1.5px solid var(--line);background:var(--bg)"
+          style="width:100%;padding:10px;font-family:inherit;font-size:18px;border:1.5px solid var(--line);background:var(--bg)"
           placeholder='[{"code":"T0","label":"Kontrolle","color":"#22c55e"},{"code":"T1","label":"Pellet","color":"#ef4444"}]'></textarea>
       </div>
 
@@ -2290,7 +2519,7 @@ function openImportModal() {
         ${impField('imp-raster-rows','Raster Reihen','number','6')}
         ${impField('imp-samen','Samen/Topf','number','36')}
         ${impField('imp-trays','Anzahl Trays','number','1')}
-        ${impField('imp-az','AZ geplant','number','5')}
+        ${impField('imp-az','AZ geplant','number',String(DEFAULT_AZ_GEPLANT))}
       </div>
     </div>
 
@@ -2306,15 +2535,15 @@ function openImportModal() {
   document.getElementById('imp-raster-rows').value = '6';
   document.getElementById('imp-samen').value = '36';
   document.getElementById('imp-trays').value = '1';
-  document.getElementById('imp-az').value = '5';
-  document.getElementById('imp-ort').value = 'Halle';
+  document.getElementById('imp-az').value = String(DEFAULT_AZ_GEPLANT);
+  document.getElementById('imp-ort').value = DEFAULT_ORT;
 }
 
 function impField(id, label, type, placeholder) {
   return `<div class="field" style="margin-bottom:10px">
-    <label style="display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">${label}</label>
+    <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">${label}</label>
     <input id="${id}" type="${type}" placeholder="${placeholder}"
-      style="width:100%;padding:10px;font-family:inherit;font-size:14px;border:1.5px solid var(--line);background:var(--bg)">
+      style="width:100%;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)">
   </div>`;
 }
 
@@ -2356,6 +2585,9 @@ async function previewAsanaTask() {
     if (p.hypothese) document.getElementById('imp-hypothese').value = p.hypothese;
     if (p.baumart_lat) document.getElementById('imp-baumart-lat').value = p.baumart_lat;
     if (p.baumart_kurz) document.getElementById('imp-baumart-kurz').value = p.baumart_kurz;
+    // Ort nur ueberschreiben, wenn Asana/Doc einen liefert — sonst bleibt der Default
+    if (p.ort) document.getElementById('imp-ort').value = p.ort;
+    if (p.verantwortlich) document.getElementById('imp-verantwortlich').value = p.verantwortlich;
     if (p.treatments_json) document.getElementById('imp-treatments').value = p.treatments_json;
     if (p.anzahl_trays != null) document.getElementById('imp-trays').value = p.anzahl_trays;
     if (p.raster_cols != null) document.getElementById('imp-raster-cols').value = p.raster_cols;
@@ -2406,14 +2638,15 @@ async function confirmCreateVersuch() {
     start_datum: document.getElementById('imp-start-datum').value || '',
     baumart_kurz: document.getElementById('imp-baumart-kurz').value || '',
     baumart_lat: document.getElementById('imp-baumart-lat').value || '',
-    ort: document.getElementById('imp-ort').value || 'Halle',
+    ort: document.getElementById('imp-ort').value || DEFAULT_ORT,
     id_nummer: document.getElementById('imp-id-nummer').value || '',
+    verantwortlich: document.getElementById('imp-verantwortlich').value || '',
     treatments_json,
     raster_cols: Number(document.getElementById('imp-raster-cols').value) || 4,
     raster_rows: Number(document.getElementById('imp-raster-rows').value) || 6,
     samen_pro_topf: Number(document.getElementById('imp-samen').value) || 36,
     anzahl_trays: Number(document.getElementById('imp-trays').value) || 1,
-    az_geplant: Number(document.getElementById('imp-az').value) || 5
+    az_geplant: Number(document.getElementById('imp-az').value) || DEFAULT_AZ_GEPLANT
   };
 
   setSync('wait', 'lege Versuch an…');
@@ -2441,7 +2674,7 @@ async function confirmCreateVersuch() {
 // ========== AZ-Anzahl anpassen ==========
 function openAZPlanned() {
   const v = state.currentVersuch;
-  const current = Number(v.az_geplant || 5);
+  const current = Number(v.az_geplant || DEFAULT_AZ_GEPLANT);
   const f = state.currentFortschritt || {};
   const fertig = (f.az_status || []).filter(s => s === 'fertig').length;
 
@@ -2450,16 +2683,16 @@ function openAZPlanned() {
       <h2>AZ-Runden anpassen</h2>
       <span class="coord">${esc(v.versuchsnr)}</span>
     </div>
-    <p style="margin-bottom:10px;font-size:13px">Aktuell geplant: <strong>${current}</strong></p>
-    <p style="margin-bottom:14px;font-size:13px">Bereits abgeschlossen: <strong>${fertig}</strong></p>
-    <p style="margin-bottom:8px;font-size:12px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em">Neue Anzahl:</p>
+    <p style="margin-bottom:10px;font-size:20px">Aktuell geplant: <strong>${current}</strong></p>
+    <p style="margin-bottom:14px;font-size:20px">Bereits abgeschlossen: <strong>${fertig}</strong></p>
+    <p style="margin-bottom:8px;font-size:18px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em">Neue Anzahl:</p>
     <div class="radio-grid">
       ${[1,2,3,4,5].map(n => {
         const selected = n === current ? 'selected' : '';
         return `<button class="${selected}" onclick="chooseAZPlanned(${n})" id="azp-${n}">${n}</button>`;
       }).join('')}
     </div>
-    <div style="background:var(--bg-2);padding:10px;margin-top:14px;font-size:12px;line-height:1.5">
+    <div style="background:var(--bg-2);padding:10px;margin-top:14px;font-size:18px;line-height:1.5">
       Bei Reduktion werden die entsprechenden AZ-Subtasks in Asana <strong>gelöscht</strong> (außer bereits abgeschlossene). Bei Erhöhung werden sie neu angelegt.<br>
       Eingegebene Werte im Sheet bleiben erhalten.
     </div>
@@ -2569,7 +2802,7 @@ ${rows.map(r => r.kf === null
       <h2>Asana-Kommentar</h2>
       <span class="coord">${esc(v.versuchsnr)} · AZ${az}</span>
     </div>
-    <pre style="background:var(--bg-2);padding:12px;font-size:12px;font-family:inherit;white-space:pre-wrap;margin-bottom:14px;border:1px solid var(--line)">📊 AZ${az} – ${state.datum}
+    <pre style="background:var(--bg-2);padding:12px;font-size:18px;font-family:inherit;white-space:pre-wrap;margin-bottom:14px;border:1px solid var(--line)">📊 AZ${az} – ${state.datum}
 
 Ergebnisse:
 ${previewText}
@@ -2577,7 +2810,7 @@ ${previewText}
 Trend: <span id="trend-preview">${esc(trend)}</span></pre>
     <div class="field">
       <label for="trend-edit">Trend-Text anpassen</label>
-      <textarea id="trend-edit" style="width:100%;min-height:60px;padding:10px;font-family:inherit;font-size:14px;border:1.5px solid var(--line);background:var(--bg)" oninput="document.getElementById('trend-preview').textContent=this.value">${esc(trend)}</textarea>
+      <textarea id="trend-edit" style="width:100%;min-height:60px;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)" oninput="document.getElementById('trend-preview').textContent=this.value">${esc(trend)}</textarea>
     </div>
     <div class="modal-actions">
       <button onclick="closeAsana()">Abbrechen</button>
@@ -2618,40 +2851,6 @@ function openStatHint() {
 }
 function closeStatHint() { document.getElementById('stat-overlay').classList.remove('open'); }
 
-// ========== QR-Codes ==========
-function showQRFuerVersuch(versuchsnr) {
-  const url = appUrlFor(versuchsnr);
-  document.getElementById('qr-title').textContent = 'QR · ' + versuchsnr;
-  document.getElementById('qr-big').src = qrImg(url, 400);
-  document.getElementById('qr-url-text').textContent = url;
-  document.getElementById('qr-overlay').classList.add('open');
-}
-function closeQR() { document.getElementById('qr-overlay').classList.remove('open'); }
-
-function showQRListe() {
-  const html = `
-    <div class="modal-head">
-      <h2>QR-Codes aller Versuche</h2>
-    </div>
-    <p style="margin-bottom:12px;font-size:12px;color:var(--ink-muted)">Scan → App öffnet direkt diesen Versuch. Ausdrucken, laminieren, am Topfträger anbringen.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      ${state.versuche.map(v => `
-        <div style="padding:10px;border:1px solid var(--line);background:var(--bg-2);text-align:center">
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${esc(v.versuchsnr)}</div>
-          <div style="font-size:10px;color:var(--ink-muted);margin-bottom:8px;line-height:1.3">${esc((v.titel||'').slice(0,40))}</div>
-          <img src="${qrImg(appUrlFor(v.versuchsnr), 200)}" style="width:100%;max-width:140px;background:white;padding:6px;border:1px solid var(--line)">
-        </div>
-      `).join('')}
-    </div>
-    <div class="modal-actions">
-      <button class="primary" onclick="closeQRList()">Schließen</button>
-    </div>
-  `;
-  document.getElementById('qrlist-modal').innerHTML = html;
-  document.getElementById('qrlist-overlay').classList.add('open');
-}
-function closeQRList() { document.getElementById('qrlist-overlay').classList.remove('open'); }
-
 // ========== Install-Banner ==========
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
@@ -2682,13 +2881,13 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-window.addEventListener('online', () => { hideBanner(); if (state.view==='list') loadList(); else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true); });
+window.addEventListener('online', () => { hideBanner(); flushOfflineQueue(); if (state.view==='list') loadList(); else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true); });
 window.addEventListener('offline', () => setSync('err', 'offline'));
 
 // ========== ESC handler ==========
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    ['topf-overlay','abschluss-overlay','qr-overlay','azplanned-overlay','asana-overlay','stat-overlay','qrlist-overlay','versuch-ende-overlay','import-overlay'].forEach(id => {
+    ['topf-overlay','abschluss-overlay','azplanned-overlay','asana-overlay','stat-overlay','versuch-ende-overlay','import-overlay','delete-overlay'].forEach(id => {
       document.getElementById(id).classList.remove('open');
     });
   }
@@ -2698,10 +2897,11 @@ document.addEventListener('keydown', (e) => {
 function startPolling() {
   if (state.pollTimer) clearInterval(state.pollTimer);
   state.pollTimer = setInterval(() => {
+    if (loadOfflineQueue().length > 0) flushOfflineQueue();
     if (state.pendingSave) return;
     if (!navigator.onLine) return;
     // Keine Aktualisierung, wenn ein Modal offen ist
-    const anyOpen = ['topf-overlay','abschluss-overlay','qr-overlay','azplanned-overlay','asana-overlay','stat-overlay','qrlist-overlay','versuch-ende-overlay','import-overlay']
+    const anyOpen = ['topf-overlay','abschluss-overlay','azplanned-overlay','asana-overlay','stat-overlay','versuch-ende-overlay','import-overlay','delete-overlay']
       .some(id => document.getElementById(id).classList.contains('open'));
     if (anyOpen) return;
 
@@ -2723,10 +2923,11 @@ async function init() {
     return;
   }
 
-  // URL-Parameter beachten für Deep-Link per QR
+  // URL-Parameter beachten für Deep-Link (?versuch=…)
   const params = new URLSearchParams(window.location.search);
   const versuchsParam = params.get('versuch');
 
+  if (loadOfflineQueue().length > 0) flushOfflineQueue();
   await loadList();
   if (versuchsParam) {
     openVersuch(versuchsParam);

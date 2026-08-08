@@ -64,7 +64,8 @@
       const summe = azList.length ? cumulativeAZValue(d, azList[azList.length - 1]) : '';
       const kfk = (summe !== '' && samen) ? Math.round((summe / samen) * 1000) / 10 : '';
 
-      return [d.topf, tray, standort.regal == null ? '' : standort.regal, standort.boden == null ? '' : standort.boden, code]
+      const pos = (d.block && d.wdh) ? String(d.block) + String(d.wdh) : (d.topf || '');
+      return [pos, tray, standort.regal == null ? '' : standort.regal, standort.boden == null ? '' : standort.boden, code]
         .concat(azValues)
         .concat([summe, kfk]);
     });

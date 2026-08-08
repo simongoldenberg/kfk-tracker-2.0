@@ -434,6 +434,44 @@
   .info-link:hover { border-color: var(--accent); }
   .info-link:active { background: var(--bg-3); }
 
+  /* ============ Standort-Panel (Regal/Boden je Tray, siehe js/standorte.js) ============ */
+  .standort-panel {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+  }
+  .standort-panel-title {
+    font-size: 15px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--accent); margin-bottom: 10px;
+  }
+  .standort-hinweis {
+    background: var(--warn-bg); color: var(--warn);
+    border-left: 3px solid var(--warn);
+    padding: 10px 12px; border-radius: var(--radius-md);
+    font-size: 18px; font-weight: 600; margin-bottom: 12px;
+  }
+  .standort-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--line);
+  }
+  .standort-row:last-child { border-bottom: none; }
+  .standort-row-label { font-weight: 700; font-size: 18px; min-width: 80px; }
+  .standort-value { font-size: 18px; color: var(--ink); flex: 1; }
+  .standort-confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 17px; color: var(--ink-muted); }
+  .standort-fields { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .standort-fields label {
+    display: flex; flex-direction: column; font-size: 14px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); gap: 4px;
+  }
+  .standort-fields select {
+    min-height: var(--touch); padding: 0 10px; font-size: 18px; font-family: inherit;
+    border: 1.5px solid var(--line-strong); border-radius: var(--radius-md);
+    background: var(--surface); color: var(--ink);
+  }
+
   /* ============ AZ-Runden-Switcher (sticky beim Scrollen durch die Toepfe) ============ */
   .az-switcher {
     display: grid;
@@ -1111,6 +1149,8 @@
 <!-- Hidden Input fuer Kamera -->
 <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
 
+<script src="js/standorte.js"></script>
+<script src="js/export.js"></script>
 <script>
 /* ==========================================================
    Skyseed KFK-Tracker · Client Logic
@@ -1126,7 +1166,7 @@ const STORAGE_KEY = 'kfk-tracker-pref';
 // App-Version + Stand dieser Version (wird dezent in der Kopfzeile angezeigt).
 // APP_VERSION_DATE wird von bump-cache.js beim Frontend-Deploy automatisch auf
 // das Deploy-Datum gesetzt — die Nummer selbst bleibt manuell (s. CLAUDE.md).
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const APP_VERSION_DATE = '2026-08-08';
 
 // Zeile fuer die Kopfzeile: "v1.1.0 · 06.08.2026"
@@ -1150,6 +1190,7 @@ const ICON = {
   chart: '<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
   folder: '<svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg>',
   clipboard: '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="1.5"/><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/></svg>',
+  download: '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>',
   user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>',
   refresh: '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>',
   flag: '<svg viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4h12l-3 4 3 4H6"/></svg>',
@@ -1202,7 +1243,13 @@ let state = {
   benutzer: '',
   deferredInstallPrompt: null,
   pollTimer: null,
-  pendingSave: false
+  pendingSave: false,
+  // Standorterfassung (Regal/Boden je Tray): welche AZ+Tray-Kombis wurden
+  // in dieser Sitzung schon per "Ja" bestaetigt, welche Trays sind gerade
+  // im Bearbeiten-Modus (Dropdowns offen). Key jeweils `${az}_${tray}`.
+  standortConfirmedKeys: new Set(),
+  standortEditingTrays: new Set(),
+  standortDraft: {}
 };
 
 // ========== Helpers ==========
@@ -1614,6 +1661,9 @@ function openVersuch(versuchsnr) {
   state.currentVersuchsnr = versuchsnr;
   state.currentAZ = null;
   state.currentVersuch = null;
+  state.standortConfirmedKeys = new Set();
+  state.standortEditingTrays = new Set();
+  state.standortDraft = {};
   savePref({ lastVersuch: versuchsnr });
   // Sofort einen Loading-State rendern, damit die UI nicht "haengt"
   renderDetailLoading(versuchsnr);
@@ -1678,6 +1728,8 @@ function renderDetail() {
       <div><em>${esc(v.baumart_lat || v.baumart_kurz || '')}</em></div>
     </div>
 
+    ${renderStandortPanel(v, az)}
+
     ${renderInfoPanel(v, f)}
 
     ${renderInitialFotosSection(v, daten)}
@@ -1722,6 +1774,7 @@ function renderDetail() {
     <div class="toolbar" style="margin-top:20px">
       <button class="primary" onclick="openAsanaPreview()">${ICON.clipboard} Asana-Kommentar</button>
       <button onclick="openStatHint()">${ICON.chart} Statistik-Hinweis</button>
+      <button onclick="exportVersuchCsv()">${ICON.download} Export CSV</button>
     </div>
   `;
 
@@ -1804,6 +1857,152 @@ function renderInfoPanel(v, f) {
       </div>
     </details>
   `;
+}
+
+// ========== Standorterfassung (Regal/Boden je Tray) ==========
+// Datenmodell + Migration in js/standorte.js (window.KfkStandorte). Bestaetigung
+// "Standort unveraendert?" wird je AZ+Tray genau einmal pro Sitzung abgefragt
+// (state.standortConfirmedKeys), nicht bei jedem renderDetail()-Aufruf.
+const BODEN_LABELS = { 1: '1 (oben)', 2: '2', 3: '3', 4: '4', 5: '5 (unten)' };
+
+function standortKey(az, tray) { return az + '_' + tray; }
+
+function renderStandortPanel(v, az) {
+  const anzahlTrays = Number(v.anzahl_trays || 1);
+  const standorte = KfkStandorte.migrateVersuchStandorte(v);
+  const fehlendeTrays = standorte.filter(s => KfkStandorte.isStandortFehlend(s)).map(s => s.tray);
+
+  const rows = [];
+  for (let tray = 1; tray <= anzahlTrays; tray++) {
+    rows.push(renderStandortRow(KfkStandorte.standortForTray(standorte, tray), az, anzahlTrays));
+  }
+
+  return `
+    <div class="standort-panel">
+      ${fehlendeTrays.length ? `<div class="standort-hinweis">${fehlendeTrays.map(t => 'Standort für Tray ' + t + ' fehlt').join(' · ')}</div>` : ''}
+      <div class="standort-panel-title">Standort im Growzelt</div>
+      ${rows.join('')}
+    </div>
+  `;
+}
+
+function renderStandortRow(s, az, anzahlTrays) {
+  const tray = s.tray;
+  const key = standortKey(az, tray);
+  const fehlt = KfkStandorte.isStandortFehlend(s);
+  const editing = fehlt || state.standortEditingTrays.has(key);
+  const trayLabel = anzahlTrays > 1 ? `Tray ${tray}` : 'Standort';
+  const draft = state.standortDraft[tray] || { regal: s.regal, boden: s.boden };
+
+  if (editing) {
+    return `
+      <div class="standort-row">
+        <div class="standort-row-label">${esc(trayLabel)}</div>
+        <div class="standort-fields">
+          <label>Regal
+            <select onchange="onStandortFieldChange(${tray},'regal',this.value)">
+              <option value="">—</option>
+              ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${Number(draft.regal)===n?'selected':''}>${n}</option>`).join('')}
+            </select>
+          </label>
+          <label>Boden
+            <select onchange="onStandortFieldChange(${tray},'boden',this.value)">
+              <option value="">—</option>
+              ${[1,2,3,4,5].map(n => `<option value="${n}" ${Number(draft.boden)===n?'selected':''}>${BODEN_LABELS[n]}</option>`).join('')}
+            </select>
+          </label>
+          <button class="small primary" onclick="saveStandort(${tray})">Speichern</button>
+          ${!fehlt ? `<button class="small" onclick="cancelStandortEdit(${tray})">Abbrechen</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  const bestaetigt = state.standortConfirmedKeys.has(key);
+  return `
+    <div class="standort-row">
+      <div class="standort-row-label">${esc(trayLabel)}</div>
+      <div class="standort-value">Regal ${esc(s.regal)} · Boden ${esc(BODEN_LABELS[s.boden] || s.boden)}</div>
+      ${bestaetigt
+        ? `<button class="small" onclick="startStandortEdit(${tray})">Ändern</button>`
+        : `<div class="standort-confirm">
+             <span>Standort unverändert?</span>
+             <button class="small primary" onclick="confirmStandortUnveraendert(${tray})">Ja</button>
+             <button class="small" onclick="startStandortEdit(${tray})">Geändert</button>
+           </div>`
+      }
+    </div>
+  `;
+}
+
+function confirmStandortUnveraendert(tray) {
+  state.standortConfirmedKeys.add(standortKey(state.currentAZ, tray));
+  renderDetail();
+}
+
+function startStandortEdit(tray) {
+  const s = KfkStandorte.standortForTray(KfkStandorte.migrateVersuchStandorte(state.currentVersuch), tray);
+  state.standortDraft[tray] = { regal: s.regal, boden: s.boden };
+  state.standortEditingTrays.add(standortKey(state.currentAZ, tray));
+  renderDetail();
+}
+
+function cancelStandortEdit(tray) {
+  state.standortEditingTrays.delete(standortKey(state.currentAZ, tray));
+  delete state.standortDraft[tray];
+  renderDetail();
+}
+
+function onStandortFieldChange(tray, field, value) {
+  state.standortDraft[tray] = state.standortDraft[tray] || {};
+  state.standortDraft[tray][field] = value === '' ? null : Number(value);
+}
+
+function saveStandort(tray) {
+  const v = state.currentVersuch;
+  const az = state.currentAZ;
+  const draft = state.standortDraft[tray] || {};
+  const neu = { regal: draft.regal != null ? draft.regal : null, boden: draft.boden != null ? draft.boden : null };
+  const isoDatum = new Date().toISOString().slice(0, 10);
+
+  const result = KfkStandorte.recordStandortChange(v, tray, neu, az, isoDatum);
+  v.standorte = result.standorte;
+  v.standortHistorie = result.standortHistorie;
+
+  const key = standortKey(az, tray);
+  state.standortEditingTrays.delete(key);
+  state.standortConfirmedKeys.add(key);
+  delete state.standortDraft[tray];
+  renderDetail();
+  setSync('wait', 'speichere…');
+
+  const payload = { action: 'saveStandort', versuchsnr: v.versuchsnr, tray, regal: neu.regal, boden: neu.boden, az, isoDatum };
+  apiPost(payload).then(() => {
+    setSync('ok', 'gespeichert');
+    toast('Standort gespeichert');
+  }).catch(() => {
+    enqueueOfflineSave(payload);
+    toast('Standort gespeichert (wird nachgesendet, sobald online)');
+  });
+}
+
+// ========== CSV-Export (Zaehldaten inkl. Standort) ==========
+// Aufbau in js/export.js (window.KfkExport) - Spaltenreihenfolge: Position,
+// Tray, Regal, Boden, Treatment, AZ-Spalten, Sigma KFK, KFK%.
+function exportVersuchCsv() {
+  const v = state.currentVersuch;
+  const daten = state.currentDaten || [];
+  const csv = KfkExport.buildExportCsv(v, daten);
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = v.versuchsnr + '_export.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('CSV exportiert');
 }
 
 function renderInitialFotosSection(v, daten) {
@@ -2679,6 +2878,8 @@ ${note ? '<strong>Abschluss-Bemerkung:</strong><br>' + esc(note) + '<br><br>' : 
 // ========== Versuch aus Asana importieren ==========
 
 function openImportModal() {
+  // Standorte aus einem evtl. vorherigen Import-Versuch nicht mitschleppen
+  state._importPrefillStandorte = null;
   const html = `
     <div class="modal-head">
       <h2>${ICON.inbox} Versuch aus Asana</h2>
@@ -2804,6 +3005,10 @@ async function previewAsanaTask() {
     if (p.raster_cols != null) document.getElementById('imp-raster-cols').value = p.raster_cols;
     if (p.raster_rows != null) document.getElementById('imp-raster-rows').value = p.raster_rows;
     if (p.samen_pro_topf != null) document.getElementById('imp-samen').value = p.samen_pro_topf;
+    // Standorte (Regal/Boden je Tray, Schema kfk-protocol-v2) gibt es keine
+    // eigenen Formularfelder - kommen unsichtbar durch bis createVersuch,
+    // fehlt das Feld (Schema v1 / kein Doc-Import) bleibt es null.
+    state._importPrefillStandorte = Array.isArray(p.standorte) ? p.standorte : null;
     // Themenfarbe ableiten
     const farbe = themenbereichToFarbe(p.themenbereich || '');
     document.getElementById('import-modal').dataset.themenfarbe = farbe;
@@ -2859,7 +3064,8 @@ async function confirmCreateVersuch() {
     raster_rows: Number(document.getElementById('imp-raster-rows').value) || 6,
     samen_pro_topf: Number(document.getElementById('imp-samen').value) || 36,
     anzahl_trays: Number(document.getElementById('imp-trays').value) || 1,
-    az_geplant: Number(document.getElementById('imp-az').value) || DEFAULT_AZ_GEPLANT
+    az_geplant: Number(document.getElementById('imp-az').value) || DEFAULT_AZ_GEPLANT,
+    standorte: state._importPrefillStandorte || null
   };
 
   setSync('wait', 'lege Versuch an…');

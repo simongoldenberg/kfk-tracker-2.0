@@ -3,11 +3,13 @@
 // - Apps-Script-API: network-only (nie cachen)
 // - Bei Offline: letzte bekannte Daten zeigen
 
-const CACHE_VERSION = 'skyseed-kfk-20260808-70f2fcc';
+const CACHE_VERSION = 'skyseed-kfk-20260808-701e5c3';
 const STATIC_CACHE = [
   './',
   './index.html',
   './manifest.json',
+  './js/standorte.js',
+  './js/export.js',
   './kfk-icon-192.png',
   './kfk-icon-512.png',
   './kfk-icon-maskable-512.png'

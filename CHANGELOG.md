@@ -2,6 +2,26 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.5.0 — 2026-08-08
+
+### 🚀 Added
+- **Standorterfassung für Trays**: Regal (1–6) und Boden (1–5, "1 (oben)" bis
+  "5 (unten)") je Tray, gut sichtbar im Kopfbereich des Versuchs. Fehlender
+  Standort zeigt einen nicht blockierenden Hinweis, blockiert aber nie die
+  Zähleingabe. Beim Öffnen eines AZ-Tabs fragt die App einmalig "Standort
+  unverändert?" — bei "Geändert" wandert der alte Wert unverändert in eine
+  Historie (`standortHistorie`), damit spätere Auswertungen den Standort als
+  Kovariate berücksichtigen können.
+- **CSV-Export** direkt aus der App (Button "Export CSV"): Position, Tray,
+  Regal, Boden, Treatment, AZ-Spalten, Σ KFK, KFK% — inkl. Fallback auf leere
+  Zellen bei fehlendem Standort statt Raten.
+- **KFK-DATA-Import (Schema `kfk-protocol-v2`)** übernimmt jetzt optional ein
+  `standorte`-Feld aus dem Protokoll-Doc; Schema v1 ohne dieses Feld
+  funktioniert unverändert weiter.
+- **Vitest-Testsuite** eingeführt (`npm test`, 17 Tests): Migration von
+  Altbeständen ohne Standort, CSV-Spaltenreihenfolge, Import-Übernahme,
+  Verhalten bei fehlendem Standort.
+
 ## Version 1.4.0 — 2026-08-08
 
 ### 🚀 Added

@@ -2,6 +2,37 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.4.0 — 2026-08-08
+
+### 🚀 Added
+- **Dunkelmodus**: Umschalter im Header (Sonne/Mond-Icon), Standard folgt der
+  Systempräferenz, manuelle Wahl wird in `localStorage` gemerkt. Zweiter
+  Farb-Token-Satz unter `:root[data-theme="dark"]`.
+- **Fortschrittsbalken auf der Versuchskarte**: zusätzlich zu den AZ-Pills
+  zeigt jede Karte in der Liste einen dünnen Balken für den Gesamtfortschritt
+  über alle geplanten AZ-Runden.
+- **Sticky AZ-Umschalter**: bleibt beim Scrollen durch die Töpfe oben
+  angeheftet sichtbar.
+- **Leere Töpfe deutlich markiert**: diagonale Schraffur + gestrichelter
+  Rahmen statt eines blassen „—", das in praller Sonne kaum zu erkennen war.
+
+### 🔄 Changed
+- **Design auf das Skyseed-System umgestellt** (Skill `skyseed-design`):
+  Inter statt JetBrains Mono/Fraunces, Teal/Moos/Sand-Farbpalette, weiche
+  Radien (4–8px) und Schatten statt harter 0px-Kanten und dicker Rahmen.
+  Der bisherige „Feldbuch"-Look (Mono-Schrift, kursive Serife, Papierfarben)
+  ist damit Geschichte — bewusste Entscheidung für ein einheitliches
+  Erscheinungsbild über alle Skyseed-Tools hinweg.
+- **Treatment-/Themenbereich-Farben entsättigt**: `themenbereichToFarbe()`
+  und die Platzhalter im Import-Formular nutzen jetzt eine erdige Rost/
+  Teal/Amber/Moos-Palette statt der alten Tailwind-Grundfarben. Bereits in
+  Asana-Protokollen hinterlegte Treatment-Hex-Codes (T0-T6 im Tray-Raster)
+  kann die App nicht rückwirkend ändern — das betrifft nur neue Versuche.
+- **Emoji durch Inline-SVG-Icons ersetzt** in der gesamten App-UI (Buttons,
+  Modal-Titel, Links, Foto-Buttons, Plausibilitätswarnung). Emoji in Texten,
+  die als Asana-Kommentar gepostet werden, bleiben unverändert — das ist
+  Text für Asana, keine App-UI.
+
 ## Version 1.3.1 — 2026-08-07
 
 ### 🐛 Fixed

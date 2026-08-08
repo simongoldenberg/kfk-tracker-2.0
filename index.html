@@ -17,35 +17,107 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --bg: #f4f0e6;
-    --bg-2: #ebe5d3;
-    --bg-3: #e0d8bf;
-    --ink: #2a2118;
-    --ink-muted: #6b5f4e;
-    --line: #c9bfa7;
-    --accent: #4a6b3a;
-    --accent-dark: #2d4a23;
-    --accent-2: #8aa378;
-    --warn: #a04b2a;
-    --ok: #4a6b3a;
-    --wait: #c99a3a;
-    --err: #a04b2a;
-    --t-a: #ef4444;
-    --t-b: #3b82f6;
-    --t-c: #eab308;
-    --t-d: #22c55e;
+    /* Skyseed-Palette (hell, Standard) */
+    --bg: #faf8f4;
+    --bg-2: #f4eee3;
+    --bg-3: #e9ddc9;
+    --surface: #ffffff;
+    --ink: #1f1c17;
+    --ink-muted: #635c50;
+    --ink-faint: #82796a;
+    --line: #e1dbcf;
+    --line-strong: #c7bfae;
+    --accent: #143c46;
+    --accent-dark: #0d2830;
+    --accent-2: #3d7376;
+    --moss: #5a7237;
+    --moss-bg: #e2e9d2;
+    --warn: #c3903f;
+    --warn-bg: #f7e9d3;
+    --ok: #5a7237;
+    --wait: #c3903f;
+    --err: #b9633f;
+    --err-bg: #f3ddd4;
+    --t-a: #b9633f;
+    --t-b: #3d7376;
+    --t-c: #c3903f;
+    --t-d: #5a7237;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-pill: 999px;
+    --shadow-sm: 0 1px 3px rgba(20, 28, 26, 0.06);
+    --shadow-md: 0 4px 18px rgba(20, 28, 26, 0.09);
     --safe-top: env(safe-area-inset-top, 0);
     --safe-bottom: env(safe-area-inset-bottom, 0);
     --touch: 64px;
   }
+  :root[data-theme="dark"] {
+    --bg: #14120e;
+    --bg-2: #1c1913;
+    --bg-3: #262117;
+    --surface: #201c16;
+    --ink: #f4f0e6;
+    --ink-muted: #a49b88;
+    --ink-faint: #7d7566;
+    --line: #3a352c;
+    --line-strong: #4a4438;
+    --accent: #8aa85c;
+    --accent-dark: #6f8a49;
+    --accent-2: #6fa3a6;
+    --moss: #8aa85c;
+    --moss-bg: #262a1c;
+    --warn: #d1954a;
+    --warn-bg: #2c2317;
+    --ok: #8aa85c;
+    --wait: #d1954a;
+    --err: #d9755a;
+    --err-bg: #2c1e18;
+    --t-a: #d9755a;
+    --t-b: #6fa3a6;
+    --t-c: #d1a93f;
+    --t-d: #8aa85c;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]):not([data-theme="dark"]) {
+      --bg: #14120e;
+      --bg-2: #1c1913;
+      --bg-3: #262117;
+      --surface: #201c16;
+      --ink: #f4f0e6;
+      --ink-muted: #a49b88;
+      --ink-faint: #7d7566;
+      --line: #3a352c;
+      --line-strong: #4a4438;
+      --accent: #8aa85c;
+      --accent-dark: #6f8a49;
+      --accent-2: #6fa3a6;
+      --moss: #8aa85c;
+      --moss-bg: #262a1c;
+      --warn: #d1954a;
+      --warn-bg: #2c2317;
+      --ok: #8aa85c;
+      --wait: #d1954a;
+      --err: #d9755a;
+      --err-bg: #2c1e18;
+      --t-a: #d9755a;
+      --t-b: #6fa3a6;
+      --t-c: #d1a93f;
+      --t-d: #8aa85c;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.4);
+    }
+  }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'Inter', system-ui, sans-serif;
     background: var(--bg);
     color: var(--ink);
     font-size: 22px;
@@ -53,6 +125,7 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
+    transition: background 0.15s, color 0.15s;
   }
   body {
     padding: calc(14px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
@@ -60,7 +133,8 @@
     margin: 0 auto;
     min-height: 100vh;
   }
-  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; letter-spacing: -0.01em; }
+  h1, h2, h3 { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; letter-spacing: -0.01em; }
+  code, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 
   /* ============ Header ============ */
   header {
@@ -70,18 +144,16 @@
     border-bottom: 2px solid var(--ink);
   }
   header .title-block { flex: 1; min-width: 0; }
-  header h1 { font-size: clamp(33px, 7.5vw, 42px); font-style: italic; line-height: 1.15; }
+  header h1 { font-size: clamp(30px, 6.5vw, 38px); line-height: 1.2; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
   header h1 .id-nummer {
     display: inline-block;
-    font-style: normal;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.65em;
+    font-size: 0.55em;
     font-weight: 700;
-    background: var(--accent-dark);
-    color: var(--bg);
-    padding: 2px 8px;
-    border-radius: 3px;
-    margin-left: 6px;
+    background: var(--accent);
+    color: var(--surface);
+    padding: 3px 9px;
+    border-radius: var(--radius-pill);
     vertical-align: middle;
     letter-spacing: 0.04em;
   }
@@ -90,10 +162,10 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.7em;
     font-weight: 700;
-    background: var(--accent-dark);
-    color: var(--bg);
-    padding: 1px 6px;
-    border-radius: 3px;
+    background: var(--accent);
+    color: var(--surface);
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
     margin-left: 4px;
     vertical-align: middle;
     letter-spacing: 0.04em;
@@ -101,35 +173,54 @@
   header .sub {
     color: var(--ink-muted);
     font-size: 18px;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     margin-top: 4px;
   }
   header .back {
     width: var(--touch); height: var(--touch);
     min-width: var(--touch);
     display: flex; align-items: center; justify-content: center;
-    background: var(--bg); color: var(--ink);
-    border: 1.5px solid var(--ink);
-    font-size: 33px;
+    background: var(--surface); color: var(--ink);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    font-size: 30px;
     cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
   }
-  header .back:active { background: var(--ink); color: var(--bg); }
+  header .back:active { background: var(--bg-2); }
+  header .back:hover { border-color: var(--accent); }
+  /* Theme-Umschalter (hell/dunkel) */
+  header .theme-toggle {
+    width: var(--touch); height: var(--touch);
+    min-width: var(--touch);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface); color: var(--ink-muted);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  header .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  header .theme-toggle svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  header .theme-toggle .icon-moon { display: none; }
+  :root[data-theme="dark"] header .theme-toggle .icon-sun { display: none; }
+  :root[data-theme="dark"] header .theme-toggle .icon-moon { display: block; }
   /* Version + Stand der Version — dezent, aber lesbar */
   header .version {
-    color: var(--ink-muted);
+    color: var(--ink-faint);
     font-size: 15px;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
     margin-top: 3px;
-    opacity: 0.75;
   }
 
   /* ============ Status-Leiste ============ */
   .status-row {
     display: flex; justify-content: space-between; align-items: center;
     margin-bottom: 12px;
-    font-size: 16px;
+    font-size: 15px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     color: var(--ink-muted);
     flex-wrap: wrap;
     gap: 8px;
@@ -143,27 +234,29 @@
   /* ============ Buttons (alle mind. 64px touchable) ============ */
   button {
     font-family: inherit;
-    font-size: 21px;
+    font-size: 20px;
     font-weight: 600;
     padding: 0 18px;
     min-height: var(--touch);
-    border: 1.5px solid var(--ink);
-    background: var(--bg);
+    border: 1.5px solid var(--line-strong);
+    background: var(--surface);
     color: var(--ink);
     cursor: pointer;
-    border-radius: 0;
-    transition: transform 0.08s, background 0.15s;
-    letter-spacing: 0.02em;
+    border-radius: var(--radius-md);
+    transition: transform 0.08s, background 0.15s, border-color 0.15s, color 0.15s;
+    letter-spacing: 0.01em;
     white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   }
+  button svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
   button:active { transform: scale(0.97); }
-  button:hover { background: var(--ink); color: var(--bg); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
-  button.primary:hover { background: var(--ink); border-color: var(--ink); }
-  button.danger { border-color: var(--warn); color: var(--warn); }
-  button.danger:hover { background: var(--warn); color: var(--bg); }
-  button.small { min-height: 44px; padding: 0 12px; font-size: 18px; }
-  button[disabled] { opacity: 0.4; cursor: not-allowed; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); color: var(--surface); }
+  button.danger { border-color: var(--err); color: var(--err); background: var(--surface); }
+  button.danger:hover { background: var(--err); color: var(--surface); }
+  button.small { min-height: 44px; padding: 0 12px; font-size: 17px; }
+  button[disabled] { opacity: var(--color-disabled-opacity, 0.45); cursor: not-allowed; }
 
   .toolbar {
     display: flex; gap: 8px; flex-wrap: wrap;
@@ -172,9 +265,11 @@
 
   /* ============ Versuchsliste (Screen 1) ============ */
   .versuch-karte {
-    background: var(--bg);
-    border: 1.5px solid var(--line);
-    border-left-width: 6px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left-width: 4px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
     padding: 16px;
     margin-bottom: 10px;
     cursor: pointer;
@@ -182,79 +277,97 @@
     flex-direction: column;
     gap: 6px;
     min-height: 96px;
-    transition: background 0.1s, border-color 0.1s;
+    transition: box-shadow 0.15s, border-color 0.15s, transform 0.08s;
   }
-  .versuch-karte:active { background: var(--bg-2); }
-  .versuch-karte:hover { border-color: var(--ink); }
+  .versuch-karte:active { transform: scale(0.995); }
+  .versuch-karte:hover { border-color: var(--accent); box-shadow: var(--shadow-md); }
   .versuch-karte .head {
     display: flex; align-items: center; justify-content: space-between;
     gap: 10px;
   }
   .versuch-karte .chip {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 4px 8px;
+    letter-spacing: 0.06em;
+    padding: 4px 9px;
+    border-radius: var(--radius-pill);
     color: white;
     background: var(--accent);
   }
   .versuch-karte .nr {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    font-size: 27px;
+    font-size: 24px;
     color: var(--ink);
   }
-  .versuch-karte .arrow { font-size: 33px; color: var(--ink-muted); }
+  .versuch-karte .arrow { font-size: 28px; color: var(--ink-faint); }
   .versuch-karte .titel {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 600;
     color: var(--ink);
-    line-height: 1.25;
+    line-height: 1.3;
   }
   .versuch-karte .meta {
     display: flex; gap: 14px; flex-wrap: wrap;
-    font-size: 18px; color: var(--ink-muted);
+    font-size: 17px; color: var(--ink-muted);
   }
   .versuch-karte .meta strong { color: var(--ink); font-weight: 600; }
   .versuch-karte .fortschritt {
     display: flex; align-items: center; gap: 6px;
-    font-size: 18px;
+    font-size: 17px;
     color: var(--ink-muted);
   }
   .fortschritt-pill {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 2px 9px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--line);
     background: var(--bg-2);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
   }
-  .fortschritt-pill.done { background: var(--accent); color: white; border-color: var(--accent); }
-  .fortschritt-pill.active { background: var(--warn); color: white; border-color: var(--warn); }
+  .fortschritt-pill.done { background: var(--moss-bg); color: var(--moss); border-color: var(--moss); }
+  .fortschritt-pill.active { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+
+  /* Fortschrittsbalken pro Versuchskarte: erfasste/gesamt Toepfe der aktuellen AZ */
+  .karte-progress {
+    height: 6px;
+    background: var(--bg-2);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    margin-top: 2px;
+  }
+  .karte-progress i {
+    display: block; height: 100%;
+    background: var(--accent);
+    border-radius: var(--radius-pill);
+    transition: width 0.3s;
+  }
 
   /* ============ Info-Panel (Screen 2) ============ */
   .info-panel {
     margin-bottom: 16px;
     border: 1px solid var(--line);
-    background: var(--bg-2);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
   }
   .info-panel summary {
     padding: 14px 16px;
     cursor: pointer;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     color: var(--ink-muted);
     list-style: none;
     display: flex; justify-content: space-between; align-items: center;
     min-height: var(--touch);
   }
   .info-panel summary::-webkit-details-marker { display: none; }
-  .info-panel summary::after { content: '▼'; font-size: 15px; }
+  .info-panel summary::after { content: '▼'; font-size: 14px; }
   .info-panel[open] summary::after { content: '▲'; }
   .info-panel[open] summary { border-bottom: 1px solid var(--line); }
 
@@ -262,34 +375,31 @@
   .info-section { margin-bottom: 18px; }
   .info-section:last-child { margin-bottom: 0; }
   .info-section h3 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 16px; font-weight: 700;
+    font-size: 15px; font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     color: var(--accent);
     margin-bottom: 8px;
     padding-bottom: 4px;
     border-bottom: 1px solid var(--line);
   }
-  .info-kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 16px; font-size: 20px; }
+  .info-kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 16px; font-size: 19px; }
   .info-kv .k { color: var(--ink-muted); }
   .info-kv .v { color: var(--ink); font-weight: 500; }
   .info-hyp {
-    font-family: 'Fraunces', Georgia, serif;
-    font-style: italic;
-    font-size: 22px;
-    line-height: 1.45;
+    font-size: 20px;
+    line-height: 1.5;
     color: var(--ink);
   }
   .treatments-list { display: flex; flex-direction: column; gap: 6px; }
   .treatment-item {
     display: flex; align-items: center; gap: 10px;
-    font-size: 20px;
+    font-size: 19px;
   }
   .treatment-dot {
     width: 18px; height: 18px;
     border-radius: 50%;
-    border: 1px solid var(--ink);
+    border: 1px solid var(--line-strong);
   }
   .treatment-code { font-weight: 700; min-width: 28px; }
   .az-fortschritt { display: flex; flex-direction: column; gap: 4px; }
@@ -297,11 +407,12 @@
     display: grid;
     grid-template-columns: 42px 110px 1fr;
     gap: 10px;
-    font-size: 20px;
+    font-size: 19px;
     align-items: center;
   }
   .az-fortschritt-row .lbl { font-weight: 700; color: var(--ink); }
-  .az-fortschritt-row .sym { font-size: 21px; }
+  .az-fortschritt-row .sym { font-size: 19px; display: inline-flex; }
+  .az-fortschritt-row .sym svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2.2; }
   .az-fortschritt-row.done { color: var(--ok); }
   .az-fortschritt-row.active { color: var(--warn); }
   .az-fortschritt-row.open { color: var(--ink-muted); }
@@ -310,43 +421,55 @@
   .info-link {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px;
-    background: var(--bg);
+    background: var(--bg-2);
     border: 1px solid var(--line);
+    border-radius: var(--radius-md);
     color: var(--ink);
     text-decoration: none;
-    font-size: 20px;
+    font-size: 19px;
     min-height: 48px;
+    transition: border-color 0.12s, background 0.12s;
   }
-  .info-link:active { background: var(--bg-2); }
+  .info-link svg { width: 20px; height: 20px; stroke: var(--accent); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+  .info-link:hover { border-color: var(--accent); }
+  .info-link:active { background: var(--bg-3); }
 
-  /* ============ AZ-Runden-Switcher ============ */
+  /* ============ AZ-Runden-Switcher (sticky beim Scrollen durch die Toepfe) ============ */
   .az-switcher {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 8px;
     margin-bottom: 14px;
+    position: sticky;
+    top: calc(var(--safe-top));
+    z-index: 20;
+    background: var(--bg);
+    padding: 8px 0;
+    margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px;
+    box-shadow: 0 6px 10px -8px rgba(0,0,0,0.15);
   }
   .az-btn {
     min-height: var(--touch);
     padding: 8px;
-    border: 1.5px solid var(--ink);
-    background: var(--bg);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface);
     cursor: pointer;
     font-family: inherit;
     font-weight: 700;
-    font-size: 21px;
+    font-size: 20px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 2px;
     transition: all 0.1s;
   }
   .az-btn:active { transform: scale(0.97); }
-  .az-btn .az-name { font-size: 22px; }
-  .az-btn .az-state { font-size: 15px; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.05em; }
-  .az-btn.done { background: var(--bg-2); }
+  .az-btn .az-name { font-size: 21px; }
+  .az-btn .az-state { font-size: 14px; font-weight: 500; color: var(--ink-muted); letter-spacing: 0.04em; }
+  .az-btn.done { background: var(--moss-bg); border-color: var(--moss); }
   .az-btn.done .az-state { color: var(--ok); }
   .az-btn.active { background: var(--warn); color: white; border-color: var(--warn); }
   .az-btn.active .az-state { color: white; }
-  .az-btn.disabled { opacity: 0.3; cursor: not-allowed; }
+  .az-btn.disabled { opacity: 0.35; cursor: not-allowed; }
 
   /* ============ Meta-Row (Datum + Benutzer) ============ */
   .meta-row {
@@ -357,10 +480,10 @@
   }
   .meta-row .field label {
     display: block;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     color: var(--ink-muted);
     margin-bottom: 4px;
   }
@@ -369,15 +492,15 @@
     min-height: var(--touch);
     padding: 8px 12px;
     font-family: inherit;
-    font-size: 22px;
+    font-size: 21px;
     border: 1.5px solid var(--line);
-    background: var(--bg);
+    border-radius: var(--radius-md);
+    background: var(--surface);
     color: var(--ink);
-    border-radius: 0;
   }
   .meta-row select {
     appearance: none; -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3e%3cpath fill='%236b5f4e' d='M2 4l4 4 4-4z'/%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3e%3cpath fill='%23635c50' d='M2 4l4 4 4-4z'/%3e%3c/svg%3e");
     background-repeat: no-repeat;
     background-position: right 14px center;
     padding-right: 40px;
@@ -391,10 +514,10 @@
     margin-bottom: 16px;
   }
   .rbd-title {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     color: var(--ink-muted);
     margin-bottom: 8px;
   }
@@ -412,11 +535,12 @@
     background: var(--bg-2);
     padding: 10px;
     border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
   }
   .rbd-corner, .rbd-header, .rbd-wdh-label {
     display: flex; align-items: center; justify-content: center;
     font-weight: 700;
-    font-size: 18px;
+    font-size: 17px;
     color: var(--ink-muted);
     user-select: none;
   }
@@ -429,8 +553,9 @@
     min-width: 40px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     cursor: pointer;
-    border: 2px solid var(--ink);
-    background: var(--bg);
+    border: 2px solid rgba(0,0,0,0.12);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
     transition: all 0.08s;
     padding: 4px;
     position: relative;
@@ -455,18 +580,27 @@
     line-height: 1;
   }
   .topf .topf-val {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
     font-size: min(33px, 34cqw);
     font-weight: 700;
     line-height: 1;
     margin-top: 2px;
   }
+  /* Leerer Topf: deutlich als "noch nicht erfasst" erkennbar - diagonale
+     Schraffur statt nur eines blassen Strichs, der in praller Sonne kaum
+     zu sehen war. */
+  .topf.is-empty {
+    background-image: repeating-linear-gradient(
+      135deg,
+      rgba(99, 92, 80, 0.14) 0px, rgba(99, 92, 80, 0.14) 4px,
+      transparent 4px, transparent 11px
+    );
+    border-style: dashed;
+    border-color: rgba(0,0,0,0.22);
+  }
   .topf .topf-empty {
-    font-size: min(33px, 34cqw);
-    color: var(--ink-muted);
+    font-size: min(26px, 28cqw);
+    color: var(--ink-faint);
     font-weight: 700;
-    opacity: 0.4;
   }
   .topf.dark-text { color: var(--ink); }
   .topf.light-text { color: white; }
@@ -480,25 +614,27 @@
     align-items: center;
   }
   .fotos-label {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     color: var(--ink-muted);
   }
   .foto-btn {
     min-height: 56px;
-    border: 1.5px solid var(--ink);
-    background: var(--bg);
+    border: 1.5px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    background: var(--surface);
     cursor: pointer;
     font-family: inherit;
     font-weight: 700;
-    font-size: 20px;
+    font-size: 19px;
     display: flex; align-items: center; justify-content: center;
     gap: 6px;
   }
-  .foto-btn.done { background: var(--accent); border-color: var(--accent); color: white; }
-  .foto-btn.uploading { background: var(--wait); border-color: var(--wait); color: white; }
+  .foto-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .foto-btn.done { background: var(--moss-bg); border-color: var(--moss); color: var(--moss); }
+  .foto-btn.uploading { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
 
   /* ============ Abschluss-Button ============ */
   .abschluss-btn {
@@ -506,42 +642,43 @@
     min-height: 72px;
     background: var(--accent);
     border: 2px solid var(--accent);
+    border-radius: var(--radius-md);
     color: white;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
     cursor: pointer;
     margin-bottom: 8px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
   .abschluss-btn:active { transform: scale(0.99); background: var(--accent-dark); }
   .abschluss-btn.done {
-    background: var(--bg-2); color: var(--ok); border-color: var(--ok);
+    background: var(--moss-bg); color: var(--ok); border-color: var(--ok);
   }
   .abschluss-hint {
     font-size: 16px;
     color: var(--ink-muted);
     text-align: center;
     margin-bottom: 18px;
-    font-style: italic;
   }
 
   /* ============ Übersicht ============ */
   .uebersicht {
     margin-bottom: 20px;
     padding: 14px;
-    background: var(--bg-2);
+    background: var(--surface);
     border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
   }
   .uebersicht h3 {
-    font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
     color: var(--ink-muted);
     margin-bottom: 10px;
   }
   table.stats {
     width: 100%;
     border-collapse: collapse;
-    font-size: 20px;
+    font-size: 19px;
     margin-bottom: 12px;
   }
   table.stats th, table.stats td {
@@ -550,10 +687,10 @@
     border-bottom: 1px solid var(--line);
   }
   table.stats th {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     color: var(--ink-muted);
   }
   table.stats td { font-weight: 500; }
@@ -563,7 +700,7 @@
     border-radius: 50%;
     margin-right: 6px;
     vertical-align: middle;
-    border: 1px solid var(--ink);
+    border: 1px solid var(--line-strong);
   }
   .cv-badge { font-weight: 600; }
   .cv-ok { color: var(--ok); }
@@ -576,21 +713,21 @@
     grid-template-columns: 1fr 48px;
     gap: 10px;
     align-items: center;
-    font-size: 18px;
+    font-size: 17px;
   }
   .bar {
-    height: 14px;
-    background: var(--bg);
-    border: 1px solid var(--line);
+    height: 12px;
+    background: var(--bg-2);
+    border-radius: var(--radius-pill);
     overflow: hidden;
   }
-  .bar-fill { height: 100%; transition: width 0.3s; }
+  .bar-fill { height: 100%; border-radius: var(--radius-pill); transition: width 0.3s; }
 
   /* ============ Overlay + Modals ============ */
   .overlay {
     display: none;
     position: fixed; inset: 0;
-    background: rgba(42, 33, 24, 0.55);
+    background: rgba(20, 18, 14, 0.5);
     z-index: 100;
     align-items: flex-end;
     justify-content: center;
@@ -599,19 +736,20 @@
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .modal {
-    background: var(--bg);
+    background: var(--surface);
     width: 100%;
     max-width: 560px;
     padding: 20px;
     padding-bottom: calc(20px + var(--safe-bottom));
-    border-top: 3px solid var(--ink);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: var(--shadow-md);
     animation: slideUp 0.22s cubic-bezier(0.2, 0, 0.2, 1);
     max-height: 94vh;
     overflow-y: auto;
   }
   @media (min-width: 600px) {
     .overlay { align-items: center; }
-    .modal { border: 3px solid var(--ink); padding-bottom: 20px; }
+    .modal { border-radius: var(--radius-lg); padding-bottom: 20px; }
   }
   .modal-head {
     display: flex; justify-content: space-between; align-items: baseline;
@@ -619,8 +757,9 @@
     padding-bottom: 10px;
     border-bottom: 1px solid var(--line);
   }
-  .modal-head h2 { font-size: 36px; font-style: italic; }
-  .modal-head .coord { font-size: 16px; color: var(--ink-muted); letter-spacing: 0.1em; }
+  .modal-head h2 { font-size: 26px; display: flex; align-items: center; gap: 8px; }
+  .modal-head h2 svg { width: 26px; height: 26px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
+  .modal-head .coord { font-size: 16px; color: var(--ink-muted); letter-spacing: 0.06em; }
   .modal-actions {
     display: flex; gap: 8px; margin-top: 18px;
   }
@@ -632,52 +771,55 @@
     background: var(--bg-2);
     padding: 12px 14px;
     border: 1px solid var(--line);
-    border-left-width: 6px;
+    border-left-width: 5px;
+    border-radius: var(--radius-md);
     margin-bottom: 14px;
   }
-  .topf-header .lbl { font-size: 16px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .topf-header .lbl { font-size: 15px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.07em; }
   .topf-header .treatment {
-    font-size: 30px; font-weight: 700;
-    font-family: 'Fraunces', serif; font-style: italic;
+    font-size: 26px; font-weight: 700;
     margin-top: 4px;
   }
-  .topf-header .meta-txt { font-size: 18px; color: var(--ink-muted); margin-top: 2px; }
+  .topf-header .meta-txt { font-size: 17px; color: var(--ink-muted); margin-top: 2px; }
 
   .value-display {
     text-align: center;
-    background: var(--bg);
-    border: 2px solid var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
     padding: 18px;
     margin-bottom: 14px;
   }
   .value-display .num {
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-size: 84px;
+    font-size: 76px;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
     color: var(--accent);
     line-height: 1;
   }
-  .value-display .num.empty { color: var(--ink-muted); opacity: 0.4; }
+  .value-display .num.empty { color: var(--ink-faint); opacity: 0.6; }
   .value-display .kf {
-    font-size: 20px;
+    font-size: 19px;
     color: var(--ink-muted);
     margin-top: 8px;
   }
   .value-display .kf-cumulative {
-    font-size: 22px;
+    font-size: 21px;
     color: var(--ink);
     font-weight: 600;
     margin-top: 6px;
   }
   .value-display .plaus-warn {
-    font-size: 18px;
+    font-size: 17px;
     color: var(--warn);
     font-weight: 600;
     margin-top: 8px;
     border-top: 1.5px dashed var(--warn);
     padding-top: 8px;
+    display: flex; align-items: flex-start; gap: 6px; text-align: left;
   }
+  .value-display .plaus-warn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.9; flex-shrink: 0; margin-top: 1px; }
 
   .numpad {
     display: grid;
@@ -687,11 +829,11 @@
   }
   .numpad button {
     min-height: 68px;
-    font-size: 33px;
+    font-size: 30px;
     font-weight: 700;
   }
-  .numpad button.clear { background: var(--bg-2); font-size: 21px; }
-  .numpad button.back { font-size: 27px; }
+  .numpad button.clear { background: var(--bg-2); font-size: 19px; }
+  .numpad button.back { font-size: 24px; }
 
   .topf-nav {
     display: grid;
@@ -823,13 +965,12 @@
   .tray-header {
     margin: 18px 0 6px;
     padding: 8px 14px;
-    background: var(--accent-dark);
-    color: var(--bg);
-    font-family: 'Fraunces', serif;
-    font-style: italic;
-    font-size: 26px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    background: var(--accent);
+    color: var(--surface);
+    border-radius: var(--radius-md);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
 
   /* ============ Versuch-Ende-Button ============ */
@@ -985,8 +1126,8 @@ const STORAGE_KEY = 'kfk-tracker-pref';
 // App-Version + Stand dieser Version (wird dezent in der Kopfzeile angezeigt).
 // APP_VERSION_DATE wird von bump-cache.js beim Frontend-Deploy automatisch auf
 // das Deploy-Datum gesetzt — die Nummer selbst bleibt manuell (s. CLAUDE.md).
-const APP_VERSION = '1.3.1';
-const APP_VERSION_DATE = '2026-08-07';
+const APP_VERSION = '1.4.0';
+const APP_VERSION_DATE = '2026-08-08';
 
 // Zeile fuer die Kopfzeile: "v1.1.0 · 06.08.2026"
 function versionLabel() {
@@ -998,6 +1139,51 @@ function versionLabel() {
 // Standardwerte fuer neue Versuche
 const DEFAULT_AZ_GEPLANT = 3;
 const DEFAULT_ORT = 'Growzelt';
+
+// ========== Icon-Set (Inline-SVG statt Emoji) ==========
+// Keine Emoji in der App-UI (Skyseed-Designrichtlinie) - Emoji in Asana-Post-
+// Inhalten (Kommentare) bleiben unveraendert, das ist Text fuer Asana, keine App-UI.
+const ICON = {
+  camera: '<svg viewBox="0 0 24 24"><path d="M3 7h18v13H3z"/><path d="M8 7l2-3h4l2 3"/><circle cx="12" cy="13.5" r="3.5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>',
+  archive: '<svg viewBox="0 0 24 24"><path d="M3 8l9-4 9 4v9l-9 4-9-4z"/><path d="M3 8l9 4 9-4M12 12v9"/></svg>',
+  chart: '<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
+  folder: '<svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg>',
+  clipboard: '<svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="1.5"/><path d="M9 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/></svg>',
+  user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>',
+  flag: '<svg viewBox="0 0 24 24"><path d="M6 21V4"/><path d="M6 4h12l-3 4 3 4H6"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>',
+  inbox: '<svg viewBox="0 0 24 24"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M4 12l1-7h14l1 7v7H4z"/></svg>',
+  warn: '<svg viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17v.01"/></svg>',
+  sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19v2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M2.5 12h2.4M19 12h2.4M4.9 19l1.7-1.7M17.4 6.6l1.7-1.7"/></svg>',
+  moon: '<svg viewBox="0 0 24 24"><path d="M21 13.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 10.5z"/></svg>'
+};
+
+// ========== Dunkelmodus ==========
+// Standard = Systempraeferenz (prefers-color-scheme). Manuelle Wahl ueber den
+// Umschalter im Header wird in localStorage gemerkt und hat dann Vorrang.
+const THEME_KEY = 'kfk_theme';
+
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', saved);
+  }
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') ||
+    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem(THEME_KEY, next);
+}
+function themeToggleHTML() {
+  return `<button class="theme-toggle" onclick="toggleTheme()" title="Hell/Dunkel umschalten" aria-label="Hell/Dunkel umschalten">
+    <span class="icon-sun">${ICON.sun}</span><span class="icon-moon">${ICON.moon}</span>
+  </button>`;
+}
+initTheme(); // sofort anwenden, bevor irgendetwas gerendert wird (kein Flackern)
 
 // ========== Zustand ==========
 let state = {
@@ -1123,7 +1309,7 @@ async function quickArchive(versuchsnr) {
   setSync('wait', 'archiviere…');
   try {
     await apiPost({ action: 'archiveVersuch', versuchsnr });
-    toast('Versuch ' + versuchsnr + ' archiviert 📦');
+    toast('Versuch ' + versuchsnr + ' archiviert');
     setSync('ok', 'sync ' + timeNow());
     await loadList();
   } catch (e) {
@@ -1143,7 +1329,7 @@ function openDeleteVersuch(versuchsnr) {
 
   document.getElementById('delete-modal').innerHTML = `
     <div class="modal-head">
-      <h2>🗑 Versuch löschen?</h2>
+      <h2>${ICON.trash} Versuch löschen?</h2>
       <span class="coord">${esc(versuchsnr)}</span>
     </div>
     <div class="del-warn">
@@ -1161,7 +1347,7 @@ function openDeleteVersuch(versuchsnr) {
       oninput="document.getElementById('del-confirm-btn').disabled = this.value.trim() !== '${esc(versuchsnr)}'">
     <div class="modal-actions">
       <button onclick="closeDeleteVersuch()">Abbrechen</button>
-      <button class="danger" id="del-confirm-btn" disabled onclick="confirmDeleteVersuch()">🗑 Endgültig löschen</button>
+      <button class="danger" id="del-confirm-btn" disabled onclick="confirmDeleteVersuch()">${ICON.trash} Endgültig löschen</button>
     </div>
   `;
   document.getElementById('delete-overlay').classList.add('open');
@@ -1180,7 +1366,7 @@ async function confirmDeleteVersuch() {
     const res = await apiPost({ action: 'deleteVersuch', versuchsnr });
     if (res && res.error) throw new Error(res.error);
     closeDeleteVersuch();
-    toast('Versuch ' + versuchsnr + ' aus dem Index gelöscht 🗑');
+    toast('Versuch ' + versuchsnr + ' aus dem Index gelöscht');
     setSync('ok', 'sync ' + timeNow());
     // Zurueck zur Liste, falls der geloeschte Versuch offen war
     if (state.currentVersuchsnr === versuchsnr) {
@@ -1300,6 +1486,7 @@ function renderList() {
         <div class="sub">Skyseed · ${isArchiv ? liste.length + ' archivierte' : state.versuche.length + ' aktive'} Versuche</div>
         <div class="version">${versionLabel()}</div>
       </div>
+      ${themeToggleHTML()}
     </header>
 
     <div class="status-row">
@@ -1311,16 +1498,16 @@ function renderList() {
     </div>
 
     <div class="toolbar">
-      <button class="primary" onclick="${isArchiv ? 'loadArchiv()' : 'loadList()'}">🔄 Aktualisieren</button>
-      <button onclick="openBenutzerWahl()">👤 Benutzer</button>
-      ${!isArchiv ? '<button onclick="openImportModal()">📥 Aus Asana</button>' : ''}
+      <button class="primary" onclick="${isArchiv ? 'loadArchiv()' : 'loadList()'}">${ICON.refresh} Aktualisieren</button>
+      <button onclick="openBenutzerWahl()">${ICON.user} Benutzer</button>
+      ${!isArchiv ? `<button onclick="openImportModal()">${ICON.inbox} Aus Asana</button>` : ''}
     </div>
 
-    <div style="display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:12px">
-      <button onclick="switchListTab('aktiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${!isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${!isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${!isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:20px">
+    <div style="display:flex;gap:4px;background:var(--bg-2);padding:4px;border-radius:var(--radius-md);margin-bottom:12px">
+      <button onclick="switchListTab('aktiv')" style="flex:1;padding:10px;border:none;border-radius:var(--radius-sm);background:${!isArchiv ? 'var(--accent)' : 'transparent'};color:${!isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${!isArchiv ? '700' : '500'};cursor:pointer;font-family:inherit;font-size:19px;min-height:44px">
         Aktiv (${state.versuche.length})
       </button>
-      <button onclick="switchListTab('archiv')" style="flex:1;padding:10px;border:none;border-radius:0;background:${isArchiv ? 'var(--accent)' : 'var(--bg-2)'};color:${isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${isArchiv ? '700' : '400'};cursor:pointer;font-family:inherit;font-size:20px">
+      <button onclick="switchListTab('archiv')" style="flex:1;padding:10px;border:none;border-radius:var(--radius-sm);background:${isArchiv ? 'var(--accent)' : 'transparent'};color:${isArchiv ? '#fff' : 'var(--ink-muted)'};font-weight:${isArchiv ? '700' : '500'};cursor:pointer;font-family:inherit;font-size:19px;min-height:44px">
         Archiv (${state.archivedVersuche.length})
       </button>
     </div>
@@ -1342,9 +1529,25 @@ function switchListTab(tab) {
   }
 }
 
+// Grobe Gesamt-Fortschritt-Kennzahl (0-100) fuer den Balken auf der Karte:
+// je erfasster AZ-Runde 1 Punkt, "teilweise" zaehlt halb, geteilt durch die
+// geplanten Runden. Keine neue Backend-Kennzahl noetig, nur eine Ableitung
+// aus dem vorhandenen az_status[].
+function fortschrittProzent(f) {
+  const geplant = Number(f.az_geplant || 0);
+  if (!geplant || !f.az_status || !f.az_status.length) return 0;
+  const punkte = f.az_status.reduce((sum, s) => sum + (s === 'fertig' ? 1 : s === 'teilweise' ? 0.5 : 0), 0);
+  return Math.round(Math.min(1, punkte / geplant) * 100);
+}
+function progressBarHTML(f) {
+  const pct = fortschrittProzent(f);
+  if (!f.az_status || !f.az_status.length) return '';
+  return `<div class="karte-progress" title="${pct}% der AZ-Runden erfasst"><i style="width:${pct}%;background:${pct >= 100 ? 'var(--moss)' : 'var(--accent)'}"></i></div>`;
+}
+
 function cardHTML(v) {
   const f = v.fortschritt || {};
-  const statusSym = (s) => s === 'fertig' ? '✓' : s === 'teilweise' ? '●' : '–';
+  const statusSym = (s) => s === 'fertig' ? ICON.check : s === 'teilweise' ? '●' : '–';
   const azHTML = (f.az_status || []).map((s, i) => {
     const cls = s === 'fertig' ? 'done' : s === 'teilweise' ? 'active' : '';
     const kf = f.az_kf_mittel && f.az_kf_mittel[i] != null ? ` ${f.az_kf_mittel[i]}%` : '';
@@ -1352,12 +1555,12 @@ function cardHTML(v) {
   }).join('');
 
   return `
-    <div class="versuch-karte" style="border-left-color:${v.themenfarbe || '#4a6b3a'}" onclick="openVersuch('${esc(v.versuchsnr)}')">
+    <div class="versuch-karte" style="border-left-color:${v.themenfarbe || '#5a7237'}" onclick="openVersuch('${esc(v.versuchsnr)}')">
       <div class="head">
-        <span class="chip" style="background:${v.themenfarbe || '#4a6b3a'}">${esc(shortBereich(v.themenbereich))}</span>
+        <span class="chip" style="background:${v.themenfarbe || '#5a7237'}">${esc(shortBereich(v.themenbereich))}</span>
         <span class="nr">${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="nr-id">ID ${esc(v.id_nummer)}</span>` : ''}</span>
-        <button class="archive-btn" title="Direkt archivieren" onclick="event.stopPropagation();quickArchive('${esc(v.versuchsnr)}')" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;line-height:1">📦</button>
-        <button class="delete-btn" title="Versuch löschen" onclick="event.stopPropagation();openDeleteVersuch('${esc(v.versuchsnr)}')" style="background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;line-height:1">🗑</button>
+        <button class="archive-btn" title="Direkt archivieren" onclick="event.stopPropagation();quickArchive('${esc(v.versuchsnr)}')" style="margin-left:auto;background:none;border:none;color:var(--ink-muted);width:36px;height:36px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center">${ICON.archive.replace('<svg ', '<svg style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8" ')}</button>
+        <button class="delete-btn" title="Versuch löschen" onclick="event.stopPropagation();openDeleteVersuch('${esc(v.versuchsnr)}')" style="background:none;border:none;color:var(--err);width:36px;height:36px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center">${ICON.trash.replace('<svg ', '<svg style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8" ')}</button>
         <span class="arrow">▶</span>
       </div>
       <div class="titel">${esc(v.titel || '—')}</div>
@@ -1367,6 +1570,7 @@ function cardHTML(v) {
         <span>Start ${esc(v.start_datum || '?')}</span>
       </div>
       <div class="fortschritt">${azHTML || '<span class="fortschritt-pill">noch keine AZ</span>'}</div>
+      ${progressBarHTML(f)}
     </div>
   `;
 }
@@ -1375,16 +1579,16 @@ function archivCardHTML(v) {
   const f = v.fortschritt || {};
   const azHTML = (f.az_status || []).map((s, i) => {
     const kf = f.az_kf_mittel && f.az_kf_mittel[i] != null ? ` ${f.az_kf_mittel[i]}%` : '';
-    return `<span class="fortschritt-pill done">AZ${i+1} ✓${kf}</span>`;
+    return `<span class="fortschritt-pill done">AZ${i+1} ${ICON.check}${kf}</span>`;
   }).join('');
 
   return `
-    <div class="versuch-karte" style="border-left-color:${v.themenfarbe || '#4a6b3a'};opacity:0.75;background:var(--bg-2)" onclick="openVersuch('${esc(v.versuchsnr)}')">
+    <div class="versuch-karte" style="border-left-color:${v.themenfarbe || '#5a7237'};opacity:0.8;background:var(--bg-2)" onclick="openVersuch('${esc(v.versuchsnr)}')">
       <div class="head">
-        <span class="chip" style="background:${v.themenfarbe || '#4a6b3a'}">${esc(shortBereich(v.themenbereich))}</span>
+        <span class="chip" style="background:${v.themenfarbe || '#5a7237'}">${esc(shortBereich(v.themenbereich))}</span>
         <span class="nr">${esc(v.versuchsnr)}${v.id_nummer ? ` <span class="nr-id">ID ${esc(v.id_nummer)}</span>` : ''}</span>
-        <span style="font-size:16px;color:var(--ink-muted);margin-left:auto">📦 Abgeschlossen</span>
-        <button class="delete-btn" title="Versuch löschen" onclick="event.stopPropagation();openDeleteVersuch('${esc(v.versuchsnr)}')" style="background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;line-height:1">🗑</button>
+        <span style="font-size:15px;color:var(--ink-muted);margin-left:auto;display:flex;align-items:center;gap:6px">${ICON.archive.replace('<svg ', '<svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8" ')} Abgeschlossen</span>
+        <button class="delete-btn" title="Versuch löschen" onclick="event.stopPropagation();openDeleteVersuch('${esc(v.versuchsnr)}')" style="background:none;border:none;color:var(--err);width:36px;height:36px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center">${ICON.trash.replace('<svg ', '<svg style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8" ')}</button>
       </div>
       <div class="titel">${esc(v.titel || '—')}</div>
       <div class="meta">
@@ -1425,6 +1629,7 @@ function renderDetailLoading(versuchsnr) {
         <div class="sub">Lade…</div>
         <div class="version">${versionLabel()}</div>
       </div>
+      ${themeToggleHTML()}
     </header>
     <div class="status-row">
       <div class="sync-status">
@@ -1460,9 +1665,10 @@ function renderDetail() {
         <div class="sub">${esc(v.titel || '')}</div>
         <div class="version">${versionLabel()}</div>
       </div>
+      ${themeToggleHTML()}
     </header>
 
-    ${isArchived ? `<div style="background:#c99a3a;color:#2a2118;padding:10px 16px;font-size:18px;font-weight:700;text-align:center;letter-spacing:0.06em">📦 ARCHIVIERT – Nur-Lesen · Versuch abgeschlossen</div>` : ''}
+    ${isArchived ? `<div style="background:var(--warn-bg);color:var(--warn);padding:10px 16px;border-radius:var(--radius-md);font-size:17px;font-weight:700;text-align:center;letter-spacing:0.03em;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">${ICON.archive.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9" ')} ARCHIVIERT – Nur-Lesen · Versuch abgeschlossen</div>` : ''}
 
     <div class="status-row">
       <div class="sync-status">
@@ -1514,8 +1720,8 @@ function renderDetail() {
     ${renderUebersicht(daten, treatments, az, v)}
 
     <div class="toolbar" style="margin-top:20px">
-      <button class="primary" onclick="openAsanaPreview()">📋 Asana-Kommentar</button>
-      <button onclick="openStatHint()">📊 Statistik-Hinweis</button>
+      <button class="primary" onclick="openAsanaPreview()">${ICON.clipboard} Asana-Kommentar</button>
+      <button onclick="openStatHint()">${ICON.chart} Statistik-Hinweis</button>
     </div>
   `;
 
@@ -1590,9 +1796,9 @@ function renderInfoPanel(v, f) {
         <div class="info-section">
           <h3>Links</h3>
           <div class="info-links">
-            ${v.folder_id ? `<a class="info-link" href="${driveLink}" target="_blank" rel="noopener">📁 Drive-Ordner</a>` : ''}
-            ${v.sheet_file_id ? `<a class="info-link" href="${sheetLink}" target="_blank" rel="noopener">📊 Daten-Sheet</a>` : ''}
-            ${v.asana_task_gid ? `<a class="info-link" href="${asanaLink}" target="_blank" rel="noopener">📋 Asana-Task</a>` : ''}
+            ${v.folder_id ? `<a class="info-link" href="${driveLink}" target="_blank" rel="noopener">${ICON.folder} Drive-Ordner</a>` : ''}
+            ${v.sheet_file_id ? `<a class="info-link" href="${sheetLink}" target="_blank" rel="noopener">${ICON.chart} Daten-Sheet</a>` : ''}
+            ${v.asana_task_gid ? `<a class="info-link" href="${asanaLink}" target="_blank" rel="noopener">${ICON.clipboard} Asana-Task</a>` : ''}
           </div>
         </div>
       </div>
@@ -1605,7 +1811,7 @@ function renderInitialFotosSection(v, daten) {
 
   let html = `<div class="initial-fotos">
     <div class="initial-fotos-head">
-      <span class="initial-fotos-label">📷 Initial-Fotos (AZ0)</span>
+      <span class="initial-fotos-label" style="display:flex;align-items:center;gap:8px">${ICON.camera.replace('<svg ', '<svg style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8" ')} Initial-Fotos (AZ0)</span>
       <span class="initial-fotos-hint">Anfangszustand vor Versuchsstart · 1 Foto pro Tray</span>
     </div>`;
 
@@ -1625,11 +1831,11 @@ function renderInitialFotosSection(v, daten) {
     }
     if (fotoUrl) {
       html += `<div style="display:flex;gap:4px">
-        <a class="foto-btn done" href="${fotoUrl}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📷 ✓ Ansehen</a>
-        <button class="foto-btn" onclick="takeFoto(0,${tray})" style="flex:none;padding:0 14px" title="Neu hochladen">⟳</button>
+        <a class="foto-btn done" href="${fotoUrl}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">${ICON.check} Ansehen</a>
+        <button class="foto-btn" onclick="takeFoto(0,${tray})" style="flex:none;padding:0 14px" title="Neu hochladen">${ICON.refresh}</button>
       </div>`;
     } else {
-      html += `<button class="foto-btn" onclick="takeFoto(0,${tray})">📷 Foto</button>`;
+      html += `<button class="foto-btn" onclick="takeFoto(0,${tray})">${ICON.camera} Foto</button>`;
     }
   }
   html += `</div>`;
@@ -1681,12 +1887,14 @@ function renderRBDForTray(v, daten, az, treatments, tray) {
       const d = byPosition[block + '_' + r] || {};
       const tCode = (d.treatment || '').split(/[\s(]/)[0];
       const t = treatmentMap[tCode] || null;
-      const color = t ? t.color : '#ebe5d3';
+      const color = t ? t.color : '#f4eee3';
       const txtCls = t ? textColorFor(color) + '-text' : 'dark-text';
       const val = d['az' + az + '_zahl'];
-      const valDisplay = (val !== '' && val != null && val !== undefined)
+      const hatWert = (val !== '' && val != null && val !== undefined);
+      const valDisplay = hatWert
         ? `<div class="topf-val">${val}</div>`
         : `<div class="topf-empty">—</div>`;
+      const emptyCls = hatWert ? '' : ' is-empty';
 
       // Topf-Anzeige: tray-relativ falls mehr als 1 Tray, sonst global
       const localTopfNr = (c * rows) + r;
@@ -1700,7 +1908,7 @@ function renderRBDForTray(v, daten, az, treatments, tray) {
         </div>`;
       } else {
         html += `
-          <div class="topf ${txtCls}" style="background:${color}" onclick="openTopfModal(${globalTopf}, ${tray})">
+          <div class="topf ${txtCls}${emptyCls}" style="background:${color}" onclick="openTopfModal(${globalTopf}, ${tray})">
             <div class="topf-nr">${displayNr}</div>
             <div class="topf-treat">${esc(tCode || '')}</div>
             ${valDisplay}
@@ -1738,15 +1946,17 @@ function renderRBD(v, daten, az, treatments) {
       const d = byTopf[topf] || {};
       const tCode = (d.treatment || '').split(/[\s(]/)[0]; // "T0" aus "T0 Kontrolle"
       const t = treatmentMap[tCode] || null;
-      const color = t ? t.color : '#ebe5d3';
+      const color = t ? t.color : '#f4eee3';
       const txtCls = t ? textColorFor(color) + '-text' : 'dark-text';
       const val = d['az' + az + '_zahl'];
-      const valDisplay = (val !== '' && val != null && val !== undefined)
+      const hatWert = (val !== '' && val != null && val !== undefined);
+      const valDisplay = hatWert
         ? `<div class="topf-val">${val}</div>`
         : `<div class="topf-empty">—</div>`;
+      const emptyCls = hatWert ? '' : ' is-empty';
 
       html += `
-        <div class="topf ${txtCls}" style="background:${color}" onclick="openTopfModal(${topf})">
+        <div class="topf ${txtCls}${emptyCls}" style="background:${color}" onclick="openTopfModal(${topf})">
           <div class="topf-nr">${topf}</div>
           <div class="topf-treat">${esc(tCode || '')}</div>
           ${valDisplay}
@@ -1772,11 +1982,11 @@ function renderFotoBtn(az, tray) {
   }
   if (fotoUrl) {
     return `<div style="display:flex;gap:4px">
-      <a class="foto-btn done" href="${fotoUrl}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">📷 ✓ Ansehen</a>
-      <button class="foto-btn" onclick="takeFoto(${az},${tray})" style="flex:none;padding:0 14px" title="Neu hochladen">⟳</button>
+      <a class="foto-btn done" href="${fotoUrl}" target="_blank" rel="noopener" style="flex:1;text-decoration:none">${ICON.check} Ansehen</a>
+      <button class="foto-btn" onclick="takeFoto(${az},${tray})" style="flex:none;padding:0 14px" title="Neu hochladen">${ICON.refresh}</button>
     </div>`;
   }
-  return `<button class="foto-btn" onclick="takeFoto(${az},${tray})">📷 Foto</button>`;
+  return `<button class="foto-btn" onclick="takeFoto(${az},${tray})">${ICON.camera} Foto</button>`;
 }
 
 function renderAbschlussButton(f, az, daten) {
@@ -1796,14 +2006,14 @@ function renderAbschlussButton(f, az, daten) {
 
   let html = '';
   if (status === 'fertig') {
-    html += `<button class="abschluss-btn done" onclick="openAbschluss()">✓ AZ${az} abgeschlossen · ändern</button>`;
+    html += `<button class="abschluss-btn done" onclick="openAbschluss()">${ICON.check} AZ${az} abgeschlossen · ändern</button>`;
   } else {
-    html += `<button class="abschluss-btn" onclick="openAbschluss()">✅ AZ${az} abschließen (${befuellt}/${total})</button>
+    html += `<button class="abschluss-btn" onclick="openAbschluss()">${ICON.check} AZ${az} abschließen (${befuellt}/${total})</button>
       <div class="abschluss-hint">Beim Abschließen werden leere Töpfe als 0 Keimlinge gewertet.</div>`;
   }
 
   if (versuchAbschliessbar) {
-    html += `<button class="versuch-end-btn" onclick="openVersuchEnde()">🏁 Versuch vollständig abschließen</button>
+    html += `<button class="versuch-end-btn" onclick="openVersuchEnde()">${ICON.flag} Versuch vollständig abschließen</button>
       <div class="abschluss-hint">Status auf "Abgeschlossen", finaler Asana-Kommentar wird gepostet, Versuch verschwindet aus der aktiven Liste.</div>`;
   }
   return html;
@@ -1977,7 +2187,7 @@ function plausibilityWarning(az, val, d) {
     }
   }
   if (maxPrev !== null && cur < maxPrev) {
-    return `⚠️ Niedriger als AZ-Vorwert (${maxPrev}) — Keimlinge vergessen zu ziehen?`;
+    return `Niedriger als AZ-Vorwert (${maxPrev}) — Keimlinge vergessen zu ziehen?`;
   }
   return '';
 }
@@ -2005,7 +2215,7 @@ function renderTopfModal() {
   const html = `
     <div class="topf-header" style="border-left-color:${color}">
       <div class="lbl">Topf</div>
-      <div style="font-size:42px;font-weight:700;font-family:'Fraunces',serif;font-style:italic">${topf}</div>
+      <div style="font-size:38px;font-weight:700">${topf}</div>
       <div class="treatment">${esc(tCode)} · ${esc(tObj.label || '')}</div>
       <div class="meta-txt">Block ${esc(d.block||'?')} · Wdh ${esc(d.wdh||'?')}${(Number(v.anzahl_trays||1) > 1) ? ' · Tray ' + esc(d.tray || tray || '?') : ''} · AZ${az}</div>
     </div>
@@ -2014,7 +2224,7 @@ function renderTopfModal() {
       <div class="num ${val===''?'empty':''}" id="input-val">${val || '—'}</div>
       <div class="kf" id="kf-line">${val!=='' ? `+${val} neu seit letzter AZ (max. ${rundenMax})` : `Neu gekeimte Samen seit letzter AZ (max. ${rundenMax})`}</div>
       <div class="kf-cumulative" id="kf-cumulative">${cum.any ? `Kumulativ: ${cum.sum} von ${samen} Samen → <strong>${cumKf}% KF</strong>` : `Kumulativ: noch keine Werte`}</div>
-      <div class="plaus-warn" id="plaus-warn" style="${warnMsg ? '' : 'display:none'}">${esc(warnMsg)}</div>
+      <div class="plaus-warn" id="plaus-warn" style="${warnMsg ? '' : 'display:none'}">${warnMsg ? ICON.warn + '<span>' + esc(warnMsg) + '</span>' : ''}</div>
     </div>
 
     <div class="numpad">
@@ -2114,7 +2324,7 @@ function updateKF() {
   const warnEl = document.getElementById('plaus-warn');
   if (warnEl) {
     const msg = val === '' ? '' : plausibilityWarning(state.currentAZ, val, d);
-    warnEl.textContent = msg;
+    warnEl.innerHTML = msg ? ICON.warn + '<span>' + esc(msg) + '</span>' : '';
     warnEl.style.display = msg ? '' : 'none';
   }
 }
@@ -2343,14 +2553,14 @@ function openAbschluss() {
     </div>
 
     ${fotosFehlen.length > 0 ? `
-      <div style="background:var(--bg-2);padding:10px;border-left:3px solid var(--warn);margin-bottom:14px;font-size:20px">
-        ⚠ Fotos fehlen für Block ${fotosFehlen.map(f=>f.block).join(', ')}
+      <div style="background:var(--warn-bg);color:var(--warn);padding:10px;border-radius:var(--radius-md);border-left:3px solid var(--warn);margin-bottom:14px;font-size:19px;display:flex;align-items:center;gap:8px">
+        ${ICON.warn.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0" ')} Fotos fehlen für Block ${fotosFehlen.map(f=>f.block).join(', ')}
       </div>
     ` : ''}
 
     <div class="modal-actions">
       <button onclick="closeAbschluss()">Abbrechen</button>
-      <button class="primary" onclick="confirmAbschluss()">✅ Abschließen</button>
+      <button class="primary" onclick="confirmAbschluss()">${ICON.check} Abschließen</button>
     </div>
   `;
   document.getElementById('abschluss-modal').innerHTML = html;
@@ -2405,13 +2615,13 @@ function openVersuchEnde() {
 
   const html = `
     <div class="modal-head">
-      <h2>🏁 Versuch abschließen?</h2>
+      <h2>${ICON.flag} Versuch abschließen?</h2>
       <span class="coord">${esc(v.versuchsnr)}</span>
     </div>
     <p style="margin-bottom:14px;font-size:21px">Damit wird:</p>
     <ul style="margin:0 0 14px 18px;font-size:20px;line-height:1.7">
       <li>Status im Index auf <strong>Abgeschlossen</strong> gesetzt</li>
-      <li>Asana-Task <strong>als erledigt markiert</strong> (✓)</li>
+      <li>Asana-Task <strong>als erledigt markiert</strong></li>
       <li>Finaler <strong>Asana-Kommentar mit Komplett-Auswertung</strong> gepostet</li>
       <li>Versuch verschwindet aus der aktiven Tracker-Liste</li>
     </ul>
@@ -2427,7 +2637,7 @@ function openVersuchEnde() {
 
     <div class="modal-actions">
       <button onclick="closeVersuchEnde()">Abbrechen</button>
-      <button class="primary" onclick="confirmVersuchEnde()">🏁 Endgültig abschließen</button>
+      <button class="primary" onclick="confirmVersuchEnde()">${ICON.flag} Endgültig abschließen</button>
     </div>
   `;
   document.getElementById('versuch-ende-modal').innerHTML = html;
@@ -2471,7 +2681,7 @@ ${note ? '<strong>Abschluss-Bemerkung:</strong><br>' + esc(note) + '<br><br>' : 
 function openImportModal() {
   const html = `
     <div class="modal-head">
-      <h2>📥 Versuch aus Asana</h2>
+      <h2>${ICON.inbox} Versuch aus Asana</h2>
     </div>
     <p style="font-size:20px;margin-bottom:14px;color:var(--ink-muted)">Asana-Task-GID eingeben → Felder werden vorausgefüllt</p>
 
@@ -2512,7 +2722,7 @@ function openImportModal() {
         <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Treatments JSON *</label>
         <textarea id="imp-treatments" rows="4"
           style="width:100%;padding:10px;font-family:inherit;font-size:18px;border:1.5px solid var(--line);background:var(--bg)"
-          placeholder='[{"code":"T0","label":"Kontrolle","color":"#22c55e"},{"code":"T1","label":"Pellet","color":"#ef4444"}]'></textarea>
+          placeholder='[{"code":"T0","label":"Kontrolle","color":"#5a7237"},{"code":"T1","label":"Pellet","color":"#b9633f"}]'></textarea>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -2526,7 +2736,7 @@ function openImportModal() {
 
     <div class="modal-actions">
       <button onclick="closeImportModal()">Abbrechen</button>
-      <button id="imp-submit-btn" class="primary" onclick="confirmCreateVersuch()" style="display:none">✅ Versuch anlegen</button>
+      <button id="imp-submit-btn" class="primary" onclick="confirmCreateVersuch()" style="display:none">${ICON.check} Versuch anlegen</button>
     </div>
   `;
   document.getElementById('import-modal').innerHTML = html;
@@ -2606,13 +2816,15 @@ async function previewAsanaTask() {
   }
 }
 
+// Entsaettigte, erdige Palette statt der frueheren Tailwind-Grundfarben -
+// passt zum Rest der Skyseed-Oberflaeche (siehe CLAUDE.md UI-Konventionen).
 function themenbereichToFarbe(bereich) {
   const s = String(bereich).toUpperCase();
-  if (s.startsWith('A')) return '#ef4444';
-  if (s.startsWith('B')) return '#3b82f6';
-  if (s.startsWith('C')) return '#eab308';
-  if (s.startsWith('D')) return '#22c55e';
-  return '#4a6b3a';
+  if (s.startsWith('A')) return '#b9633f'; // rust
+  if (s.startsWith('B')) return '#3d7376'; // teal (hell)
+  if (s.startsWith('C')) return '#c3903f'; // amber
+  if (s.startsWith('D')) return '#5a7237'; // moss
+  return '#5a7237';
 }
 
 async function confirmCreateVersuch() {
@@ -2815,7 +3027,7 @@ Trend: <span id="trend-preview">${esc(trend)}</span></pre>
     </div>
     <div class="modal-actions">
       <button onclick="closeAsana()">Abbrechen</button>
-      <button class="primary" onclick="postAsana()">📋 Posten in Asana</button>
+      <button class="primary" onclick="postAsana()">${ICON.clipboard} Posten in Asana</button>
     </div>
   `;
   document.getElementById('asana-modal').innerHTML = html;

@@ -148,13 +148,47 @@ Automatischer Nachversand bei Wiederverbindung, App-Start und jedem Poll-Tick.
 Sync-Anzeige zeigt "N ausstehend", solange etwas in der Warteschlange liegt.
 
 ## UI-Konventionen
-- Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px,
-  alle px-Werte in index.html sind der 1,5-fache Wert der Ursprungsgroessen.
-- Tray-Raster: Quadrate halb so breit wie die volle Spaltenaufteilung
-  (`.rbd` grid-template-columns rechnet mit `var(--cols) * 2`), Treatment-Label
-  33px (= 3x Ausgangsgroesse) mit Container-Query-Deckel `min(33px, 46cqw)`,
-  damit auf schmalen Displays nichts ueberlaeuft.
+- Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px.
+- Tray-Raster: Quadrate schmaler als die volle Spaltenaufteilung
+  (`.rbd` grid-template-columns rechnet mit `var(--cols) * 1.6`), Treatment-Label
+  33px mit Container-Query-Deckel `min(33px, 46cqw)`, damit auf schmalen
+  Displays nichts ueberlaeuft. Leere Toepfe (`.topf.is-empty`) sind per
+  Diagonal-Schraffur + gestricheltem Rahmen erkennbar, nicht nur per Opacity.
 - **Keine QR-Codes mehr** (Funktion samt api.qrserver.com-Anbindung entfernt).
   Der Deep-Link `?versuch=26_0XX` funktioniert weiterhin.
-- Loeschen: 🗑 auf der Versuchskarte (aktiv + Archiv) -> Dialog, in dem die
-  Versuchsnr eingetippt werden muss.
+- Loeschen: 🗑-Icon auf der Versuchskarte (aktiv + Archiv) -> Dialog, in dem
+  die Versuchsnr eingetippt werden muss.
+- AZ-Umschalter (`.az-switcher`) ist beim Scrollen durch die Toepfe sticky
+  (position: sticky, oben angeheftet).
+- Versuchskarten in der Liste zeigen zusaetzlich zu den AZ-Pills einen duennen
+  Fortschrittsbalken (`fortschrittProzent()` in index.html: erfasste/geplante
+  AZ-Runden, "teilweise" zaehlt halb).
+
+## Design-System (seit v1.4.0)
+Skyseed-konform (Skill `skyseed-design`): Inter statt JetBrains Mono/Fraunces,
+Farb-Tokens Teal `--accent` (#143c46 hell / Moos #8aa85c dunkel), Moos-Akzent
+fuer Erfolg, Amber/Rust fuer Warnung/Fehler, weiche Radien 4-8px
+(`--radius-sm/md/lg`), weiche Schatten (`--shadow-sm/md`) statt harter 0px-
+Kanten. Alle Farben/Radien/Schatten sind CSS-Variablen in `:root` — bei neuen
+Komponenten diese verwenden, keine neuen Hex-Werte hart codieren.
+
+**Dunkelmodus:** zweiter Token-Satz unter `:root[data-theme="dark"]` +
+`@media (prefers-color-scheme: dark)` als Default ohne gespeicherte Wahl.
+Umschalter im Header (`themeToggleHTML()`), Wahl wird in `localStorage`
+(`kfk_theme`) gemerkt. `initTheme()` laeuft synchron beim Skript-Parse (kein
+Flackern vor dem ersten Render).
+
+**Icons:** keine Emoji mehr in der App-UI (Skyseed-Designrichtlinie) — Set aus
+Inline-SVGs in der JS-Konstante `ICON` (Kamera, Muelleimer, Archiv, etc.).
+**Ausnahme bewusst:** Emoji in Texten, die als Asana-Kommentar gepostet werden
+(`bodyHTML`/`finalKommentarHtml`/`previewText` in `openAsanaPreview()`,
+`confirmVersuchEnde()`), bleiben unveraendert — das ist Text fuer Asana, keine
+App-UI.
+
+**Treatment-/Themenbereich-Farben:** `themenbereichToFarbe()` und die
+Platzhalter im Import-Formular nutzen jetzt eine entsaettigte Erdpalette
+(Rost/Teal/Amber/Moos) statt der fruehereren Tailwind-Grundfarben. **Wichtig:**
+Treatment-Farben einzelner Toepfe (T0-T6 im Tray-Raster) kommen als Hex-Code
+direkt aus dem Asana-Protokoll (`T0 (#hex)`-Zeilen) — die App kann bereits
+angelegte Versuche nicht rueckwirkend umfaerben. Neue Versuchsprotokolle
+sollten die Erdpalette verwenden.

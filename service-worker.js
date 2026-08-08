@@ -8,6 +8,8 @@ const STATIC_CACHE = [
   './',
   './index.html',
   './manifest.json',
+  './js/standorte.js',
+  './js/export.js',
   './kfk-icon-192.png',
   './kfk-icon-512.png',
   './kfk-icon-maskable-512.png'

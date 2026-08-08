@@ -93,8 +93,14 @@ const INDEX_COLS = {
   raster_cols: 'Raster_Cols',
   raster_rows: 'Raster_Rows',
   anzahl_trays: 'Anzahl_Trays',
-  az_geplant: 'AZ_geplant'
+  az_geplant: 'AZ_geplant',
+  standorte_json: 'Standorte_JSON',
+  standort_historie_json: 'StandorteHistorie_JSON'
 };
+
+// Schema-Version des Versuchsobjekts (Index-Zeile). v2 = Standorterfassung
+// (Regal/Boden je Tray, siehe standorte/standortHistorie) hinzugekommen.
+const VERSUCH_SCHEMA_VERSION = 2;
 
 // ========== HTTP-Entry-Points ==========
 
@@ -135,6 +141,8 @@ function doPost(e) {
     switch (action) {
       case 'saveTopf':
         return json(saveTopf(body));
+      case 'saveStandort':
+        return json(saveStandort(body));
       case 'abschlussAZ':
         return json(abschlussAZ(body));
       case 'updateAZGeplant':
@@ -176,6 +184,92 @@ function getIndexSheet() {
   return sheet;
 }
 
+// Ergaenzt fehlende Tray-Eintraege in v.standorte verlustfrei (regal/boden =
+// null), behaelt vorhandene Eintraege unveraendert. Logik ist bewusst
+// identisch zu migrateVersuchStandorte() in js/standorte.js (Frontend) -
+// Apps-Script-.gs-Dateien koennen dieses Browser-Modul nicht importieren,
+// daher die Duplikation; bei Aenderungen an einer Stelle die andere pruefen.
+function migrateVersuchStandorte_(v) {
+  const anzahlTrays = Math.max(1, Number((v && v.anzahl_trays) || 1));
+  const vorhanden = (v && Array.isArray(v.standorte)) ? v.standorte : [];
+  const byTray = {};
+  vorhanden.forEach(function (s) {
+    if (s && s.tray != null) {
+      byTray[Number(s.tray)] = {
+        tray: Number(s.tray),
+        regal: s.regal == null ? null : Number(s.regal),
+        boden: s.boden == null ? null : Number(s.boden),
+        erfasstAm: s.erfasstAm || null
+      };
+    }
+  });
+  const result = [];
+  for (let tray = 1; tray <= anzahlTrays; tray++) {
+    result.push(byTray[tray] || { tray: tray, regal: null, boden: null, erfasstAm: null });
+  }
+  return result;
+}
+
+// Twin von recordStandortChange() in js/standorte.js: alter Wert wandert
+// unveraendert in die Historie, neuer Wert ersetzt standorte[tray]. Siehe
+// Kommentar bei migrateVersuchStandorte_ zur Duplikation Frontend/Backend.
+function recordStandortChange_(v, tray, neu, az, isoDatum) {
+  const standorte = migrateVersuchStandorte_(v);
+  const historie = (v && Array.isArray(v.standortHistorie)) ? v.standortHistorie.slice() : [];
+  const idx = standorte.findIndex(function (s) { return Number(s.tray) === Number(tray); });
+  const alt = idx >= 0 ? standorte[idx] : { tray: Number(tray), regal: null, boden: null, erfasstAm: null };
+
+  historie.push({
+    tray: Number(tray),
+    regal: alt.regal,
+    boden: alt.boden,
+    erfasstAm: alt.erfasstAm,
+    geaendertAm: isoDatum,
+    az: az
+  });
+
+  const aktualisiert = {
+    tray: Number(tray),
+    regal: neu.regal == null ? null : Number(neu.regal),
+    boden: neu.boden == null ? null : Number(neu.boden),
+    erfasstAm: isoDatum
+  };
+  if (idx >= 0) standorte[idx] = aktualisiert;
+  else standorte.push(aktualisiert);
+
+  return { standorte: standorte, standortHistorie: historie };
+}
+
+// Speichert Regal/Boden fuer einen Tray im Index (Spalten Standorte_JSON /
+// StandorteHistorie_JSON). "unveraendert" (Ja-Bestaetigung, siehe CLAUDE.md
+// Punkt 3) loest KEINEN Call hierher aus - nur echte Aenderungen.
+function saveStandort(body) {
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const colIdx = {};
+  headers.forEach(function (h, i) { colIdx[String(h).trim()] = i; });
+
+  let rowIdx = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][colIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) { rowIdx = i + 1; break; }
+  }
+  if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  const all = readIndex();
+  const v = all.find(function (x) { return String(x.versuchsnr) === String(body.versuchsnr); });
+  if (!v) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  const isoDatum = body.isoDatum || Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+  const result = recordStandortChange_(v, body.tray, { regal: body.regal, boden: body.boden }, body.az, isoDatum);
+
+  indexSheet.getRange(rowIdx, colIdx[INDEX_COLS.standorte_json] + 1).setValue(JSON.stringify(result.standorte));
+  indexSheet.getRange(rowIdx, colIdx[INDEX_COLS.standort_historie_json] + 1).setValue(JSON.stringify(result.standortHistorie));
+  SpreadsheetApp.flush();
+
+  return { ok: true, standorte: result.standorte, standortHistorie: result.standortHistorie };
+}
+
 function readIndex() {
   const sheet = getIndexSheet();
   const data = sheet.getDataRange().getValues();
@@ -211,6 +305,23 @@ function readIndex() {
       v.treatments = [];
     }
     delete v.treatments_json;
+
+    // Standorte parsen + Migration: Altbestand ohne Standorte_JSON-Spalte
+    // (oder mit leerer Zelle) wird verlustfrei auf regal/boden = null je Tray
+    // hochgezogen, siehe migrateVersuchStandorte_.
+    try {
+      v.standorte = v.standorte_json ? JSON.parse(v.standorte_json) : [];
+    } catch (e) {
+      v.standorte = [];
+    }
+    delete v.standorte_json;
+    try {
+      v.standortHistorie = v.standort_historie_json ? JSON.parse(v.standort_historie_json) : [];
+    } catch (e) {
+      v.standortHistorie = [];
+    }
+    delete v.standort_historie_json;
+    v.standorte = migrateVersuchStandorte_(v);
 
     v.rowIndex = i + 1;
     rows.push(v);
@@ -1675,7 +1786,12 @@ function importVersuchFromDoc(taskGid) {
       anzahl_trays:    data.anzahl_trays   != null ? Number(data.anzahl_trays)   : null,
       raster_cols:     data.raster_cols    != null ? Number(data.raster_cols)    : null,
       raster_rows:     data.raster_rows    != null ? Number(data.raster_rows)    : null,
-      samen_pro_topf:  data.samen_pro_topf != null ? Number(data.samen_pro_topf) : null
+      samen_pro_topf:  data.samen_pro_topf != null ? Number(data.samen_pro_topf) : null,
+      // Optionales Feld im KFK-DATA-Block (Schema kfk-protocol-v2), z.B.
+      // [{"tray":1,"regal":2,"boden":1}]. Fehlt es (Schema v1) oder ist es
+      // kein Array, bleibt standorte null - Frontend zeigt dann den
+      // "Standort fehlt"-Hinweis statt etwas zu raten.
+      standorte:       Array.isArray(data.standorte) ? data.standorte : null
     }
   };
 }
@@ -1902,7 +2018,15 @@ function createVersuchInIndex(body) {
     raster_cols:   Number(body.raster_cols) || 4,
     raster_rows:   Number(body.raster_rows) || 6,
     anzahl_trays:  Number(body.anzahl_trays) || 1,
-    az_geplant:    Number(body.az_geplant) || 3
+    az_geplant:    Number(body.az_geplant) || 3,
+    // Standorte aus dem KFK-DATA-Import (body.standorte, siehe importVersuchFromDoc)
+    // uebernehmen falls vorhanden; migrateVersuchStandorte_ fuellt fehlende/nicht
+    // gelieferte Trays verlustfrei mit regal/boden = null (kein Raten, siehe Punkt 3).
+    standorte_json: JSON.stringify(migrateVersuchStandorte_({
+      anzahl_trays: Number(body.anzahl_trays) || 1,
+      standorte: Array.isArray(body.standorte) ? body.standorte : []
+    })),
+    standort_historie_json: '[]'
   };
   Object.entries(colMap).forEach(([key, val]) => {
     const colName = INDEX_COLS[key];

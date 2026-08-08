@@ -7,9 +7,11 @@
     "bump": "node bump-cache.js",
     "deploy:frontend": "node bump-cache.js && git add -A && git commit -m \"Frontend deploy\" && git push",
     "push:backend": "clasp push",
-    "deploy:backend": "clasp push && clasp deploy --deploymentId AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw"
+    "deploy:backend": "clasp push && clasp deploy --deploymentId AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@google/clasp": "^2.4.2"
+    "@google/clasp": "^2.4.2",
+    "vitest": "^2.1.9"
   }
 }

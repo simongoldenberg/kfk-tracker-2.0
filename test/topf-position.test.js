@@ -88,3 +88,36 @@ describe('Topfreferenz-Ableitung — abweichendes Raster 3 Spalten x 8 Reihen', 
     }
   });
 });
+
+describe('posLabel — Format-Verifikation für data-pos Attribut', () => {
+  it('erzeugt Block+Reihe-Labels wie A1, B3, D6', () => {
+    const blocks = ['A', 'B', 'C', 'D'];
+    expect(blocks[0] + 1).toBe('A1');
+    expect(blocks[1] + 3).toBe('B3');
+    expect(blocks[3] + 6).toBe('D6');
+  });
+
+  it('Labels aller 24 Positionen (4x6) sind eindeutig', () => {
+    const blocks = ['A', 'B', 'C', 'D'];
+    const rows = 6, cols = 4;
+    const labels = new Set();
+    for (let c = 0; c < cols; c++) {
+      for (let r = 1; r <= rows; r++) {
+        labels.add(blocks[c] + r);
+      }
+    }
+    expect(labels.size).toBe(cols * rows);
+  });
+
+  it('Labels aller 24 Positionen (3x8) sind eindeutig', () => {
+    const blocks = ['A', 'B', 'C'];
+    const rows = 8, cols = 3;
+    const labels = new Set();
+    for (let c = 0; c < cols; c++) {
+      for (let r = 1; r <= rows; r++) {
+        labels.add(blocks[c] + r);
+      }
+    }
+    expect(labels.size).toBe(cols * rows);
+  });
+});

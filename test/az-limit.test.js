@@ -17,6 +17,14 @@ function rundenMax(d, az, samen) {
   return Math.max(0, samen - sumStoredAZBefore(d, az));
 }
 
+// Mirrors overLimitMsg (index.html) — persistente Feldwarnung wenn Wert > Restmenge
+function overLimitMsg(val, max) {
+  if (val === '' || val == null) return '';
+  const n = Number(val);
+  if (isNaN(n) || n <= max) return '';
+  return `Überschreitet Restmenge (max. ${max})`;
+}
+
 describe('sumStoredAZBefore — Vorrundenssumme fuer AZ-Begrenzung', () => {
   it('erste Runde (az=1) hat keine Vorrunden → 0', () => {
     const d = { az1_zahl: 5 };
@@ -65,5 +73,27 @@ describe('rundenMax — Begrenzung eines AZ-Werts gegen die Restsamenzahl', () =
   it('nach vollstaendiger Keimung (Summe = samen): Maximum 0', () => {
     const d = { az1_zahl: 18, az2_zahl: 18 };
     expect(rundenMax(d, 3, samen)).toBe(0);
+  });
+});
+
+describe('overLimitMsg — In-Field-Warnung bei Limitüberschreitung', () => {
+  it('gibt leer zurück wenn kein Wert', () => {
+    expect(overLimitMsg('', 15)).toBe('');
+    expect(overLimitMsg(null, 15)).toBe('');
+  });
+
+  it('gibt leer zurück wenn Wert ≤ Restmenge', () => {
+    expect(overLimitMsg('10', 15)).toBe('');
+    expect(overLimitMsg('15', 15)).toBe('');
+  });
+
+  it('gibt Warntext zurück und enthält max wenn Wert > Restmenge', () => {
+    const warn = overLimitMsg('20', 15);
+    expect(warn).not.toBe('');
+    expect(warn).toContain('15');
+  });
+
+  it('warnt auch bei max=0 wenn Wert > 0', () => {
+    expect(overLimitMsg('1', 0)).not.toBe('');
   });
 });

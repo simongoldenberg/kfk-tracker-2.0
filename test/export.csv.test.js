@@ -26,8 +26,16 @@ describe('buildExportRows (Punkt 4: CSV-Export)', () => {
     const { rows } = buildExportRows(v, daten);
     const tray1Row = rows.find(r => r[1] === 1);
     const tray2Row = rows.find(r => r[1] === 2);
-    expect(tray1Row.slice(0, 4)).toEqual([1, 1, 2, 1]);
-    expect(tray2Row.slice(0, 4)).toEqual([1, 2, 4, 5]);
+    expect(tray1Row.slice(0, 4)).toEqual(['A1', 1, 2, 1]);
+    expect(tray2Row.slice(0, 4)).toEqual(['A1', 2, 4, 5]);
+  });
+
+  it('verwendet Spalte+Reihe-Notation fuer Position (nicht laufende Nummer)', () => {
+    const datenB = [
+      { topf: 7, tray: 1, block: 'B', wdh: 1, treatment: 'T0', az1_zahl: 3, az2_zahl: '' }
+    ];
+    const { rows } = buildExportRows(v, datenB);
+    expect(rows[0][0]).toBe('B1');
   });
 
   it('berechnet Σ KFK (kumulativ) und KFK% korrekt', () => {

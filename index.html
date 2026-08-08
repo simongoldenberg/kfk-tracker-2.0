@@ -1114,7 +1114,7 @@
       <h2>Detail-Auswertung</h2>
     </div>
     <p style="margin-bottom:12px;line-height:1.55">
-      Für ANOVA, η², Post-hoc-Tukey und den Hypothesen-Check bitte am Laptop auswerten.
+      Inferenzstatistik läuft in Claude/R auf dem Gesamt-Tab.
     </p>
     <div style="background:var(--bg-2);padding:12px;border:1px solid var(--line);margin-bottom:12px;font-size:20px">
       <div><strong>Versuchsdatei:</strong> <span id="stat-file">—</span></div>
@@ -2095,19 +2095,19 @@ function renderRBDForTray(v, daten, az, treatments, tray) {
         : `<div class="topf-empty">—</div>`;
       const emptyCls = hatWert ? '' : ' is-empty';
 
-      // Topf-Anzeige: tray-relativ falls mehr als 1 Tray, sonst global
+      // Topf-Anzeige: Spalte+Reihe-Notation (Block+Wdh)
       const localTopfNr = (c * rows) + r;
       const globalTopf = d.topf || 0;
-      const displayNr = localTopfNr;
+      const displayNr = `${block}${r}`;
 
       if (!d.topf) {
         // Leerer Slot - nicht klickbar
-        html += `<div class="topf empty-slot dark-text">
+        html += `<div class="topf empty-slot dark-text" data-pos="${block}${r}">
           <div class="topf-nr">${displayNr}</div>
         </div>`;
       } else {
         html += `
-          <div class="topf ${txtCls}${emptyCls}" style="background:${color}" onclick="openTopfModal(${globalTopf}, ${tray})">
+          <div class="topf ${txtCls}${emptyCls}" data-pos="${block}${r}" style="background:${color}" onclick="openTopfModal(${globalTopf}, ${tray})">
             <div class="topf-nr">${displayNr}</div>
             <div class="topf-treat">${esc(tCode || '')}</div>
             ${valDisplay}
@@ -2155,8 +2155,8 @@ function renderRBD(v, daten, az, treatments) {
       const emptyCls = hatWert ? '' : ' is-empty';
 
       html += `
-        <div class="topf ${txtCls}${emptyCls}" style="background:${color}" onclick="openTopfModal(${topf})">
-          <div class="topf-nr">${topf}</div>
+        <div class="topf ${txtCls}${emptyCls}" data-pos="${blocks[c]}${r}" style="background:${color}" onclick="openTopfModal(${topf})">
+          <div class="topf-nr">${blocks[c]}${r}</div>
           <div class="topf-treat">${esc(tCode || '')}</div>
           ${valDisplay}
         </div>
@@ -2242,11 +2242,13 @@ function renderUebersicht(daten, treatments, az, v) {
     const { values, color, label } = byT[code];
     const n = values.length;
     if (n === 0) {
-      rows.push(`<tr><td><span class="t-dot" style="background:${color}"></span>${esc(code)}</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>`);
+      rows.push(`<tr><td><span class="t-dot" style="background:${color}"></span>${esc(code)}</td><td>0</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`);
       return;
     }
     const mean = values.reduce((a, b) => a + b, 0) / n;
     const sd = n > 1 ? Math.sqrt(values.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / (n - 1)) : 0;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
     const kf = Math.round(mean / samen * 100);
     const cv = mean > 0 ? (sd / mean * 100) : 0;
     if (kf > maxKF) maxKF = kf;
@@ -2256,6 +2258,9 @@ function renderUebersicht(daten, treatments, az, v) {
       <td><span class="t-dot" style="background:${color}"></span>${esc(code)} ${esc(label||'').slice(0,14)}</td>
       <td>${n}</td>
       <td>${mean.toFixed(1)}</td>
+      <td>${sd.toFixed(1)}</td>
+      <td>${min}</td>
+      <td>${max}</td>
       <td><strong>${kf}%</strong></td>
       <td class="${cvCls}">${cv.toFixed(0)}%${cvBadge(cv)}</td>
     </tr>`);
@@ -2274,7 +2279,7 @@ function renderUebersicht(daten, treatments, az, v) {
     <div class="uebersicht">
       <h3>Übersicht · AZ${az} (live)</h3>
       <table class="stats">
-        <thead><tr><th>Treatment</th><th>n</th><th>Ø</th><th>KF %</th><th>CV %</th></tr></thead>
+        <thead><tr><th>Treatment</th><th>n</th><th>Ø</th><th>SD</th><th>Min</th><th>Max</th><th>KF %</th><th>CV %</th></tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table>
       <div class="bars">${barHTML}</div>
@@ -2391,6 +2396,21 @@ function plausibilityWarning(az, val, d) {
   return '';
 }
 
+function overLimitMsg(val, max) {
+  if (val === '' || val == null) return '';
+  const n = Number(val);
+  if (isNaN(n) || n <= max) return '';
+  return `Überschreitet Restmenge (max. ${max})`;
+}
+
+function topfPosLabel(t, v) {
+  const rows = Number((v || {}).raster_rows || 6);
+  const blocks = ['A','B','C','D','E','F','G','H'];
+  const bi = Math.floor((t - 1) / rows);
+  const w = ((t - 1) % rows) + 1;
+  return (blocks[bi] || '?') + w;
+}
+
 function renderTopfModal() {
   const topf = state.currentTopf;
   const tray = state.currentTray;
@@ -2408,13 +2428,17 @@ function renderTopfModal() {
   const prevCum = sumStoredAZBefore(d, az);
   const rundenMax = Math.max(0, samen - prevCum);
   const warnMsg = plausibilityWarning(az, val, d);
+  const limitWarn = overLimitMsg(val, rundenMax);
 
   const topfCount = state.currentDaten.length;
+  const posLabel = (d.block && d.wdh) ? `${d.block}${d.wdh}` : topfPosLabel(topf, v);
+  const prevLabel = topf > 1 ? topfPosLabel(topf - 1, v) : '';
+  const nextLabel = topf < topfCount ? topfPosLabel(topf + 1, v) : '';
 
   const html = `
     <div class="topf-header" style="border-left-color:${color}">
       <div class="lbl">Topf</div>
-      <div style="font-size:38px;font-weight:700">${topf}</div>
+      <div style="font-size:38px;font-weight:700">${posLabel}</div>
       <div class="treatment">${esc(tCode)} · ${esc(tObj.label || '')}</div>
       <div class="meta-txt">Block ${esc(d.block||'?')} · Wdh ${esc(d.wdh||'?')}${(Number(v.anzahl_trays||1) > 1) ? ' · Tray ' + esc(d.tray || tray || '?') : ''} · AZ${az}</div>
     </div>
@@ -2424,6 +2448,7 @@ function renderTopfModal() {
       <div class="kf" id="kf-line">${val!=='' ? `+${val} neu seit letzter AZ (max. ${rundenMax})` : `Neu gekeimte Samen seit letzter AZ (max. ${rundenMax})`}</div>
       <div class="kf-cumulative" id="kf-cumulative">${cum.any ? `Kumulativ: ${cum.sum} von ${samen} Samen → <strong>${cumKf}% KF</strong>` : `Kumulativ: noch keine Werte`}</div>
       <div class="plaus-warn" id="plaus-warn" style="${warnMsg ? '' : 'display:none'}">${warnMsg ? ICON.warn + '<span>' + esc(warnMsg) + '</span>' : ''}</div>
+      <div class="plaus-warn" id="limit-warn" style="${limitWarn ? '' : 'display:none'}">${limitWarn ? ICON.warn + '<span>' + esc(limitWarn) + '</span>' : ''}</div>
     </div>
 
     <div class="numpad">
@@ -2442,8 +2467,8 @@ function renderTopfModal() {
     </div>
 
     <div class="topf-nav">
-      <button ${topf<=1?'disabled':''} onclick="saveAndNav(${topf-1})">← Topf ${topf-1}</button>
-      <button ${topf>=topfCount?'disabled':''} class="primary" onclick="saveAndNav(${topf+1})">Topf ${topf+1} →</button>
+      <button ${topf<=1?'disabled':''} onclick="saveAndNav(${topf-1})">← ${prevLabel}</button>
+      <button ${topf>=topfCount?'disabled':''} class="primary" onclick="saveAndNav(${topf+1})">${nextLabel} →</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
       <button class="danger" onclick="saveTopfValue(true)">Löschen</button>
@@ -2525,6 +2550,13 @@ function updateKF() {
     const msg = val === '' ? '' : plausibilityWarning(state.currentAZ, val, d);
     warnEl.innerHTML = msg ? ICON.warn + '<span>' + esc(msg) + '</span>' : '';
     warnEl.style.display = msg ? '' : 'none';
+  }
+
+  const limitEl = document.getElementById('limit-warn');
+  if (limitEl) {
+    const lmsg = overLimitMsg(val, rundenMax);
+    limitEl.innerHTML = lmsg ? ICON.warn + '<span>' + esc(lmsg) + '</span>' : '';
+    limitEl.style.display = lmsg ? '' : 'none';
   }
 }
 

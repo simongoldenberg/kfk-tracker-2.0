@@ -911,19 +911,20 @@ function buildRohdatenHtml_(v, daten) {
   txt += '# Einzelwerte pro Topf. AZn = Anzahl NEU gekeimter Samen seit der vorherigen\n';
   txt += '# Auszaehlung (Keimlinge werden nach dem Zaehlen aus dem Topf entfernt/gezogen).\n';
   txt += '# Kumulative KF% bis AZn = Summe(AZ1..AZn) / samen_pro_topf * 100. Leer = kein\n';
-  txt += '# Wert erfasst. Hinweis: die App selbst (Topf-Ansicht, Statistik, ANOVA) zeigt\n';
+  txt += '# Wert erfasst. Hinweis: die App selbst (Topf-Ansicht, Statistik) zeigt\n';
   txt += '# je AZ nur den rohen Einzelwert / samen_pro_topf, summiert NICHT automatisch -\n';
   txt += '# fuer die tatsaechliche Gesamt-KF% muessen die AZn-Werte pro Topf aufsummiert werden.\n';
-  txt += 'Tray;Topf;Block;Wdh;Treatment;' + azList.map(a => 'AZ' + a).join(';') + '\n';
+  txt += 'Tray;Position;Block;Wdh;Treatment;' + azList.map(a => 'AZ' + a).join(';') + '\n';
 
   const sorted = daten.slice().sort((a, b) =>
     (Number(a.tray || 1) - Number(b.tray || 1)) || (Number(a.topf || 0) - Number(b.topf || 0))
   );
   sorted.forEach(d => {
     const code = String(d.treatment || '').split(/[\s(]/)[0];
+    const pos = (d.block && d.wdh) ? String(d.block) + String(d.wdh) : String(d.topf || '');
     txt += [
       d.tray || 1,
-      d.topf,
+      pos,
       d.block || '',
       d.wdh || '',
       code
@@ -2093,7 +2094,7 @@ function setupSingleVersuch(versuchsnr) {
   return { sheetId: newSs.getId(), folderId: folder.getId() };
 }
 
-// ========== STATISTIK (ANOVA · eta² · CV) ==========
+// ========== DESKRIPTIVE STATISTIK ==========
 
 function buildStatistikHtml(v, daten) {
   const treatments = v.treatments || [];
@@ -2112,7 +2113,7 @@ function buildStatistikHtml(v, daten) {
   }
   if (lastAZ === 0) return '';
 
-  let html = '<br><br><strong>📊 Statistik (ANOVA · η² · CV, kumulativ bis zur jeweiligen AZ)</strong><br>';
+  let html = '<br><br><strong>📊 Deskriptive Statistik (n, Ø, SD, Min, Max, KF%, CV%, kumulativ)</strong><br>';
 
   for (let az = 1; az <= lastAZ; az++) {
     const groups = treatments.map(t => {
@@ -2133,17 +2134,19 @@ function buildStatistikHtml(v, daten) {
         ? Math.sqrt(g.vals.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / (n - 1))
         : 0;
       const cv = mean > 0 ? Math.round(sd / mean * 100) : 0;
+      const min = Math.min.apply(null, g.vals);
+      const max = Math.max.apply(null, g.vals);
       return {
         code: g.t.code,
         label: String(g.t.label || '').substring(0, 13),
         n, mean: mean.toFixed(1), kf: Math.round(mean / samen * 100),
-        sd: sd.toFixed(1), cv,
+        sd: sd.toFixed(1), min, max, cv,
         rawMean: mean, rawVals: g.vals
       };
     });
 
     html += '<br><strong>AZ' + az + '</strong><br><pre>';
-    html += 'Code  Label            n   Ø Keim  KF%   SD    CV%\n';
+    html += 'Code  Label            n   Ø Keim  KF%   SD    Min   Max   CV%\n';
     groupStats.forEach(g => {
       html += (g.code + '    ').slice(0, 4) + ' ' +
               (g.label + '               ').slice(0, 15) + ' ' +
@@ -2151,87 +2154,13 @@ function buildStatistikHtml(v, daten) {
               String(g.mean).padStart(6) + '  ' +
               String(g.kf + '%').padStart(4) + '  ' +
               String(g.sd).padStart(5) + '  ' +
+              String(g.min).padStart(5) + '  ' +
+              String(g.max).padStart(5) + '  ' +
               String(g.cv + '%').padStart(4) + '\n';
     });
     html += '</pre>';
-
-    if (groups.length >= 2) {
-      const allVals = groups.flatMap(g => g.vals);
-      const N = allVals.length;
-      const grandMean = allVals.reduce((a, b) => a + b, 0) / N;
-      let ssBetween = 0, ssWithin = 0;
-      groups.forEach(g => {
-        const n = g.vals.length;
-        const mean = g.vals.reduce((a, b) => a + b, 0) / n;
-        ssBetween += n * Math.pow(mean - grandMean, 2);
-        ssWithin += g.vals.reduce((s, x) => s + Math.pow(x - mean, 2), 0);
-      });
-      const ssTotal = ssBetween + ssWithin;
-      const k = groups.length;
-      const dfB = k - 1, dfW = N - k;
-      if (dfW > 0 && ssWithin > 0) {
-        const F = (ssBetween / dfB) / (ssWithin / dfW);
-        const eta2 = ssTotal > 0 ? ssBetween / ssTotal : 0;
-        const p = pValueFromF(F, dfB, dfW);
-        const pStr = p < 0.001 ? '&lt; 0.001' : p.toFixed(3);
-        const sig = p < 0.05 ? ' <strong>✓ sig.</strong>' : ' (n.s.)';
-        html += 'ANOVA: F(' + dfB + ',' + dfW + ') = ' + F.toFixed(2) +
-                ', p = ' + pStr + sig + ', η² = ' + eta2.toFixed(3) + '<br>';
-      }
-    }
   }
   return html;
-}
-
-// p-Wert aus F-Verteilung: P(F > f | d1, d2)
-function pValueFromF(f, d1, d2) {
-  if (f <= 0 || d1 <= 0 || d2 <= 0) return 1;
-  const x = (d1 * f) / (d1 * f + d2);
-  return regularizedIncompleteBeta(1 - x, d2 / 2, d1 / 2);
-}
-
-function regularizedIncompleteBeta(x, a, b) {
-  if (x <= 0) return 0;
-  if (x >= 1) return 1;
-  const lbeta = logGamma(a) + logGamma(b) - logGamma(a + b);
-  const bt = Math.exp(a * Math.log(x) + b * Math.log(1 - x) - lbeta);
-  if (x < (a + 1) / (a + b + 2)) return bt * betaCF(x, a, b) / a;
-  return 1 - bt * betaCF(1 - x, b, a) / b;
-}
-
-function logGamma(z) {
-  if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
-  z = z - 1;
-  const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-             771.32342877765313, -176.61502916214059, 12.507343278686905,
-             -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
-  let x = c[0];
-  for (let i = 1; i <= 8; i++) x += c[i] / (z + i);
-  const t = z + 7.5;
-  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
-}
-
-function betaCF(x, a, b) {
-  const MAXIT = 200, EPS = 3e-7, FPMIN = 1e-30;
-  const qab = a + b, qap = a + 1, qam = a - 1;
-  let c = 1.0, d = 1.0 - qab * x / qap;
-  if (Math.abs(d) < FPMIN) d = FPMIN;
-  d = 1.0 / d;
-  let h = d;
-  for (let m = 1; m <= MAXIT; m++) {
-    const m2 = 2 * m;
-    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
-    d = 1.0 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
-    c = 1.0 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
-    d = 1.0 / d; h *= d * c;
-    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
-    d = 1.0 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
-    c = 1.0 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
-    d = 1.0 / d;
-    const del = d * c; h *= del;
-    if (Math.abs(del - 1.0) < EPS) break;
-  }
-  return h;
 }
 
 // ========== FORTSCHRITTS-BERECHNUNG ==========

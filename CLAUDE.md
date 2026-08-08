@@ -88,6 +88,30 @@ wird bei Deploy NICHT beruehrt.
 - **ID-Nummer:** (noch) kein automatischer Vorschlag — bleibt manuelles
   Freitextfeld beim Import.
 
+## Paste-Import
+Button "Versuch aus JSON anlegen" (Listen-Toolbar) legt einen Versuch direkt
+aus einem eingefügten `<<<KFK-DATA … KFK-DATA>>>`-Block an — ohne Umweg über
+Asana/Google-Doc-API. Parsing + Validierung liegen in `js/paste-import.js`
+(`parseAndValidateKfkData`, UMD-Modul wie `js/standorte.js`, per Vitest
+getestet). Geprüft werden: JSON-Gültigkeit, `schema`-Präfix (`kfk-protocol`),
+Pflichtfelder `versuchsnr`/`titel`/`treatments`/`rbd`, dass jeder
+`rbd[].t`-Code in `treatments` vorkommt, und dass `rbd.length` nicht mehr
+Plätze braucht als `anzahl_trays × raster_cols × raster_rows` hergibt.
+Unterstützt Schema v1 und v2 (v2 bringt zusätzlich `standorte`) identisch.
+Nach dem Anlegen (`createVersuch`) befüllt ein zweiter Call
+(`importRbdRaw` in kfk-apps-script.gs) das Raster direkt aus dem
+mitgelieferten `rbd`-Array — die Auto-RBD-Logik in `createVersuchInIndex`
+greift nur bei vorhandenem `asana_task_gid`, das gibt es beim Paste-Import
+nicht.
+
+Zwei neue Index-Spalten `MDD_PP` und `Saatgutcharge` (`INDEX_COLS.mdd_pp` /
+`.saatgutcharge`) speichern die gleichnamigen KFK-DATA-Felder — **müssen als
+Kopfzeilen-Spalten in der echten `__KFK-Index`-Google-Sheet existieren**,
+sonst werden die Werte beim Lesen/Schreiben stillschweigend leer
+(`readIndex()` matched per Spaltenname, kein Fehler bei fehlender Spalte).
+`treatments[].spec` braucht dagegen keine Backend-Änderung — reist unangetastet
+in `Treatments_JSON` mit.
+
 ## Asana-Abschlussbericht (Auswertung durch Claude)
 Beim vollstaendigen Abschluss (`markVersuchAbgeschlossen`) postet das Backend
 in den Subtask „Auswertung & Bericht":
@@ -146,6 +170,26 @@ Schlägt ein `saveTopf`-Call fehl (kein Netz im Growzelt), wird der Wert in
 einer `localStorage`-Warteschlange gepuffert statt verloren zu gehen.
 Automatischer Nachversand bei Wiederverbindung, App-Start und jedem Poll-Tick.
 Sync-Anzeige zeigt "N ausstehend", solange etwas in der Warteschlange liegt.
+
+## Lokales Auto-Backup
+Unabhängig vom serverseitigen `weeklyBackup()` (Sonntag 03:00, Drive) sichert
+das Frontend den gerade offenen Versuch (Meta + alle Topf-Daten) zusätzlich
+lokal im Browser: bei jedem erfolgreichen `saveTopf`/`saveStandort`-Aufruf
+sowie nach jedem `loadVersuch()` schreibt `backupCurrentVersuch()`
+(index.html) einen Snapshot zuerst auf `kfk-versuch-<nr>`, danach identisch
+auf `kfk-versuch-<nr>__backup` — bricht der erste Schreibvorgang mittendrin
+ab, bleibt der Backup-Schlüssel vom vorherigen Aufruf intakt. Schema-Version
+`LOCAL_BACKUP_SCHEMA_VERSION` (aktuell 1) + `migrateLocalBackup_()` heben
+künftige Formatänderungen verlustfrei an. Schlägt `loadVersuch()` fehl (kein
+Netz) und existiert ein lokales Backup, zeigt der Banner einen Button
+"Backup laden" (`restoreLocalVersuchBackup`) — der wiederhergestellte Stand
+ist rein lokal, nicht mit dem Server synchron.
+
+Button "Backup posten" (Versuchsdetail-Toolbar) kopiert den kompletten
+aktuellen Datenstand als `<<<KFK-BACKUP … KFK-BACKUP>>>`-JSON-Block
+(Schema `kfk-backup-v1`) in die Zwischenablage, zum manuellen Posten als
+Asana-Kommentar an die AZ-Subtask — unabhängig vom automatischen
+`postAsanaComment`-Flow.
 
 ## UI-Konventionen
 - Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px.

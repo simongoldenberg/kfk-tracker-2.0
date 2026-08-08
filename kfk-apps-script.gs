@@ -81,6 +81,8 @@ const INDEX_COLS = {
   themenfarbe: 'Themenfarbe',
   hypothese: 'Hypothese',
   start_datum: 'Start_Datum',
+  mdd_pp: 'MDD_PP',
+  saatgutcharge: 'Saatgutcharge',
   ort: 'Ort',
   verantwortlich: 'Verantwortlich',
   posten_nr: 'Posten_Nr',
@@ -167,6 +169,8 @@ function doPost(e) {
         return json(importRbdFromAsana(body.versuchsnr));
       case 'importRbdDoc':
         return json(importRbdFromDoc(body.versuchsnr));
+      case 'importRbdRaw':
+        return json(importRbdRaw(body));
       default:
         return json({ error: 'unknown POST action: ' + action });
     }
@@ -1825,21 +1829,7 @@ function importRbdFromDoc(versuchsnr) {
   var anzahlTrays = Number(data.anzahl_trays || v.anzahl_trays || 1);
   var treatments  = (data.treatments && data.treatments.length) ? data.treatments : (v.treatments || []);
 
-  // rbdMap[tray][topf] = 'TN' – Topf spaltenweise (identisch zum Asana-Pfad):
-  //   topf = (Spaltenbuchstabe - 'A') * rows + row
-  var rbdMap = {};
-  var entries = data.rbd || [];
-  for (var i = 0; i < entries.length; i++) {
-    var en = entries[i];
-    var tray     = Number(en.tray || 1);
-    var blockIdx = String(en.col || '').toUpperCase().charCodeAt(0) - 65;   // 'A'=0
-    var rowNum   = Number(en.row || 0);
-    var tCode    = String(en.t || '').toUpperCase();
-    if (isNaN(blockIdx) || blockIdx < 0 || rowNum < 1 || !/^T\d+$/.test(tCode)) continue;
-    var topf = blockIdx * rows + rowNum;
-    if (!rbdMap[tray]) rbdMap[tray] = {};
-    rbdMap[tray][topf] = tCode;
-  }
+  var rbdMap = rbdEntriesToMap_(data.rbd || [], rows);
 
   var parsedTrays = Object.keys(rbdMap).length;
   if (parsedTrays === 0) {
@@ -1859,6 +1849,63 @@ function importRbdFromDoc(versuchsnr) {
     assignedCount: built.assignedCount,
     message: built.assignedCount + ' von ' + built.totalRows + ' Toepfen mit Treatment belegt (' +
              parsedTrays + ' Trays aus Protokoll-Doc)'
+  };
+}
+
+// Wandelt ein rbd-Array aus dem KFK-DATA-Block ({tray,col,row,t}) in
+// rbdMap[tray][topf]='TN' um. Topf spaltenweise: topf = (Spaltenbuchstabe-'A')*rows + row.
+// Gemeinsam genutzt von importRbdFromDoc (Doc-Fetch) und importRbdRaw (direkt vom Client).
+function rbdEntriesToMap_(entries, rows) {
+  var rbdMap = {};
+  for (var i = 0; i < entries.length; i++) {
+    var en = entries[i];
+    var tray     = Number(en.tray || 1);
+    var blockIdx = String(en.col || '').toUpperCase().charCodeAt(0) - 65;   // 'A'=0
+    var rowNum   = Number(en.row || 0);
+    var tCode    = String(en.t || '').toUpperCase();
+    if (isNaN(blockIdx) || blockIdx < 0 || rowNum < 1 || !/^T\d+$/.test(tCode)) continue;
+    var topf = blockIdx * rows + rowNum;
+    if (!rbdMap[tray]) rbdMap[tray] = {};
+    rbdMap[tray][topf] = tCode;
+  }
+  return rbdMap;
+}
+
+// RBD-Layout direkt vom Client uebernehmen (Paste-Import, siehe js/paste-import.js) -
+// kein Asana/Doc-Fetch, das rbd-Array kommt schon fertig geparst im Request.
+function importRbdRaw(body) {
+  var versuchsnr = body && body.versuchsnr;
+  if (!versuchsnr) return { error: 'versuchsnr fehlt' };
+  if (!Array.isArray(body.rbd) || !body.rbd.length) return { error: 'rbd-Array fehlt oder ist leer' };
+
+  var all = readIndex();
+  var v = all.find(function(x) { return String(x.versuchsnr) === String(versuchsnr); });
+  if (!v) return { error: 'Versuch nicht gefunden: ' + versuchsnr };
+  if (!v.sheet_file_id) return { error: 'Kein Sheet_File_ID im Index fuer ' + versuchsnr };
+
+  var cols        = Number(body.raster_cols  || v.raster_cols  || 4);
+  var rows        = Number(body.raster_rows  || v.raster_rows  || 6);
+  var anzahlTrays = Number(body.anzahl_trays || v.anzahl_trays || 1);
+  var treatments  = (body.treatments && body.treatments.length) ? body.treatments : (v.treatments || []);
+
+  var rbdMap = rbdEntriesToMap_(body.rbd, rows);
+  var parsedTrays = Object.keys(rbdMap).length;
+  if (parsedTrays === 0) {
+    return { error: 'Kein gueltiges rbd-Array uebergeben.' };
+  }
+
+  var built = buildDatenSheetFromRbdMap_(v, rbdMap, cols, rows, anzahlTrays, treatments);
+  if (built.error) return built;
+
+  return {
+    ok: true,
+    source: 'raw',
+    versuchsnr: versuchsnr,
+    parsedTrays: parsedTrays,
+    totalRows: built.totalRows,
+    assignedCount: built.assignedCount,
+    message: built.assignedCount + ' von ' + built.totalRows + ' Toepfen mit Treatment belegt (' +
+             parsedTrays + ' Trays aus Paste-Import)'
   };
 }
 
@@ -2007,6 +2054,8 @@ function createVersuchInIndex(body) {
     themenfarbe:   body.themenfarbe || '#4a6b3a',
     hypothese:     body.hypothese || '',
     start_datum:   body.start_datum || '',
+    mdd_pp:        body.mdd_pp || '',
+    saatgutcharge: body.saatgutcharge || '',
     ort:           body.ort || 'Growzelt',
     verantwortlich: body.verantwortlich || 'Simon Goldenberg',
     posten_nr:     body.posten_nr || '',

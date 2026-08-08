@@ -1143,6 +1143,13 @@
   </div>
 </div>
 
+<!-- Versuch per Paste-Import (KFK-DATA-Block) anlegen -->
+<div class="overlay" id="paste-import-overlay" onclick="if(event.target===this)closePasteImportModal()">
+  <div class="modal" id="paste-import-modal" style="max-height:90vh;overflow-y:auto">
+    <!-- dynamisch -->
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -1151,6 +1158,7 @@
 
 <script src="js/standorte.js"></script>
 <script src="js/export.js"></script>
+<script src="js/paste-import.js"></script>
 <script>
 /* ==========================================================
    Skyseed KFK-Tracker · Client Logic
@@ -1268,6 +1276,14 @@ function toast(msg, ms = 2200) {
 function showBanner(title, msg) {
   const b = document.getElementById('banner');
   b.innerHTML = '<strong>' + esc(title) + '</strong>' + esc(msg);
+  b.classList.add('open');
+}
+// Variante mit HTML-Fragment im Message-Teil (z.B. eingebetteter Button) -
+// nur mit selbst erzeugtem, vertrauenswuerdigem HTML aufrufen, nie mit
+// rohem Server-/Nutzer-Text (kein esc() auf msgHtml!).
+function showBannerHtml(title, msgHtml) {
+  const b = document.getElementById('banner');
+  b.innerHTML = '<strong>' + esc(title) + '</strong>' + msgHtml;
   b.classList.add('open');
 }
 function hideBanner() { document.getElementById('banner').classList.remove('open'); }
@@ -1428,6 +1444,124 @@ async function confirmDeleteVersuch() {
   }
 }
 
+// ========== Lokales Auto-Backup (fuer den gerade offenen Versuch) ==========
+// Unabhaengig vom woechentlichen Server-Backup (weeklyBackup() in
+// kfk-apps-script.gs) - schuetzt vor Datenverlust zwischen zwei Backup-Laeufen,
+// wenn im Growzelt das Netz weg ist und der Server-Stand nicht mehr erreichbar
+// ist. Bei jedem lokalen Datenwechsel wird der komplette Versuch (Meta + alle
+// Topf-Daten) zuerst auf den Hauptschluessel, dann identisch auf den
+// __backup-Schluessel geschrieben - bricht das Schreiben des Hauptschluessels
+// mitten drin ab (z.B. Tab-Crash), bleibt der Backup-Schluessel vom vorherigen
+// Aufruf unbeschaedigt.
+const LOCAL_VERSUCH_PREFIX = 'kfk-versuch-';
+const LOCAL_BACKUP_SCHEMA_VERSION = 1;
+
+function localVersuchKey(versuchsnr) {
+  return LOCAL_VERSUCH_PREFIX + versuchsnr;
+}
+
+function backupCurrentVersuch() {
+  const v = state.currentVersuch;
+  if (!v || !v.versuchsnr) return;
+  try {
+    const snapshot = JSON.stringify({
+      schema_version: LOCAL_BACKUP_SCHEMA_VERSION,
+      ts: new Date().toISOString(),
+      versuch: v,
+      daten: state.currentDaten,
+      fortschritt: state.currentFortschritt
+    });
+    const key = localVersuchKey(v.versuchsnr);
+    localStorage.setItem(key, snapshot);
+    localStorage.setItem(key + '__backup', snapshot);
+  } catch (e) {
+    // Best-effort: localStorage kann z.B. bei vollem Speicher werfen -
+    // darf den eigentlichen Save-Flow nie blockieren.
+  }
+}
+
+// Hebt aeltere Backup-Schema-Versionen verlustfrei auf die aktuelle an.
+// Aktuell nur v1 bekannt -> No-Op, aber vorbereitet fuer kuenftige Sprünge
+// (analog zu KfkStandorte.migrateVersuchStandorte).
+function migrateLocalBackup_(snapshot) {
+  if (!snapshot || snapshot.schema_version === LOCAL_BACKUP_SCHEMA_VERSION) return snapshot;
+  return { ...snapshot, schema_version: LOCAL_BACKUP_SCHEMA_VERSION };
+}
+
+function parseLocalSnapshot_(raw) {
+  if (!raw) return null;
+  let obj;
+  try { obj = JSON.parse(raw); } catch (e) { return null; }
+  if (!obj || !obj.versuch || !Array.isArray(obj.daten)) return null;
+  return migrateLocalBackup_(obj);
+}
+
+function readLocalVersuchBackup(versuchsnr) {
+  const key = localVersuchKey(versuchsnr);
+  return parseLocalSnapshot_(localStorage.getItem(key)) || parseLocalSnapshot_(localStorage.getItem(key + '__backup'));
+}
+
+function formatBackupTimestamp(iso) {
+  try { return new Date(iso).toLocaleString('de-DE'); } catch (e) { return iso; }
+}
+
+function restoreLocalVersuchBackup(versuchsnr) {
+  const backup = readLocalVersuchBackup(versuchsnr);
+  if (!backup) return;
+  state.currentVersuchsnr = versuchsnr;
+  state.currentVersuch = backup.versuch;
+  state.currentDaten = backup.daten;
+  state.currentFortschritt = backup.fortschritt || null;
+  state.currentAZ = state.currentAZ || 1;
+  renderDetail();
+  showBanner('Lokales Backup geladen', 'Stand vom ' + formatBackupTimestamp(backup.ts) + ' — nicht mit dem Server synchron. Bei Netzverbindung auf "Aktualisieren" drücken.');
+}
+
+// Kompletter Datenstand des offenen Versuchs als formatierter JSON-Text in
+// die Zwischenablage - zum manuellen Posten als Kommentar an die AZ-Subtask
+// in Asana (unabhaengig vom automatischen postAsanaComment-Flow, als
+// zusaetzliches Sicherheitsnetz falls der Server/Sheet-Stand mal fehlt).
+async function postBackupToClipboard() {
+  const v = state.currentVersuch;
+  if (!v) return;
+  const payload = {
+    schema: 'kfk-backup-v1',
+    ts: new Date().toISOString(),
+    versuch: v,
+    daten: state.currentDaten
+  };
+  const text = '<<<KFK-BACKUP\n' + JSON.stringify(payload, null, 2) + '\nKFK-BACKUP>>>';
+
+  function copyViaExecCommand() {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else if (!copyViaExecCommand()) {
+      throw new Error('execCommand("copy") fehlgeschlagen');
+    }
+    toast('In Zwischenablage kopiert — als Kommentar an die AZ-Subtask in Asana posten');
+  } catch (e) {
+    // Manche WebViews verweigern die Clipboard-API (Rechte/Kontext) obwohl sie
+    // existiert - Fallback auf execCommand, bevor endgueltig aufgegeben wird.
+    if (copyViaExecCommand()) {
+      toast('In Zwischenablage kopiert — als Kommentar an die AZ-Subtask in Asana posten');
+    } else {
+      showBanner('Kopieren fehlgeschlagen', e.message);
+    }
+  }
+}
+
 async function loadVersuch(versuchsnr, silent) {
   if (!silent) setSync('wait', 'lade…');
   try {
@@ -1449,9 +1583,17 @@ async function loadVersuch(versuchsnr, silent) {
     renderDetail();
     setSync('ok', 'sync ' + timeNow());
     hideBanner();
+    backupCurrentVersuch();
   } catch (e) {
     setSync('err', 'Fehler');
-    if (!silent) showBanner('Laden fehlgeschlagen', e.message);
+    const backup = readLocalVersuchBackup(versuchsnr);
+    if (backup) {
+      showBannerHtml('Laden fehlgeschlagen',
+        esc(e.message) + ' — lokales Backup vom ' + esc(formatBackupTimestamp(backup.ts)) +
+        ' verfügbar. <button class="small" onclick="restoreLocalVersuchBackup(\'' + esc(versuchsnr) + '\')" style="margin-left:8px">Backup laden</button>');
+    } else if (!silent) {
+      showBanner('Laden fehlgeschlagen', e.message);
+    }
   }
 }
 
@@ -1548,6 +1690,7 @@ function renderList() {
       <button class="primary" onclick="${isArchiv ? 'loadArchiv()' : 'loadList()'}">${ICON.refresh} Aktualisieren</button>
       <button onclick="openBenutzerWahl()">${ICON.user} Benutzer</button>
       ${!isArchiv ? `<button onclick="openImportModal()">${ICON.inbox} Aus Asana</button>` : ''}
+      ${!isArchiv ? `<button onclick="openPasteImportModal()">${ICON.clipboard} Versuch aus JSON anlegen</button>` : ''}
     </div>
 
     <div style="display:flex;gap:4px;background:var(--bg-2);padding:4px;border-radius:var(--radius-md);margin-bottom:12px">
@@ -1775,6 +1918,7 @@ function renderDetail() {
       <button class="primary" onclick="openAsanaPreview()">${ICON.clipboard} Asana-Kommentar</button>
       <button onclick="openStatHint()">${ICON.chart} Statistik-Hinweis</button>
       <button onclick="exportVersuchCsv()">${ICON.download} Export CSV</button>
+      <button onclick="postBackupToClipboard()">${ICON.download} Backup posten</button>
     </div>
   `;
 
@@ -1974,6 +2118,7 @@ function saveStandort(tray) {
   state.standortConfirmedKeys.add(key);
   delete state.standortDraft[tray];
   renderDetail();
+  backupCurrentVersuch();
   setSync('wait', 'speichere…');
 
   const payload = { action: 'saveStandort', versuchsnr: v.versuchsnr, tray, regal: neu.regal, boden: neu.boden, az, isoDatum };
@@ -2576,6 +2721,7 @@ function saveTopfValue(isDelete) {
   // Modal sofort schliessen + neu rendern
   closeTopfModal();
   renderDetail();
+  backupCurrentVersuch();
   setSync('wait', 'speichere…');
 
   // API-Call im Hintergrund
@@ -2630,6 +2776,7 @@ async function saveAndNav(nextTopf) {
     if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
     state.pendingSave = false;
     setSync('ok', 'gespeichert');
+    backupCurrentVersuch();
 
     // Tray bleibt erhalten, solange im selben Tray ein passender Datensatz existiert.
     // Sonst fallback: tray=null (globaler Lookup), wie früher.
@@ -2656,6 +2803,7 @@ async function saveAndNav(nextTopf) {
     });
     state.pendingSave = false;
     toast('Gespeichert (wird nachgesendet, sobald online)');
+    backupCurrentVersuch();
 
     state.currentTopf = nextTopf;
     if (tray != null) {
@@ -3119,6 +3267,109 @@ async function confirmCreateVersuch() {
   } catch (e) {
     setSync('err', 'Fehler');
     showBanner('Versuch anlegen fehlgeschlagen', e.message);
+  }
+}
+
+// ========== Versuch per Paste-Import (KFK-DATA-Block) anlegen ==========
+// Alternative zu "Aus Asana": der komplette KFK-DATA-JSON-Block wird direkt
+// eingefuegt (aus Protokoll-Doc oder Asana-Kommentar kopiert), kein
+// Asana-/Doc-API-Call noetig. Parsing + Validierung in js/paste-import.js.
+
+function openPasteImportModal() {
+  const html = `
+    <div class="modal-head">
+      <h2>${ICON.clipboard} Versuch aus JSON anlegen</h2>
+    </div>
+    <p style="font-size:20px;margin-bottom:14px;color:var(--ink-muted)">
+      KFK-DATA-Block einfügen — mit oder ohne <code>&lt;&lt;&lt;KFK-DATA</code> / <code>KFK-DATA&gt;&gt;&gt;</code>-Markerzeilen.
+    </p>
+    <div class="field" style="margin-bottom:10px">
+      <textarea id="paste-import-text" rows="12" placeholder='{"schema":"kfk-protocol-v2","versuchsnr":"26_0XX", ...}'
+        style="width:100%;padding:10px;font-family:monospace;font-size:16px;border:1.5px solid var(--line);background:var(--bg)"></textarea>
+    </div>
+    <div id="paste-import-error" style="display:none;background:var(--warn-bg);color:var(--warn);padding:10px 12px;border-radius:var(--radius-sm);font-size:18px;margin-bottom:10px"></div>
+    <div class="modal-actions">
+      <button onclick="closePasteImportModal()">Abbrechen</button>
+      <button class="primary" onclick="confirmPasteImport()">${ICON.check} Prüfen &amp; Anlegen</button>
+    </div>
+  `;
+  document.getElementById('paste-import-modal').innerHTML = html;
+  document.getElementById('paste-import-overlay').classList.add('open');
+}
+
+function closePasteImportModal() {
+  document.getElementById('paste-import-overlay').classList.remove('open');
+}
+
+function showPasteImportError(msg) {
+  const el = document.getElementById('paste-import-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function confirmPasteImport() {
+  const raw = document.getElementById('paste-import-text').value || '';
+  const errEl = document.getElementById('paste-import-error');
+  errEl.style.display = 'none';
+
+  const result = KfkPasteImport.parseAndValidateKfkData(raw);
+  if (!result.ok) {
+    showPasteImportError(result.error);
+    return;
+  }
+  const data = result.data;
+
+  const themenfarbe = themenbereichToFarbe(data.themenbereich || '');
+  const body = {
+    action: 'createVersuch',
+    versuchsnr: data.versuchsnr,
+    titel: data.titel,
+    asana_task_gid: '',
+    themenbereich: data.themenbereich,
+    themenfarbe,
+    hypothese: data.hypothese,
+    start_datum: data.start_datum,
+    mdd_pp: data.mdd_pp,
+    saatgutcharge: data.saatgutcharge,
+    baumart_kurz: data.baumart_kurz,
+    baumart_lat: data.baumart_lat,
+    ort: data.ort || DEFAULT_ORT,
+    id_nummer: data.id_nummer,
+    verantwortlich: data.verantwortlich,
+    treatments_json: JSON.stringify(data.treatments),
+    raster_cols: data.raster_cols,
+    raster_rows: data.raster_rows,
+    samen_pro_topf: data.samen_pro_topf,
+    anzahl_trays: data.anzahl_trays,
+    az_geplant: data.az_geplant || DEFAULT_AZ_GEPLANT,
+    standorte: data.standorte
+  };
+
+  setSync('wait', 'lege Versuch an…');
+  try {
+    const res = await apiPost(body);
+    if (res && res.error) throw new Error(res.error);
+    setSync('ok', 'angelegt');
+
+    const rbdRes = await apiPost({
+      action: 'importRbdRaw',
+      versuchsnr: data.versuchsnr,
+      rbd: data.rbd,
+      raster_cols: data.raster_cols,
+      raster_rows: data.raster_rows,
+      anzahl_trays: data.anzahl_trays,
+      treatments: data.treatments
+    });
+    if (rbdRes && rbdRes.ok) {
+      toast('Versuch ' + data.versuchsnr + ' angelegt ✓ · RBD: ' + rbdRes.assignedCount + '/' + rbdRes.totalRows + ' Töpfe belegt');
+    } else {
+      toast('Versuch ' + data.versuchsnr + ' angelegt ✓ · RBD-Import fehlgeschlagen: ' + ((rbdRes && rbdRes.error) || 'unbekannter Fehler'));
+    }
+    closePasteImportModal();
+    await loadList();
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showPasteImportError('Versuch anlegen fehlgeschlagen: ' + e.message);
   }
 }
 

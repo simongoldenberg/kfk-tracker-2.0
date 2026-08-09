@@ -191,6 +191,48 @@ aktuellen Datenstand als `<<<KFK-BACKUP … KFK-BACKUP>>>`-JSON-Block
 Asana-Kommentar an die AZ-Subtask — unabhängig vom automatischen
 `postAsanaComment`-Flow.
 
+## Supabase-Spiegelung (seit 09.08.2026)
+Zusätzlich zu Apps-Script/Sheet (weiterhin die primäre Datenhaltung, aus der
+die App liest — `API_URL`) und dem lokalen Auto-Backup spiegelt das Frontend
+Schreibvorgänge asynchron und fire-and-forget nach Supabase, rein für
+SQL-Auswertung ohne CSV-Umweg (`js/supabase-sync.js`, `KfkSupabaseSync`).
+Schlägt die Spiegelung fehl (offline, Fehler), landet der Vorgang in einer
+localStorage-Warteschlange (`kfk_supabase_queue`) und wird beim nächsten
+`online`-Event/Init nachgesendet — blockiert nie die eigentliche Zähl-Eingabe.
+Zweiter Statuspunkt im Header ("SQL-Kopie") neben dem bestehenden Sheet-Sync.
+
+**Kein Build-Tool im Projekt → kein `.env`:** `SUPABASE_URL`/`SUPABASE_ANON_KEY`
+sind wie `API_URL` direkt als Konstanten in `index.html` gepflegt. Der
+publishable/anon Key ist bewusst öffentlich im ausgelieferten Client-Code —
+Schutz kommt ausschließlich über Row Level Security in Supabase, nicht über
+Geheimhaltung des Keys.
+
+**Tabellen** (angelegt per SQL-Editor, Verbesserungsplan Block C §5.3):
+`versuche` (versuchsnr PK, kfk_data jsonb — voller Snapshot wie das lokale
+Auto-Backup, aktualisiert bei jedem `backupCurrentVersuch()`), `standorte`
+(versuchsnr+tray PK), `az_counts` (versuchsnr+tray+spalte+reihe+az PK).
+
+**RLS "Variante A" + wichtige Postgres-Falle:** `standorte`/`az_counts` haben
+nur `insert`+`select`-Policies, bewusst kein `update`/`delete` — ein
+Angreifer mit dem öffentlichen anon-Key kann höchstens Datenmüll hinzufügen,
+nichts zerstören oder verfälschen. `versuche` hat zusätzlich eine
+`update`-Policy (nötig, damit der Snapshot über die Laufzeit eines Versuchs
+aktuell bleibt) — Kompromiss, akzeptiert weil Supabase hier nur eine Kopie
+ist, die echten Daten bleiben im Sheet. **Falle:** `INSERT ... ON CONFLICT DO
+UPDATE` (das normale `upsert()`) verlangt in Postgres IMMER das UPDATE-Recht
+auf die Tabelle, auch wenn nie ein Konflikt eintritt — deshalb verwendet
+`supabase-sync.js` für `standorte`/`az_counts` `upsert(row, {..,
+ignoreDuplicates: true})` (`ON CONFLICT DO NOTHING`, braucht nur `INSERT`).
+Eine Korrektur eines bereits gezählten Werts wird dort dadurch still
+verworfen, nicht aktualisiert — der jeweils aktuelle Stand bleibt trotzdem
+über `versuche.kfk_data` verfügbar. Zusätzlich müssen für `anon` die
+Basis-GRANTs gesetzt sein (RLS-Policies allein reichen nicht):
+```sql
+grant usage on schema public to anon;
+grant select, insert on public.versuche, public.standorte, public.az_counts to anon;
+grant update on public.versuche to anon;
+```
+
 ## UI-Konventionen
 - Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px.
 - Tray-Raster: Quadrate schmaler als die volle Spaltenaufteilung

@@ -1159,6 +1159,8 @@
 <script src="js/standorte.js"></script>
 <script src="js/export.js"></script>
 <script src="js/paste-import.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/supabase-sync.js"></script>
 <script>
 /* ==========================================================
    Skyseed KFK-Tracker · Client Logic
@@ -1166,6 +1168,15 @@
 
 // ========== KONFIGURATION ==========
 const API_URL = 'https://script.google.com/macros/s/AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw/exec';
+
+// Supabase-Spiegelung (Block C, Verbesserungsplan §5.5): reiner Kopier-Layer
+// fuer SQL-Auswertung, NICHT die primaere Datenhaltung (bleibt API_URL oben).
+// Der publishable/anon Key ist bewusst oeffentlich im ausgelieferten Client-
+// Code - Schutz kommt ausschliesslich ueber Row Level Security in Supabase,
+// nicht ueber Geheimhaltung des Keys. Kein Build-Tool im Projekt -> kein
+// .env moeglich, daher wie API_URL direkt als Konstante gepflegt.
+const SUPABASE_URL = 'https://vtyuppwmixepdwxjooiw.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_5pQqKGLOclmv1LSzOZEcHw_L3q9MyeT';
 // ===================================
 
 const POLL_INTERVAL = 30000;
@@ -1463,20 +1474,26 @@ function localVersuchKey(versuchsnr) {
 function backupCurrentVersuch() {
   const v = state.currentVersuch;
   if (!v || !v.versuchsnr) return;
+  const snapshotObj = {
+    schema_version: LOCAL_BACKUP_SCHEMA_VERSION,
+    ts: new Date().toISOString(),
+    versuch: v,
+    daten: state.currentDaten,
+    fortschritt: state.currentFortschritt
+  };
   try {
-    const snapshot = JSON.stringify({
-      schema_version: LOCAL_BACKUP_SCHEMA_VERSION,
-      ts: new Date().toISOString(),
-      versuch: v,
-      daten: state.currentDaten,
-      fortschritt: state.currentFortschritt
-    });
+    const snapshot = JSON.stringify(snapshotObj);
     const key = localVersuchKey(v.versuchsnr);
     localStorage.setItem(key, snapshot);
     localStorage.setItem(key + '__backup', snapshot);
   } catch (e) {
     // Best-effort: localStorage kann z.B. bei vollem Speicher werfen -
     // darf den eigentlichen Save-Flow nie blockieren.
+  }
+  // Zusaetzliche, unabhaengige Kopie in Supabase (siehe js/supabase-sync.js) -
+  // ueberlebt auch einen Geraeteverlust/Cache-Leerung, nicht nur einen Tab-Crash.
+  if (typeof KfkSupabaseSync !== 'undefined') {
+    KfkSupabaseSync.mirrorVersuch(v.versuchsnr, snapshotObj);
   }
 }
 
@@ -1610,6 +1627,17 @@ function setSync(which, label) {
   lbl.textContent = (which === 'ok' && pending > 0) ? `${label} · ${pending} ausstehend` : label;
 }
 
+// Zweiter, unabhaengiger Statuspunkt fuer die Supabase-Spiegelung (js/supabase-
+// sync.js) - getrennt von setSync(), da Apps Script (primaeres Backend) und
+// Supabase (additive SQL-Kopie) unabhaengig voneinander erreichbar sein koennen.
+function setSbSync(which, pending) {
+  const dot = document.getElementById('sb-dot');
+  const lbl = document.getElementById('sb-label');
+  if (!dot || !lbl) return;
+  dot.className = 'sync-dot' + (which === 'off' || pending > 0 ? ' wait' : which === 'err' ? ' err' : '');
+  lbl.textContent = pending > 0 ? `SQL-Kopie · ${pending} ausstehend` : 'SQL-Kopie ok';
+}
+
 // ========== Offline-Warteschlange (fuer saveTopf) ==========
 // Speichert fehlgeschlagene/offline saveTopf-Aufrufe in localStorage und sendet
 // sie automatisch nach, sobald wieder eine Verbindung besteht. Verhindert, dass
@@ -1682,6 +1710,10 @@ function renderList() {
       <div class="sync-status">
         <span class="sync-dot" id="sync-dot"></span>
         <span id="sync-label">sync ${timeNow()}</span>
+      </div>
+      <div class="sync-status" title="Zusaetzliche Kopie fuer SQL-Auswertung (Supabase)">
+        <span class="sync-dot" id="sb-dot"></span>
+        <span id="sb-label">SQL-Kopie ok</span>
       </div>
       <div>Benutzer: <strong>${esc(pref.benutzer || '—')}</strong></div>
     </div>
@@ -1867,6 +1899,10 @@ function renderDetail() {
       <div class="sync-status">
         <span class="sync-dot" id="sync-dot"></span>
         <span id="sync-label">sync ${timeNow()}</span>
+      </div>
+      <div class="sync-status" title="Zusaetzliche Kopie fuer SQL-Auswertung (Supabase)">
+        <span class="sync-dot" id="sb-dot"></span>
+        <span id="sb-label">SQL-Kopie ok</span>
       </div>
       <div><em>${esc(v.baumart_lat || v.baumart_kurz || '')}</em></div>
     </div>
@@ -2119,6 +2155,9 @@ function saveStandort(tray) {
   delete state.standortDraft[tray];
   renderDetail();
   backupCurrentVersuch();
+  if (typeof KfkSupabaseSync !== 'undefined') {
+    KfkSupabaseSync.mirrorStandort({ versuchsnr: v.versuchsnr, tray: Number(tray), regal: neu.regal, boden: neu.boden });
+  }
   setSync('wait', 'speichere…');
 
   const payload = { action: 'saveStandort', versuchsnr: v.versuchsnr, tray, regal: neu.regal, boden: neu.boden, az, isoDatum };
@@ -2705,6 +2744,23 @@ function updateKF() {
   }
 }
 
+// Spiegelt einen einzelnen AZ-Zaehlwert nach Supabase (Tabelle az_counts,
+// siehe js/supabase-sync.js). wert ist dort NOT NULL - ein geleerter Topf
+// (val === '') wird deshalb nicht gespiegelt, nur echte Zaehlwerte.
+function mirrorAzCountToSupabase(d, tray, az, val) {
+  if (typeof KfkSupabaseSync === 'undefined' || !d || val === '') return;
+  KfkSupabaseSync.mirrorAzCount({
+    versuchsnr: state.currentVersuch.versuchsnr,
+    tray: Number(tray || d.tray || 1),
+    spalte: String(d.block || ''),
+    reihe: Number(d.wdh || 0),
+    az,
+    wert: Number(val),
+    gezaehlt_am: state.datum || null,
+    geraet: loadPref().benutzer || null
+  });
+}
+
 function saveTopfValue(isDelete) {
   // SCHNELL: Modal sofort schliessen, lokal updaten, API-Call im Hintergrund (fire-and-forget)
   const topf = state.currentTopf;
@@ -2722,6 +2778,7 @@ function saveTopfValue(isDelete) {
   closeTopfModal();
   renderDetail();
   backupCurrentVersuch();
+  mirrorAzCountToSupabase(d, tray, az, val);
   setSync('wait', 'speichere…');
 
   // API-Call im Hintergrund
@@ -2777,6 +2834,7 @@ async function saveAndNav(nextTopf) {
     state.pendingSave = false;
     setSync('ok', 'gespeichert');
     backupCurrentVersuch();
+    mirrorAzCountToSupabase(d, tray, az, val);
 
     // Tray bleibt erhalten, solange im selben Tray ein passender Datensatz existiert.
     // Sonst fallback: tray=null (globaler Lookup), wie früher.
@@ -3583,7 +3641,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-window.addEventListener('online', () => { hideBanner(); flushOfflineQueue(); if (state.view==='list') loadList(); else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true); });
+window.addEventListener('online', () => { hideBanner(); flushOfflineQueue(); KfkSupabaseSync.flush(); if (state.view==='list') loadList(); else if (state.currentVersuchsnr) loadVersuch(state.currentVersuchsnr, true); });
 window.addEventListener('offline', () => setSync('err', 'offline'));
 
 // ========== ESC handler ==========
@@ -3624,6 +3682,8 @@ async function init() {
     `;
     return;
   }
+
+  KfkSupabaseSync.init(SUPABASE_URL, SUPABASE_ANON_KEY, setSbSync);
 
   // URL-Parameter beachten für Deep-Link (?versuch=…)
   const params = new URLSearchParams(window.location.search);

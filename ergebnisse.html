@@ -141,6 +141,24 @@
   .cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .cmp-table th, .cmp-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .cmp-table th { color: var(--ink-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .del-btn {
+    background: none; border: none; color: var(--err); width: 30px; height: 30px; cursor: pointer;
+    padding: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);
+  }
+  .del-btn:hover { background: var(--err-bg); }
+  .del-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .del-modal { max-width: 480px; }
+  .del-warn {
+    background: var(--err-bg); border: 1px solid var(--err); border-radius: var(--radius-md);
+    padding: 12px 14px; font-size: 14px; margin-bottom: 14px;
+  }
+  .del-input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--ink); font-size: 15px; font-family: inherit; margin: 6px 0 16px;
+  }
+  .del-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  button.danger { background: var(--err); color: #fff; border-color: var(--err); }
+  button.danger:disabled { opacity: .45; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -185,6 +203,23 @@
   </div>
 </div>
 
+<div id="del-overlay" class="cmp-overlay" style="display:none" onclick="if(event.target===this) closeDeleteRow()">
+  <div class="cmp-modal del-modal">
+    <div class="cmp-modal-header">
+      <h2 id="del-title">Versuch löschen?</h2>
+    </div>
+    <div class="del-warn" id="del-warn"></div>
+    <label style="display:block;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-muted);margin-bottom:4px">
+      Zum Bestätigen Versuchsnr eintippen
+    </label>
+    <input id="del-confirm-input" class="del-input" type="text" autocomplete="off" oninput="checkDeleteInput()">
+    <div class="del-actions">
+      <button class="btn" onclick="closeDeleteRow()">Abbrechen</button>
+      <button class="btn danger" id="del-confirm-btn" disabled onclick="confirmDeleteRow()">Endgültig löschen</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/standorte.js"></script>
 <script>
@@ -219,6 +254,10 @@ function esc(s) {
 // Zaehlverfahren ist additiv (siehe CLAUDE.md "Zaehlverfahren (AZ)"): Summe
 // aller bisher erfassten AZ-Runden / Samen-pro-Topf, unabhaengig davon wie
 // viele Runden schon gelaufen sind.
+// Ausnahme fuer Alt-Versuche (vor v1.3.0): dort stehen je AZ teils schon
+// kumulierte statt inkrementelle Werte - die Summe wuerde dann > Samenanzahl
+// ergeben (KF% > 100). In diesem Fall gilt der hoechste Einzelwert ueber alle
+// AZ-Runden als finale Keimquote statt der (fehlerhaften) Summe.
 function berechneTreatmentErgebnisse(versuch, daten) {
   const treatments = versuch.treatments || [];
   const samen = Number(versuch.samen_pro_topf || 36);
@@ -229,12 +268,19 @@ function berechneTreatmentErgebnisse(versuch, daten) {
   (daten || []).forEach(d => {
     const code = (d.treatment || '').split(/[\s(]/)[0];
     if (!byCode[code]) return;
-    let sum = 0, any = false;
+    let sum = 0, max = 0, any = false;
     for (let a = 1; a <= azGeplant; a++) {
       const raw = d['az' + a + '_zahl'];
-      if (raw !== '' && raw != null && !isNaN(Number(raw))) { sum += Number(raw); any = true; }
+      if (raw !== '' && raw != null && !isNaN(Number(raw))) {
+        const val = Number(raw);
+        sum += val; any = true;
+        if (val > max) max = val;
+      }
     }
-    if (any) byCode[code].kfWerte.push(sum / samen * 100);
+    if (any) {
+      const finalWert = sum > samen ? max : sum;
+      byCode[code].kfWerte.push(finalWert / samen * 100);
+    }
   });
 
   return Object.values(byCode).map(t => {
@@ -424,6 +470,59 @@ function clearCompare() {
 function closeCompare() {
   document.getElementById('cmp-overlay').style.display = 'none';
 }
+
+// ============ Loeschen (nur Supabase-Spiegelung, siehe CLAUDE.md) ============
+// Loescht ausschliesslich die Zeile in der Supabase-Tabelle `versuche`
+// (kfk_data-Snapshot fuer diese Ergebnistabelle) - NICHT den echten Versuch:
+// Index-Zeile im Google Sheet, Daten-Sheet, Drive-Ordner und Asana-Task
+// bleiben unberuehrt. Gedacht, um fehlerhafte/doppelte Spiegel-Eintraege
+// (z.B. Test-Datensaetze) manuell zu entfernen.
+let deleteTarget = null;
+function openDeleteRow(versuchsnr) {
+  const r = rows.find(x => x.versuchsnr === versuchsnr);
+  deleteTarget = versuchsnr;
+  document.getElementById('del-title').textContent = 'Versuch aus Ergebnistabelle löschen?';
+  document.getElementById('del-warn').innerHTML =
+    `<strong>${esc(versuchsnr)}</strong>${r && r.titel ? ' · ' + esc(r.titel) : ''}<br><br>
+     Entfernt nur den Eintrag in der Supabase-Spiegelung dieser Ergebnistabelle.
+     Der echte Versuch (Index-Zeile, Daten-Sheet, Drive-Ordner, Asana-Task)
+     bleibt vollständig erhalten und unverändert.`;
+  document.getElementById('del-confirm-input').value = '';
+  document.getElementById('del-confirm-btn').disabled = true;
+  document.getElementById('del-overlay').style.display = 'flex';
+  document.getElementById('del-confirm-input').focus();
+}
+function closeDeleteRow() {
+  document.getElementById('del-overlay').style.display = 'none';
+  deleteTarget = null;
+}
+function checkDeleteInput() {
+  const val = document.getElementById('del-confirm-input').value.trim();
+  document.getElementById('del-confirm-btn').disabled = val !== deleteTarget;
+}
+async function confirmDeleteRow() {
+  if (!deleteTarget) return;
+  const versuchsnr = deleteTarget;
+  const btn = document.getElementById('del-confirm-btn');
+  btn.disabled = true;
+  btn.textContent = 'lösche…';
+  try {
+    const { error } = await client.from('versuche').delete().eq('versuchsnr', versuchsnr);
+    if (error) throw error;
+    rows = rows.filter(r => r.versuchsnr !== versuchsnr);
+    compareSet.delete(versuchsnr);
+    if (openRow === versuchsnr) openRow = null;
+    closeDeleteRow();
+    updateCmpBar();
+    document.getElementById('header-sub').textContent = rows.length + ' Versuche · Quelle: Supabase-Spiegelung';
+    renderTable();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Endgültig löschen';
+    alert('Löschen fehlgeschlagen: ' + (e.message || e) +
+      (String(e.code) === '42501' ? '\n\nFehlende Berechtigung - siehe supabase/delete-policy.sql (einmalig im Supabase SQL-Editor ausführen).' : ''));
+  }
+}
 function openCompare() {
   const selected = rows.filter(r => compareSet.has(r.versuchsnr));
   if (selected.length < 2) return;
@@ -504,10 +603,15 @@ function renderTable() {
         <td onclick="toggleRow('${esc(r.versuchsnr)}')">${r.letzteAZ}/${r.azGeplant}</td>
         <td onclick="toggleRow('${esc(r.versuchsnr)}')">${kfBarsHTML(r)}</td>
         <td onclick="toggleRow('${esc(r.versuchsnr)}')">${auswertungBadge(r)}</td>
+        <td class="cmp-cell" onclick="event.stopPropagation()">
+          <button class="del-btn" title="Aus Ergebnistabelle löschen (nur Spiegelung)" onclick="openDeleteRow('${esc(r.versuchsnr)}')">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></svg>
+          </button>
+        </td>
       </tr>
     `];
     if (openRow === r.versuchsnr) {
-      rowsHTML.push(`<tr class="detail-row"><td colspan="9">${detailHTML(r)}</td></tr>`);
+      rowsHTML.push(`<tr class="detail-row"><td colspan="10">${detailHTML(r)}</td></tr>`);
     }
     return rowsHTML.join('');
   }).join('');
@@ -516,7 +620,7 @@ function renderTable() {
     <table class="ergebnisse">
       <thead>
         <tr>
-          <th></th><th>Versuch</th><th>Titel</th><th>Art</th><th>Kategorie</th><th>Status</th><th>AZ</th><th>KF% je Treatment</th><th>Auswertung</th>
+          <th></th><th>Versuch</th><th>Titel</th><th>Art</th><th>Kategorie</th><th>Status</th><th>AZ</th><th>KF% je Treatment</th><th>Auswertung</th><th></th>
         </tr>
       </thead>
       <tbody>${trs}</tbody>

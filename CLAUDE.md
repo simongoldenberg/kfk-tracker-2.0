@@ -290,15 +290,26 @@ Seite-an-Seite-Vergleich (Modal `openCompare()`: Metadaten + KF% je
 Treatment-Code über alle ausgewählten Versuche). Sortier-Dropdown
 (`#sortBy`) schaltet zwischen Versuchsnr/Art/Kategorie um.
 
-**Bekannte Dateninkonsistenz bei älteren Versuchen:** Für einige vor v1.3.0
-angelegte Versuche (z.B. `26_034`, `26_033`, `26_032`, `26_029`) zeigt die
-Ergebnistabelle KF%-Werte über 100 %. Ursache: das additive Zählverfahren
-(„nur neu gekeimte Samen je AZ", siehe oben) wurde erst mit v1.3.0
-eingeführt — in älteren Sheets stehen je AZ teils bereits kumulierte statt
-inkrementelle Werte, wodurch die Summenbildung sie doppelt zählt. Das ist ein
-Datenproblem der historischen Sheets, kein Code-Fehler in `ergebnisse.html`;
-eine Korrektur würde erfordern, pro Altversuch zu prüfen/zu entscheiden, ob
-die Rohwerte kumulativ oder inkrementell gemeint waren.
+**Dateninkonsistenz bei älteren Versuchen (Fallback statt Summe):** Für
+Versuche vor v1.3.0 (z.B. `26_034`, `26_033`, `26_032`, `26_029`) stehen in
+den Sheets je AZ teils bereits kumulierte statt inkrementelle Werte — das
+additive Zählverfahren („nur neu gekeimte Samen je AZ", siehe oben) wurde
+erst mit v1.3.0 eingeführt. Eine reine Summenbildung würde solche Alt-Werte
+doppelt zählen und KF% > 100 % ergeben. `berechneTreatmentErgebnisse()` prüft
+deshalb pro Topf: ergibt Summe(AZ1…AZn) > Samen-pro-Topf, gilt stattdessen der
+höchste Einzelwert über alle AZ-Runden als finale Keimquote (Annahme: dieser
+Einzelwert war bereits kumulativ gemeint). Bei normal (additiv) erfassten
+Versuchen bleibt die Summenbildung unverändert.
+
+**Löschen aus der Ergebnistabelle (nur Spiegelung):** Papierkorb-Icon je
+Zeile öffnet einen Tipp-zum-Bestätigen-Dialog (`openDeleteRow`/
+`confirmDeleteRow`, gleiches UX-Muster wie `openDeleteVersuch` in
+`index.html`) und löscht die Zeile per `client.from('versuche').delete()`
+ausschließlich aus der Supabase-Spiegelung — Index-Zeile, Daten-Sheet,
+Drive-Ordner und Asana-Task bleiben unberührt. Gedacht, um fehlerhafte/
+doppelte Spiegel-Einträge manuell zu bereinigen. Voraussetzung: einmalig
+`supabase/delete-policy.sql` im Supabase SQL-Editor ausführen (anon hatte für
+`versuche` bislang nur insert+select+update, kein delete).
 
 ## UI-Konventionen
 - Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px.

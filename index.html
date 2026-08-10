@@ -568,7 +568,7 @@
        die Gaps ab und teilt den Rest entsprechend auf. */
     grid-template-columns:
       40px repeat(var(--cols, 4), minmax(0, calc((100% - 40px - var(--cols, 4) * 6px) / (var(--cols, 4) * 1.6))));
-    justify-content: start;
+    justify-content: center;
     gap: 6px;
     background: var(--bg-2);
     padding: 10px;
@@ -1263,10 +1263,10 @@ let state = {
   deferredInstallPrompt: null,
   pollTimer: null,
   pendingSave: false,
-  // Standorterfassung (Regal/Boden je Tray): welche AZ+Tray-Kombis wurden
-  // in dieser Sitzung schon per "Ja" bestaetigt, welche Trays sind gerade
-  // im Bearbeiten-Modus (Dropdowns offen). Key jeweils `${az}_${tray}`.
-  standortConfirmedKeys: new Set(),
+  // Standorterfassung (Regal/Boden je Tray): wird einmalig festgelegt (in
+  // der Regel bei AZ1) und gilt unveraendert fuer alle folgenden AZ-Runden -
+  // keine Re-Bestaetigung pro AZ. standortEditingTrays haelt die Trays, die
+  // gerade im Bearbeiten-Modus sind (Dropdowns offen), Key = Tray-Nummer.
   standortEditingTrays: new Set(),
   standortDraft: {}
 };
@@ -1703,6 +1703,7 @@ function renderList() {
         <div class="sub">Skyseed · ${isArchiv ? liste.length + ' archivierte' : state.versuche.length + ' aktive'} Versuche</div>
         <div class="version">${versionLabel()}</div>
       </div>
+      <a class="small" href="ergebnisse.html" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 12px;font-weight:700;font-size:15px;white-space:nowrap">${ICON.chart.replace('<svg ', '<svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2" ')} Ergebnistabelle</a>
       ${themeToggleHTML()}
     </header>
 
@@ -1836,7 +1837,6 @@ function openVersuch(versuchsnr) {
   state.currentVersuchsnr = versuchsnr;
   state.currentAZ = null;
   state.currentVersuch = null;
-  state.standortConfirmedKeys = new Set();
   state.standortEditingTrays = new Set();
   state.standortDraft = {};
   savePref({ lastVersuch: versuchsnr });
@@ -1907,7 +1907,7 @@ function renderDetail() {
       <div><em>${esc(v.baumart_lat || v.baumart_kurz || '')}</em></div>
     </div>
 
-    ${renderStandortPanel(v, az)}
+    ${renderStandortPanel(v)}
 
     ${renderInfoPanel(v, f)}
 
@@ -2040,21 +2040,21 @@ function renderInfoPanel(v, f) {
 }
 
 // ========== Standorterfassung (Regal/Boden je Tray) ==========
-// Datenmodell + Migration in js/standorte.js (window.KfkStandorte). Bestaetigung
-// "Standort unveraendert?" wird je AZ+Tray genau einmal pro Sitzung abgefragt
-// (state.standortConfirmedKeys), nicht bei jedem renderDetail()-Aufruf.
-const BODEN_LABELS = { 1: '1 (oben)', 2: '2', 3: '3', 4: '4', 5: '5 (unten)' };
+// Datenmodell + Migration in js/standorte.js (window.KfkStandorte). Der
+// Standort wird einmalig festgelegt (in der Regel beim Ausfuellen von AZ1)
+// und bleibt fuer alle folgenden AZ-Runden unveraendert stehen - es gibt
+// keine erneute "Standort unveraendert?"-Abfrage pro AZ. Wurde ein Tray
+// tatsaechlich umgestellt, aendert man es explizit ueber "Ändern".
+const BODEN_LABELS = { 1: '1 (unten)', 2: '2', 3: '3', 4: '4', 5: '5 (oben)' };
 
-function standortKey(az, tray) { return az + '_' + tray; }
-
-function renderStandortPanel(v, az) {
+function renderStandortPanel(v) {
   const anzahlTrays = Number(v.anzahl_trays || 1);
   const standorte = KfkStandorte.migrateVersuchStandorte(v);
   const fehlendeTrays = standorte.filter(s => KfkStandorte.isStandortFehlend(s)).map(s => s.tray);
 
   const rows = [];
   for (let tray = 1; tray <= anzahlTrays; tray++) {
-    rows.push(renderStandortRow(KfkStandorte.standortForTray(standorte, tray), az, anzahlTrays));
+    rows.push(renderStandortRow(KfkStandorte.standortForTray(standorte, tray), anzahlTrays));
   }
 
   return `
@@ -2066,11 +2066,10 @@ function renderStandortPanel(v, az) {
   `;
 }
 
-function renderStandortRow(s, az, anzahlTrays) {
+function renderStandortRow(s, anzahlTrays) {
   const tray = s.tray;
-  const key = standortKey(az, tray);
   const fehlt = KfkStandorte.isStandortFehlend(s);
-  const editing = fehlt || state.standortEditingTrays.has(key);
+  const editing = fehlt || state.standortEditingTrays.has(tray);
   const trayLabel = anzahlTrays > 1 ? `Tray ${tray}` : 'Standort';
   const draft = state.standortDraft[tray] || { regal: s.regal, boden: s.boden };
 
@@ -2098,37 +2097,24 @@ function renderStandortRow(s, az, anzahlTrays) {
     `;
   }
 
-  const bestaetigt = state.standortConfirmedKeys.has(key);
   return `
     <div class="standort-row">
       <div class="standort-row-label">${esc(trayLabel)}</div>
       <div class="standort-value">Regal ${esc(s.regal)} · Boden ${esc(BODEN_LABELS[s.boden] || s.boden)}</div>
-      ${bestaetigt
-        ? `<button class="small" onclick="startStandortEdit(${tray})">Ändern</button>`
-        : `<div class="standort-confirm">
-             <span>Standort unverändert?</span>
-             <button class="small primary" onclick="confirmStandortUnveraendert(${tray})">Ja</button>
-             <button class="small" onclick="startStandortEdit(${tray})">Geändert</button>
-           </div>`
-      }
+      <button class="small" onclick="startStandortEdit(${tray})">Ändern</button>
     </div>
   `;
-}
-
-function confirmStandortUnveraendert(tray) {
-  state.standortConfirmedKeys.add(standortKey(state.currentAZ, tray));
-  renderDetail();
 }
 
 function startStandortEdit(tray) {
   const s = KfkStandorte.standortForTray(KfkStandorte.migrateVersuchStandorte(state.currentVersuch), tray);
   state.standortDraft[tray] = { regal: s.regal, boden: s.boden };
-  state.standortEditingTrays.add(standortKey(state.currentAZ, tray));
+  state.standortEditingTrays.add(tray);
   renderDetail();
 }
 
 function cancelStandortEdit(tray) {
-  state.standortEditingTrays.delete(standortKey(state.currentAZ, tray));
+  state.standortEditingTrays.delete(tray);
   delete state.standortDraft[tray];
   renderDetail();
 }
@@ -2149,9 +2135,7 @@ function saveStandort(tray) {
   v.standorte = result.standorte;
   v.standortHistorie = result.standortHistorie;
 
-  const key = standortKey(az, tray);
-  state.standortEditingTrays.delete(key);
-  state.standortConfirmedKeys.add(key);
+  state.standortEditingTrays.delete(tray);
   delete state.standortDraft[tray];
   renderDetail();
   backupCurrentVersuch();

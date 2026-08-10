@@ -233,6 +233,39 @@ grant select, insert on public.versuche, public.standorte, public.az_counts to a
 grant update on public.versuche to anon;
 ```
 
+## Ergebnistabelle (seit 10.08.2026)
+Eigenständige Seite `ergebnisse.html` (kein Teil der PWA-Shell, kein Build-
+Schritt) zeigt alle Versuche in einer Übersichtstabelle: Versuchsbeschreibung,
+Hypothese, Auszählungsergebnisse (kumulierte KF% je Treatment) und — sobald
+vorhanden — die Auswertung. Verlinkt über den Button "Ergebnistabelle" ganz
+oben im Tracker-Header (nur auf der Startseite/Listenansicht).
+
+**Datenquelle bewusst ausschließlich Supabase, nicht Asana:** Versuchsnr,
+Titel, Hypothese, Treatments und die vollen Zähldaten stehen bereits
+vollständig in `versuche.kfk_data` (derselbe Snapshot wie das lokale
+Auto-Backup, siehe oben) — `ergebnisse.html` berechnet die kumulierten KF%
+pro Treatment daraus client-seitig nach demselben additiven Zählverfahren
+wie die App selbst (siehe "Zählverfahren (AZ)"). Ein Rückweg über Asana
+(Kommentare parsen) wäre fehleranfälliger und redundant zu einer Quelle, die
+ohnehin schon existiert.
+
+**Auswertung nachträglich durch Claude:** Die inhaltliche Auswertung
+(Zusammenfassung/Interpretation/Empfehlung) entsteht typischerweise erst,
+wenn Claude in einer späteren Session den `<<<KFK-RESULTS…>>>`-Rohdatenblock
+aus dem Asana-Bericht auswertet (siehe "Asana-Abschlussbericht" oben) — dafür
+gibt es zwei zusätzliche Spalten `auswertung` (jsonb) und
+`auswertung_updated_at` direkt auf `versuche` (SQL: `supabase/
+auswertung-spalten.sql`, einmalig im SQL-Editor ausführen). Bewusst keine
+neue Tabelle: `versuche` hat bereits `update`-Recht für den anon-Key
+(RLS "Variante A" oben), eine neue Tabelle hätte nur zusätzliche RLS-Regeln
+ohne echten Zusatznutzen gebraucht. Claude schreibt die Auswertung nach
+Abschluss der Analyse per einfachem REST-Update (`PATCH
+.../rest/v1/versuche?versuchsnr=eq.26_0XX` mit dem publishable Key, analog zu
+`KfkSupabaseSync.mirrorVersuch`) — kein Roundtrip über Asana nötig.
+Erwartete Struktur von `auswertung`: `{ zusammenfassung, interpretation,
+empfehlung }` (String-Felder, frei erweiterbar — `ergebnisse.html` ignoriert
+unbekannte Zusatzfelder).
+
 ## UI-Konventionen
 - Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px.
 - Tray-Raster: Quadrate schmaler als die volle Spaltenaufteilung

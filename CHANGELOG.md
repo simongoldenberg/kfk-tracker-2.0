@@ -2,6 +2,31 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.6.0 — 2026-08-10
+
+### 🚀 Added
+- **Ergebnistabelle: Posten/Charge & Standort im Detail-Panel** — zeigt jetzt
+  zusätzlich Posten-Nr., MDD/PP, Saatgutcharge sowie Regal/Ebene je Tray.
+- **Ergebnistabelle: historischer Backfill** — alle 21 bisherigen Versuche
+  (aktiv + archiviert) wurden einmalig aus der Apps-Script-API in die
+  Supabase-Spiegelung nachgezogen, statt nur die seit 09.08.2026 laufend
+  gespiegelten Versuche zu zeigen.
+- **Ergebnistabelle: Kategorie A–D** aus dem Asana-Forschungsplan-
+  Themenbereich abgeleitet, inkl. Sortierung nach Kategorie oder Art.
+- **Ergebnistabelle: Versuchsvergleich** — Checkbox je Zeile, Vergleichs-
+  Modal stellt Metadaten und KF% je Treatment mehrerer Versuche nebeneinander.
+- **Ergebnistabelle: Löschen aus der Spiegelung** — Papierkorb-Button je
+  Zeile mit Tipp-zum-Bestätigen-Dialog entfernt fehlerhafte/doppelte
+  Einträge aus der Supabase-Spiegelung (Index/Sheet/Drive/Asana bleiben
+  unberührt). Voraussetzung: `supabase/delete-policy.sql` einmalig im
+  SQL-Editor ausgeführt.
+
+### 🐛 Fixed
+- **KF% > 100 % bei Alt-Versuchen**: Versuche vor v1.3.0 hatten teils bereits
+  kumulierte statt inkrementelle AZ-Werte im Sheet. Übersteigt die additive
+  Summe eines Topfes die Samenanzahl, gilt jetzt der höchste Einzelwert über
+  alle AZ-Runden als finale Keimquote statt der (fehlerhaften) Summe.
+
 ## Version 1.5.0 — 2026-08-08
 
 ### 🚀 Added

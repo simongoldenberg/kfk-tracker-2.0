@@ -266,6 +266,40 @@ Erwartete Struktur von `auswertung`: `{ zusammenfassung, interpretation,
 empfehlung }` (String-Felder, frei erweiterbar — `ergebnisse.html` ignoriert
 unbekannte Zusatzfelder).
 
+**Historischer Backfill (10.08.2026):** Da die Supabase-Spiegelung erst seit
+09.08.2026 läuft, mirrort `backupCurrentVersuch()` ältere Versuche nicht
+automatisch nach. Alle bis dahin bestehenden Versuche wurden einmalig per
+Skript aus der Apps-Script-API (`action=list`/`listArchiv`/`get`, siehe
+Deploy-Workflow) nachgezogen — **nicht** aus Asana gescraped, da das Sheet
+über die App-API strukturiert genau denselben `{versuch, daten}`-Snapshot
+liefert wie `backupCurrentVersuch()` und damit die zuverlässigere Quelle ist.
+Test-Einträge (z.B. `26_026` "TEST TRACKER Ende-zu-Ende") wurden bewusst
+ausgelassen. Künftige neue Versuche brauchen keinen Backfill mehr, sobald sie
+einmal im Tracker geöffnet/gespeichert wurden.
+
+**Zusatzspalten & Kategorie/Vergleich (10.08.2026):** Detail-Panel zeigt
+zusätzlich Posten-Nr./MDD-PP/Saatgutcharge (`v.posten_nr`/`v.mdd_pp`/
+`v.saatgutcharge`) sowie Regal/Ebene je Tray (`js/standorte.js`,
+`KfkStandorte.migrateVersuchStandorte(v)` — dafür bindet `ergebnisse.html`
+dieses Skript zusätzlich ein). Die Forschungsplan-Kategorie (A–D) wird per
+Regex aus dem führenden Buchstaben von `v.themenbereich` abgeleitet
+(`kategorieVon()` — A) System Pellet & Saatgut, B) Prädation,
+C) Infrastruktur, D) Direktsaatversuch; alles außerhalb A–D, z.B. "F) Ideen",
+bleibt ohne Kategorie). Checkbox-Spalte je Zeile sammelt Versuche für einen
+Seite-an-Seite-Vergleich (Modal `openCompare()`: Metadaten + KF% je
+Treatment-Code über alle ausgewählten Versuche). Sortier-Dropdown
+(`#sortBy`) schaltet zwischen Versuchsnr/Art/Kategorie um.
+
+**Bekannte Dateninkonsistenz bei älteren Versuchen:** Für einige vor v1.3.0
+angelegte Versuche (z.B. `26_034`, `26_033`, `26_032`, `26_029`) zeigt die
+Ergebnistabelle KF%-Werte über 100 %. Ursache: das additive Zählverfahren
+(„nur neu gekeimte Samen je AZ", siehe oben) wurde erst mit v1.3.0
+eingeführt — in älteren Sheets stehen je AZ teils bereits kumulierte statt
+inkrementelle Werte, wodurch die Summenbildung sie doppelt zählt. Das ist ein
+Datenproblem der historischen Sheets, kein Code-Fehler in `ergebnisse.html`;
+eine Korrektur würde erfordern, pro Altversuch zu prüfen/zu entscheiden, ob
+die Rohwerte kumulativ oder inkrementell gemeint waren.
+
 ## UI-Konventionen
 - Schriftgroessen sind bewusst gross (Outdoor/Handschuhe): Basis 22px.
 - Tray-Raster: Quadrate schmaler als die volle Spaltenaufteilung

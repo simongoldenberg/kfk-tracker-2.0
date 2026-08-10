@@ -2944,16 +2944,26 @@ async function compressAndEncode(file, maxDim, quality) {
 function openAbschluss() {
   const az = state.currentAZ;
   const daten = state.currentDaten;
+  const v = state.currentVersuch;
+  const anzahlTrays = Number(v.anzahl_trays || 1);
+
   const befuellt = daten.filter(d => {
     const v = d['az' + az + '_zahl'];
     return v !== '' && v != null && v !== undefined;
   }).length;
   const leer = daten.length - befuellt;
 
-  const fotos = ['A','B','C','D'].map(b => {
-    const key = 'az' + az + '_block' + b;
-    const has = daten.some(d => d.fotos && d.fotos[key]);
-    return { block: b, has };
+  // Fotos nach echten Tray-Nummern prüfen, nicht nach Spalten-Labels
+  const toRomanNumeral = n => {
+    const r = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+    return r[Math.min(n, 10)] || 'Block ' + n;
+  };
+
+  const fotos = Array.from({length: anzahlTrays}, (_, i) => i + 1).map(trayNum => {
+    const trayDaten = daten.filter(d => Number(d.tray || 1) === trayNum);
+    const key = 'az' + az;
+    const has = trayDaten.some(d => d.fotos && d.fotos[key]);
+    return { tray: trayNum, block: toRomanNumeral(trayNum), has };
   });
   const fotosFehlen = fotos.filter(f => !f.has);
 
@@ -2970,12 +2980,12 @@ function openAbschluss() {
 
     <p style="margin-bottom:8px;font-size:21px"><strong>Block-Fotos:</strong></p>
     <div style="margin-bottom:14px;font-size:20px">
-      ${fotos.map(f => `<span style="margin-right:14px">${f.has?'✓':'✗'} Block ${f.block}</span>`).join('')}
+      ${fotos.map(f => `<span style="margin-right:14px">${f.has?'✓':'✗'} BLOCK ${f.block}</span>`).join('')}
     </div>
 
     ${fotosFehlen.length > 0 ? `
       <div style="background:var(--warn-bg);color:var(--warn);padding:10px;border-radius:var(--radius-md);border-left:3px solid var(--warn);margin-bottom:14px;font-size:19px;display:flex;align-items:center;gap:8px">
-        ${ICON.warn.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0" ')} Fotos fehlen für Block ${fotosFehlen.map(f=>f.block).join(', ')}
+        ${ICON.warn.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0" ')} Fotos fehlen für BLOCK ${fotosFehlen.map(f=>f.block).join(', ')}
       </div>
     ` : ''}
 

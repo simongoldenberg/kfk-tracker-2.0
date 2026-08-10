@@ -110,6 +110,37 @@
   .detail-table th, .detail-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
   .updated { font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
   ::selection { background: var(--accent); color: #fff; }
+  .cmp-cell { width: 30px; text-align: center; }
+  .cmp-cell input { width: 16px; height: 16px; cursor: pointer; }
+  select#sortBy {
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--ink); font-size: 14px; font-family: inherit; cursor: pointer;
+  }
+  .cmp-bar {
+    display: none; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 14px;
+    background: var(--moss-bg); border: 1px solid var(--line); border-radius: var(--radius-md); flex-wrap: wrap;
+  }
+  .cmp-bar.active { display: flex; }
+  .cmp-bar .count { font-weight: 700; }
+  .kategorie-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    background: var(--bg-3); color: var(--ink-muted);
+  }
+  .standorte-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .standorte-list li { padding: 2px 0; }
+  .cmp-overlay {
+    position: fixed; inset: 0; background: rgba(20,18,14,.5); z-index: 50;
+    display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+  }
+  .cmp-modal {
+    background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-md);
+    max-width: 1200px; width: 100%; padding: 20px 24px;
+  }
+  .cmp-modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .cmp-modal-header h2 { font-size: 18px; margin: 0; }
+  .cmp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cmp-table th, .cmp-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .cmp-table th { color: var(--ink-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
 </style>
 </head>
 <body>
@@ -128,12 +159,34 @@
 
   <div class="toolbar">
     <input type="text" id="search" placeholder="Suche nach Versuchsnr, Titel, Art, Status…" oninput="renderTable()">
+    <select id="sortBy" onchange="renderTable()">
+      <option value="versuchsnr_desc">Sortierung: Versuchsnr (neu → alt)</option>
+      <option value="art">Sortierung: Art</option>
+      <option value="kategorie">Sortierung: Kategorie (A–D)</option>
+    </select>
+  </div>
+
+  <div class="cmp-bar" id="cmp-bar">
+    <span><span class="count" id="cmp-count">0</span> Versuche ausgewählt</span>
+    <button class="btn" onclick="openCompare()">Vergleichen</button>
+    <button class="btn" onclick="clearCompare()">Auswahl aufheben</button>
   </div>
 
   <div id="content"><div class="status-msg">lädt…</div></div>
 </div>
 
+<div id="cmp-overlay" class="cmp-overlay" style="display:none" onclick="if(event.target===this) closeCompare()">
+  <div class="cmp-modal">
+    <div class="cmp-modal-header">
+      <h2>Versuchsvergleich</h2>
+      <button class="btn" onclick="closeCompare()">Schließen</button>
+    </div>
+    <div id="cmp-content"></div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/standorte.js"></script>
 <script>
 // ============ Konfiguration ============
 // Gleiche Supabase-Instanz wie im Tracker selbst (js/supabase-sync.js) - der
@@ -204,6 +257,17 @@ function letzteErfassteAZ(daten, azGeplant) {
   return letzte;
 }
 
+// Kategorie A-D aus dem Asana-Themenbereich (Forschungsplan-Sektionen "A)
+// SYSTEM PELLET & SAATGUT", "B) PRAeDATION", "C) INFRASTRUKTUR",
+// "D) DIREKTSAATVERSUCH" bzw. deren Unterabschnitte "A.0)", "D.1)" etc.) -
+// nimmt den fuehrenden Buchstaben, alles ausserhalb A-D (z.B. "F) IDEEN")
+// bleibt ohne Kategorie.
+const KATEGORIE_LABEL = { A: 'System Pellet & Saatgut', B: 'Prädation', C: 'Infrastruktur', D: 'Direktsaatversuch' };
+function kategorieVon(themenbereich) {
+  const m = /^([A-D])[.\d]*\)/i.exec(String(themenbereich || '').trim());
+  return m ? m[1].toUpperCase() : '';
+}
+
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="status-msg">lädt…</div>';
   document.getElementById('header-sub').textContent = 'lädt…';
@@ -240,6 +304,12 @@ async function loadData() {
         idNummer: v.id_nummer || '',
         ort: v.ort || '',
         verantwortlich: v.verantwortlich || '',
+        postenNr: v.posten_nr || '',
+        mddPp: v.mdd_pp || '',
+        saatgutcharge: v.saatgutcharge || '',
+        themenbereich: v.themenbereich || '',
+        kategorie: kategorieVon(v.themenbereich),
+        standorte: (typeof KfkStandorte !== 'undefined') ? KfkStandorte.migrateVersuchStandorte(v) : [],
         azGeplant,
         letzteAZ: letzteErfassteAZ(daten, azGeplant),
         treatmentErgebnisse: berechneTreatmentErgebnisse(v, daten),
@@ -277,6 +347,14 @@ function kfBarsHTML(r) {
     </div>`).join('') + '</div>';
 }
 
+function standorteHTML(r) {
+  const relevant = (r.standorte || []).filter(s => s.regal != null || s.boden != null);
+  if (!relevant.length) return '<span class="muted">—</span>';
+  return '<ul class="standorte-list">' + relevant.map(s =>
+    `<li>Tray ${esc(s.tray)}: Regal ${s.regal == null ? '—' : esc(s.regal)}, Ebene/Boden ${s.boden == null ? '—' : esc(s.boden)}</li>`
+  ).join('') + '</ul>';
+}
+
 function detailHTML(r) {
   const a = r.auswertung || {};
   const treatRows = r.treatmentErgebnisse.map(t => `
@@ -291,7 +369,16 @@ function detailHTML(r) {
       </div>
       <div class="detail-block">
         <h4>Dokumentation</h4>
-        <p>Ort: ${esc(r.ort) || '—'}<br>Verantwortlich: ${esc(r.verantwortlich) || '—'}<br>AZ geplant: ${r.azGeplant} · erfasst bis AZ${r.letzteAZ}</p>
+        <p>Ort: ${esc(r.ort) || '—'}<br>Verantwortlich: ${esc(r.verantwortlich) || '—'}<br>AZ geplant: ${r.azGeplant} · erfasst bis AZ${r.letzteAZ}<br>
+        Kategorie: ${r.kategorie ? esc(r.kategorie) + ') ' + esc(KATEGORIE_LABEL[r.kategorie] || '') : '—'}${r.themenbereich ? ' <span class="muted">(' + esc(r.themenbereich) + ')</span>' : ''}</p>
+      </div>
+      <div class="detail-block">
+        <h4>Posten / Charge</h4>
+        <p>Posten-Nr.: ${esc(r.postenNr) || '—'}<br>MDD/PP: ${esc(r.mddPp) || '—'}<br>Saatgutcharge: ${esc(r.saatgutcharge) || '—'}</p>
+      </div>
+      <div class="detail-block">
+        <h4>Standort (Regal / Ebene je Tray)</h4>
+        ${standorteHTML(r)}
       </div>
       <div class="detail-block">
         <h4>Auszählungsergebnisse (kumulativ)</h4>
@@ -318,11 +405,85 @@ function toggleRow(versuchsnr) {
   renderTable();
 }
 
+// ============ Vergleichsfunktion ============
+const compareSet = new Set();
+function toggleCompare(versuchsnr, checked) {
+  if (checked) compareSet.add(versuchsnr); else compareSet.delete(versuchsnr);
+  updateCmpBar();
+}
+function updateCmpBar() {
+  const bar = document.getElementById('cmp-bar');
+  document.getElementById('cmp-count').textContent = compareSet.size;
+  bar.classList.toggle('active', compareSet.size >= 2);
+}
+function clearCompare() {
+  compareSet.clear();
+  updateCmpBar();
+  renderTable();
+}
+function closeCompare() {
+  document.getElementById('cmp-overlay').style.display = 'none';
+}
+function openCompare() {
+  const selected = rows.filter(r => compareSet.has(r.versuchsnr));
+  if (selected.length < 2) return;
+
+  const alleCodes = [];
+  selected.forEach(r => r.treatmentErgebnisse.forEach(t => {
+    if (!alleCodes.some(c => c.code === t.code)) alleCodes.push({ code: t.code, label: t.label });
+  }));
+
+  const headRow = '<tr><th>Merkmal</th>' + selected.map(r => `<th>${esc(r.versuchsnr)}</th>`).join('') + '</tr>';
+  const rowsHTML = [
+    ['Titel', r => esc(r.titel)],
+    ['Art', r => esc(r.art)],
+    ['Kategorie', r => r.kategorie ? esc(r.kategorie) + ') ' + esc(KATEGORIE_LABEL[r.kategorie] || '') : '—'],
+    ['Status', r => esc(r.status)],
+    ['Ort', r => esc(r.ort) || '—'],
+    ['Posten-Nr.', r => esc(r.postenNr) || '—'],
+    ['Saatgutcharge', r => esc(r.saatgutcharge) || '—'],
+    ['AZ-Fortschritt', r => `${r.letzteAZ}/${r.azGeplant}`],
+  ].map(([label, fn]) => `<tr><td><strong>${label}</strong></td>${selected.map(r => `<td>${fn(r)}</td>`).join('')}</tr>`).join('');
+
+  const treatmentRows = alleCodes.map(c => {
+    const cells = selected.map(r => {
+      const t = r.treatmentErgebnisse.find(x => x.code === c.code);
+      return `<td>${t && t.kf != null ? t.kf + '% <span class="muted">(n=' + t.n + ')</span>' : '—'}</td>`;
+    }).join('');
+    return `<tr><td><strong>${esc(c.code)}</strong> ${esc(c.label || '')}</td>${cells}</tr>`;
+  }).join('') || '<tr><td colspan="' + (selected.length + 1) + '" class="muted">Keine Treatment-Daten</td></tr>';
+
+  document.getElementById('cmp-content').innerHTML = `
+    <table class="cmp-table">
+      <thead>${headRow}</thead>
+      <tbody>
+        ${rowsHTML}
+        <tr><td colspan="${selected.length + 1}"><h4 style="margin:10px 0 0">KF% je Treatment (kumulativ)</h4></td></tr>
+        ${treatmentRows}
+      </tbody>
+    </table>
+  `;
+  document.getElementById('cmp-overlay').style.display = 'flex';
+}
+
+function sortRows(list) {
+  const mode = document.getElementById('sortBy').value;
+  const sorted = list.slice();
+  if (mode === 'art') {
+    sorted.sort((a, b) => String(a.art).localeCompare(String(b.art), 'de') || b.versuchsnr.localeCompare(a.versuchsnr));
+  } else if (mode === 'kategorie') {
+    sorted.sort((a, b) => (a.kategorie || 'Z').localeCompare(b.kategorie || 'Z') || b.versuchsnr.localeCompare(a.versuchsnr));
+  } else {
+    sorted.sort((a, b) => b.versuchsnr.localeCompare(a.versuchsnr));
+  }
+  return sorted;
+}
+
 function renderTable() {
   const q = (document.getElementById('search').value || '').toLowerCase();
-  const filtered = rows.filter(r =>
-    !q || [r.versuchsnr, r.titel, r.art, r.status].some(x => String(x || '').toLowerCase().includes(q))
-  );
+  const filtered = sortRows(rows.filter(r =>
+    !q || [r.versuchsnr, r.titel, r.art, r.status, r.kategorie].some(x => String(x || '').toLowerCase().includes(q))
+  ));
 
   if (!filtered.length) {
     document.getElementById('content').innerHTML = '<div class="status-msg">Keine Versuche gefunden.</div>';
@@ -331,18 +492,22 @@ function renderTable() {
 
   const trs = filtered.map(r => {
     const rowsHTML = [`
-      <tr class="row-main" onclick="toggleRow('${esc(r.versuchsnr)}')">
-        <td><strong>${esc(r.versuchsnr)}</strong>${r.idNummer ? `<div class="muted">ID ${esc(r.idNummer)}</div>` : ''}</td>
-        <td>${esc(r.titel)}</td>
-        <td>${esc(r.art)}</td>
-        <td>${esc(r.status)}</td>
-        <td>${r.letzteAZ}/${r.azGeplant}</td>
-        <td>${kfBarsHTML(r)}</td>
-        <td>${auswertungBadge(r)}</td>
+      <tr class="row-main">
+        <td class="cmp-cell" onclick="event.stopPropagation()">
+          <input type="checkbox" ${compareSet.has(r.versuchsnr) ? 'checked' : ''} onchange="toggleCompare('${esc(r.versuchsnr)}', this.checked)">
+        </td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')"><strong>${esc(r.versuchsnr)}</strong>${r.idNummer ? `<div class="muted">ID ${esc(r.idNummer)}</div>` : ''}</td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')">${esc(r.titel)}</td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')">${esc(r.art)}</td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')">${r.kategorie ? `<span class="kategorie-badge">${esc(r.kategorie)}</span>` : '<span class="muted">—</span>'}</td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')">${esc(r.status)}</td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')">${r.letzteAZ}/${r.azGeplant}</td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')">${kfBarsHTML(r)}</td>
+        <td onclick="toggleRow('${esc(r.versuchsnr)}')">${auswertungBadge(r)}</td>
       </tr>
     `];
     if (openRow === r.versuchsnr) {
-      rowsHTML.push(`<tr class="detail-row"><td colspan="7">${detailHTML(r)}</td></tr>`);
+      rowsHTML.push(`<tr class="detail-row"><td colspan="9">${detailHTML(r)}</td></tr>`);
     }
     return rowsHTML.join('');
   }).join('');
@@ -351,7 +516,7 @@ function renderTable() {
     <table class="ergebnisse">
       <thead>
         <tr>
-          <th>Versuch</th><th>Titel</th><th>Art</th><th>Status</th><th>AZ</th><th>KF% je Treatment</th><th>Auswertung</th>
+          <th></th><th>Versuch</th><th>Titel</th><th>Art</th><th>Kategorie</th><th>Status</th><th>AZ</th><th>KF% je Treatment</th><th>Auswertung</th>
         </tr>
       </thead>
       <tbody>${trs}</tbody>

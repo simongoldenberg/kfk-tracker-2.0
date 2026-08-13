@@ -97,7 +97,16 @@ const INDEX_COLS = {
   anzahl_trays: 'Anzahl_Trays',
   az_geplant: 'AZ_geplant',
   standorte_json: 'Standorte_JSON',
-  standort_historie_json: 'StandorteHistorie_JSON'
+  standort_historie_json: 'StandorteHistorie_JSON',
+  // Aussaat/Aktivierung + Chargen-IDs (siehe CLAUDE.md "Aussaat vs. Aktivierung"
+  // / "Chargen-IDs"). Start_Datum bleibt physisch bestehen und wird im
+  // readIndex() als aktivierung_datum-Alias ausgeliefert - keine Sheet-Migration
+  // noetig, da Alt-Zeilen dort bereits genau den richtigen Wert stehen haben.
+  aussaat_datum: 'Aussaat_Datum',
+  charge_kfk_potenzial: 'Charge_KFK_Potenzial',
+  substrat_json: 'Substrat_JSON',
+  az_termine_json: 'AZ_Termine_JSON',
+  ruhephase_bestaetigt: 'Ruhephase_Bestaetigt'
 };
 
 // Schema-Version des Versuchsobjekts (Index-Zeile). v2 = Standorterfassung
@@ -145,6 +154,10 @@ function doPost(e) {
         return json(saveTopf(body));
       case 'saveStandort':
         return json(saveStandort(body));
+      case 'updateChargenFelder':
+        return json(updateChargenFelder(body));
+      case 'updateTreatmentPellet':
+        return json(updateTreatmentPellet(body));
       case 'abschlussAZ':
         return json(abschlussAZ(body));
       case 'updateAZGeplant':
@@ -214,6 +227,30 @@ function migrateVersuchStandorte_(v) {
   return result;
 }
 
+// Twin von missingAbschlussFields() in js/chargen.js (Punkt 7) - serverseitige
+// Absicherung fuer markVersuchAbgeschlossen(). Siehe Kommentar bei
+// migrateVersuchStandorte_ zur Duplikation Frontend/Backend.
+const ABSCHLUSS_PFLICHTFELDER_ = [
+  { feld: 'saatgutcharge_id', label: 'Saatgutcharge-ID' },
+  { feld: 'charge_kfk_potenzial', label: 'Potenzial-KFK der Charge', istLeer: function (v) { return !v.charge_kfk_potenzial; } },
+  { feld: 'substratcharge_id', label: 'Substratcharge-ID' },
+  { feld: 'substrat_verhaeltnis', label: 'Substrat-Verhältnis' },
+  { feld: 'aktivierung_datum', label: 'Aktivierungs-Datum' },
+  { feld: 'ruhephase_bestaetigt', label: 'Ruhephase bestätigt', istLeer: function (v) { return !v.ruhephase_bestaetigt; } }
+];
+function missingAbschlussFelder_(v, treatments) {
+  const basis = v || {};
+  const fehlend = ABSCHLUSS_PFLICHTFELDER_.filter(function (def) {
+    return def.istLeer ? def.istLeer(basis) : (basis[def.feld] === '' || basis[def.feld] == null);
+  }).slice();
+  (treatments || []).forEach(function (t) {
+    if (t && !t.nackte_saat && (t.pelletcharge_id === '' || t.pelletcharge_id == null)) {
+      fehlend.push({ feld: 'pelletcharge_id', label: 'Pelletcharge-ID (' + (t.code || '?') + ')', treatmentCode: t.code });
+    }
+  });
+  return fehlend;
+}
+
 // Twin von recordStandortChange() in js/standorte.js: alter Wert wandert
 // unveraendert in die Historie, neuer Wert ersetzt standorte[tray]. Siehe
 // Kommentar bei migrateVersuchStandorte_ zur Duplikation Frontend/Backend.
@@ -274,6 +311,90 @@ function saveStandort(body) {
   return { ok: true, standorte: result.standorte, standortHistorie: result.standortHistorie };
 }
 
+// Speichert die Chargen-/Aussaat-Aktivierung-Felder auf Versuchsebene (siehe
+// CLAUDE.md "Aussaat vs. Aktivierung" / "Chargen-IDs"). Nur mitgelieferte
+// Felder werden angefasst - Object.assign auf den vorhandenen Substrat-Block,
+// damit ein Teil-Update (z.B. nur EC nachtragen) den Rest nicht loescht.
+function updateChargenFelder(body) {
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const colIdx = {};
+  headers.forEach(function (h, i) { colIdx[String(h).trim()] = i; });
+
+  let rowIdx = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][colIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) { rowIdx = i + 1; break; }
+  }
+  if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  const all = readIndex();
+  const v = all.find(function (x) { return String(x.versuchsnr) === String(body.versuchsnr); });
+  if (!v) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  function setIfPresent(colKey, val) {
+    const colName = INDEX_COLS[colKey];
+    if (colIdx[colName] === undefined) return;
+    indexSheet.getRange(rowIdx, colIdx[colName] + 1).setValue(val);
+  }
+
+  if (body.aktivierung_datum !== undefined) setIfPresent('start_datum', body.aktivierung_datum);
+  if (body.aussaat_datum !== undefined) setIfPresent('aussaat_datum', body.aussaat_datum);
+  if (body.ruhephase_bestaetigt !== undefined) setIfPresent('ruhephase_bestaetigt', !!body.ruhephase_bestaetigt);
+  if (body.saatgutcharge_id !== undefined) setIfPresent('saatgutcharge', body.saatgutcharge_id);
+  if (body.charge_kfk_potenzial !== undefined) setIfPresent('charge_kfk_potenzial', body.charge_kfk_potenzial);
+
+  const SUBSTRAT_KEYS = ['substratcharge_id', 'substrat_basis', 'substrat_zuschlag', 'substrat_verhaeltnis',
+    'substrat_lieferant_lot', 'substrat_ec', 'substrat_ph', 'substrat_anmerkung', 'substrat_gemischt_von'];
+  const hatSubstratFeld = SUBSTRAT_KEYS.some(function (k) { return body[k] !== undefined; });
+  if (hatSubstratFeld) {
+    const bisher = {};
+    SUBSTRAT_KEYS.forEach(function (k) { bisher[k] = v[k] || ''; });
+    SUBSTRAT_KEYS.forEach(function (k) { if (body[k] !== undefined) bisher[k] = body[k]; });
+    setIfPresent('substrat_json', JSON.stringify(bisher));
+  }
+
+  if (Array.isArray(body.az_termine)) setIfPresent('az_termine_json', JSON.stringify(body.az_termine));
+
+  SpreadsheetApp.flush();
+  return { ok: true, versuchsnr: body.versuchsnr };
+}
+
+// Aktualisiert die Pelletierungs-/Anker-Felder eines einzelnen Treatments
+// innerhalb von Treatments_JSON (siehe CLAUDE.md "Chargen-IDs"). Nur das
+// Treatment mit passendem code wird veraendert, alle anderen bleiben
+// unangetastet.
+function updateTreatmentPellet(body) {
+  const indexSheet = getIndexSheet();
+  const data = indexSheet.getDataRange().getValues();
+  const headers = data[0];
+  const colIdx = {};
+  headers.forEach(function (h, i) { colIdx[String(h).trim()] = i; });
+
+  let rowIdx = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][colIdx[INDEX_COLS.versuchsnr]]) === String(body.versuchsnr)) { rowIdx = i + 1; break; }
+  }
+  if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  const all = readIndex();
+  const v = all.find(function (x) { return String(x.versuchsnr) === String(body.versuchsnr); });
+  if (!v) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+  const treatments = Array.isArray(v.treatments) ? v.treatments : [];
+  const idx = treatments.findIndex(function (t) { return t && String(t.code) === String(body.code); });
+  if (idx < 0) throw new Error('Treatment nicht gefunden: ' + body.code);
+
+  const PELLET_KEYS = ['pelletcharge_id', 'matrixzusammensetzung', 'schichtdicke',
+    'pelletiert_von', 'pelletier_datum', 'pelletier_anmerkung', 'anker', 'nackte_saat'];
+  const updated = Object.assign({}, treatments[idx]);
+  PELLET_KEYS.forEach(function (k) { if (body[k] !== undefined) updated[k] = body[k]; });
+  treatments[idx] = updated;
+
+  indexSheet.getRange(rowIdx, colIdx[INDEX_COLS.treatments_json] + 1).setValue(JSON.stringify(treatments));
+  SpreadsheetApp.flush();
+  return { ok: true, versuchsnr: body.versuchsnr, treatment: updated };
+}
+
 function readIndex() {
   const sheet = getIndexSheet();
   const data = sheet.getDataRange().getValues();
@@ -301,6 +422,38 @@ function readIndex() {
     } else {
       v.start_datum = String(v.start_datum || '');
     }
+    if (v.aussaat_datum instanceof Date) {
+      v.aussaat_datum = Utilities.formatDate(v.aussaat_datum, TIMEZONE, 'yyyy-MM-dd');
+    } else {
+      v.aussaat_datum = String(v.aussaat_datum || '');
+    }
+    // Aktivierung/Saatgutcharge-ID (siehe CLAUDE.md "Aussaat vs. Aktivierung" /
+    // "Chargen-IDs"): beide Spalten bleiben physisch unveraendert
+    // (Start_Datum/Saatgutcharge), die neuen Namen sind reine Alias-Ausgaben -
+    // Alt-Zeilen liefern hier automatisch den bisherigen Wert.
+    v.aktivierung_datum = v.start_datum;
+    v.saatgutcharge_id = v.saatgutcharge || '';
+    v.ruhephase_bestaetigt = !!v.ruhephase_bestaetigt;
+
+    // Substrat-Block + AZ-Termine parsen (JSON-Buendel analog Treatments_JSON).
+    // Leere Defaults zuerst setzen, damit fehlende/kaputte Substrat_JSON nie
+    // zu undefined-Feldern fuehrt (missingImportFields/missingAbschlussFields
+    // pruefen auf '' bzw. null).
+    Object.assign(v, {
+      substratcharge_id: '', substrat_basis: '', substrat_zuschlag: '',
+      substrat_verhaeltnis: '', substrat_lieferant_lot: '', substrat_ec: '',
+      substrat_ph: '', substrat_anmerkung: '', substrat_gemischt_von: ''
+    });
+    try {
+      if (v.substrat_json) Object.assign(v, JSON.parse(v.substrat_json));
+    } catch (e) { /* fehlerhaftes JSON bleibt bei den leeren Defaults */ }
+    delete v.substrat_json;
+    try {
+      v.az_termine = v.az_termine_json ? JSON.parse(v.az_termine_json) : [];
+    } catch (e) {
+      v.az_termine = [];
+    }
+    delete v.az_termine_json;
 
     // Treatments parsen
     try {
@@ -812,6 +965,14 @@ function buildVersuchsberichtHtml_(v, clientFinalKommentarHtml) {
       (v.hypothese ? 'Hypothese: ' + escHtml_(v.hypothese) + '<br>' : '') +
       'Design: ' + (v.anzahl_trays || 1) + ' Tray(s) · ' + (v.raster_cols || 4) + '×' + (v.raster_rows || 6) +
       ' Raster · ' + (v.samen_pro_topf || 36) + ' Samen/Topf<br>' +
+      (v.aussaat_datum || v.aktivierung_datum
+        ? 'Aussaat: ' + escHtml_(v.aussaat_datum || '—') + ' · Aktivierung: ' + escHtml_(v.aktivierung_datum || '—') + '<br>'
+        : '') +
+      (v.saatgutcharge_id || v.charge_kfk_potenzial
+        ? 'Saatgutcharge: ' + escHtml_(v.saatgutcharge_id || '—') +
+          (v.charge_kfk_potenzial ? ' (Potenzial-KFK ' + escHtml_(v.charge_kfk_potenzial) + '%)' : '') + '<br>'
+        : '') +
+      (v.substratcharge_id ? 'Substratcharge: ' + escHtml_(v.substratcharge_id) + '<br>' : '') +
       (treatLegend ? 'Treatments:<br>' + treatLegend + '<br>' : '') + '<br>';
   }
 
@@ -991,6 +1152,16 @@ function markVersuchAbgeschlossen(body) {
     }
   }
   if (rowIdx < 0) throw new Error('Versuch nicht gefunden: ' + body.versuchsnr);
+
+  // Versuch vorab laden, um die Chargen-Pflichtfelder zu pruefen (Punkt 7,
+  // serverseitige Absicherung fuer den Fall, dass ein Client die Frontend-
+  // Pruefung umgeht - die eigentliche UX lebt in openVersuchEnde()).
+  const allVPruefung = readIndex();
+  const vPruefung = allVPruefung.find(x => String(x.versuchsnr) === String(body.versuchsnr));
+  const fehlend = missingAbschlussFelder_(vPruefung, (vPruefung && vPruefung.treatments) || []);
+  if (fehlend.length > 0) {
+    return { error: 'Fehlende Pflichtangaben: ' + fehlend.map(f => f.label).join(', ') };
+  }
 
   // Status im Index auf "Abgeschlossen"
   indexSheet.getRange(rowIdx, cIdx[INDEX_COLS.status] + 1).setValue('Abgeschlossen');
@@ -2053,9 +2224,27 @@ function createVersuchInIndex(body) {
     themenbereich: body.themenbereich || '',
     themenfarbe:   body.themenfarbe || '#4a6b3a',
     hypothese:     body.hypothese || '',
-    start_datum:   body.start_datum || '',
+    // Aktivierung ist Tag 0 fuer alle Keimzeitberechnungen (siehe CLAUDE.md
+    // "Aussaat vs. Aktivierung"); aeltere Aufrufer, die nur start_datum
+    // schicken, landen unveraendert in derselben Spalte.
+    start_datum:   body.aktivierung_datum || body.start_datum || '',
+    aussaat_datum: body.aussaat_datum || '',
     mdd_pp:        body.mdd_pp || '',
-    saatgutcharge: body.saatgutcharge || '',
+    saatgutcharge: body.saatgutcharge_id || body.saatgutcharge || '',
+    charge_kfk_potenzial: body.charge_kfk_potenzial || '',
+    ruhephase_bestaetigt: !!body.ruhephase_bestaetigt,
+    substrat_json: JSON.stringify({
+      substratcharge_id:     body.substratcharge_id || '',
+      substrat_basis:        body.substrat_basis || '',
+      substrat_zuschlag:     body.substrat_zuschlag || '',
+      substrat_verhaeltnis:  body.substrat_verhaeltnis || '',
+      substrat_lieferant_lot: body.substrat_lieferant_lot || '',
+      substrat_ec:           body.substrat_ec || '',
+      substrat_ph:           body.substrat_ph || '',
+      substrat_anmerkung:    body.substrat_anmerkung || '',
+      substrat_gemischt_von: body.substrat_gemischt_von || ''
+    }),
+    az_termine_json: JSON.stringify(Array.isArray(body.az_termine) ? body.az_termine : []),
     ort:           body.ort || 'Growzelt',
     verantwortlich: body.verantwortlich || 'Simon Goldenberg',
     posten_nr:     body.posten_nr || '',
@@ -2124,7 +2313,7 @@ function setupSingleVersuch(versuchsnr) {
   const treatments = v.treatments || [];
   buildDatenTab(newSs, Number(v.raster_cols || 4), Number(v.raster_rows || 6), Number(v.anzahl_trays || 1));
   buildMetaTab(newSs, versuchsnr, treatments);
-  if (treatments.length) buildAuswertungTab(newSs, treatments, Number(v.samen_pro_topf || 36));
+  if (treatments.length) buildAuswertungTab(newSs, treatments, Number(v.samen_pro_topf || 36), Number(v.charge_kfk_potenzial || 0));
 
   // IDs zurueck in Index schreiben
   const indexSheet = getIndexSheet();
@@ -2357,6 +2546,7 @@ function bulkSetupVersuche() {
       const rasterRows = Number(row[colIdx[INDEX_COLS.raster_rows]] || 6);
       const samenProTopf = Number(row[colIdx[INDEX_COLS.samen_pro_topf]] || 36);
       const anzahlTrays = Number(row[colIdx[INDEX_COLS.anzahl_trays]] || 1);
+      const chargeKfkPotenzial = Number(row[colIdx[INDEX_COLS.charge_kfk_potenzial]] || 0);
 
       let treatments;
       try { treatments = JSON.parse(treatmentsJson); } catch (e) { treatments = []; }
@@ -2377,7 +2567,7 @@ function bulkSetupVersuche() {
       buildDatenTab(newSs, rasterCols, rasterRows, anzahlTrays);
       buildMetaTab(newSs, versuchsnr, treatments);
       if (treatments.length) {
-        buildAuswertungTab(newSs, treatments, samenProTopf);
+        buildAuswertungTab(newSs, treatments, samenProTopf, chargeKfkPotenzial);
       }
 
       // IDs zurueck in Index
@@ -2499,16 +2689,17 @@ function buildMetaTab(ss, versuchsnr, treatments) {
   meta.setColumnWidth(2, 500);
 }
 
-function buildAuswertungTab(ss, treatments, samenProTopf) {
+function buildAuswertungTab(ss, treatments, samenProTopf, chargeKfkPotenzial) {
   const sheet = ss.insertSheet('Auswertung');
+  const potenzial = Number(chargeKfkPotenzial || 0);
   sheet.getRange(1, 1).setValue('Live-Auswertung')
     .setFontSize(13).setFontWeight('bold')
     .setBackground('#2d4a23').setFontColor('#f4f0e6');
-  sheet.getRange(1, 1, 1, 8).merge();
+  sheet.getRange(1, 1, 1, 9).merge();
 
   sheet.getRange(2, 1).setValue('Hinweis: Fuer ANOVA, eta^2 und Post-hoc-Tukey siehe Python/R-Notebook am Laptop.')
     .setFontStyle('italic').setFontColor('#6b5f4e');
-  sheet.getRange(2, 1, 1, 8).merge();
+  sheet.getRange(2, 1, 1, 9).merge();
 
   // AZ-Zahl-Spalten in "Daten": AZ1=G, AZ2=J, AZ3=M, AZ4=P, AZ5=S
   const azCols = { 1: 'G', 2: 'J', 3: 'M', 4: 'P', 5: 'S' };
@@ -2517,8 +2708,12 @@ function buildAuswertungTab(ss, treatments, samenProTopf) {
   for (let az = 1; az <= 5; az++) {
     sheet.getRange(curRow, 1).setValue('AZ' + az).setFontWeight('bold').setFontColor('#4a6b3a').setFontSize(12);
     curRow++;
-    const headerRow = ['Treatment', 'n', 'Mean', 'SD', 'Min', 'Max', 'KF %', 'CV %'];
-    sheet.getRange(curRow, 1, 1, 8).setValues([headerRow])
+    // rel. KFK % (Punkt 8): KF% dieser Zeile / Chargenpotenzial * 100, "—"
+    // wenn kein Potenzial gesetzt ist (statt Div/0-Fehler). Potenzial wird
+    // beim Sheet-Aufbau fest eingesetzt, analog samenProTopf - aendert sich
+    // charge_kfk_potenzial spaeter, braucht der Tab einen manuellen Rebuild.
+    const headerRow = ['Treatment', 'n', 'Mean', 'SD', 'Min', 'Max', 'KF %', 'CV %', 'rel. KFK %'];
+    sheet.getRange(curRow, 1, 1, 9).setValues([headerRow])
       .setFontWeight('bold').setBackground('#ebe5d3').setHorizontalAlignment('center');
     curRow++;
 
@@ -2533,12 +2728,17 @@ function buildAuswertungTab(ss, treatments, samenProTopf) {
       sheet.getRange(curRow, 6).setFormula(`=IFERROR(MAXIFS(Daten!${col}:${col},Daten!D:D,"${prefix} *"),"")`);
       sheet.getRange(curRow, 7).setFormula(`=IFERROR(ROUND(C${curRow}/${samenProTopf}*100,0)&"%","")`);
       sheet.getRange(curRow, 8).setFormula(`=IFERROR(ROUND(D${curRow}/C${curRow}*100,1)&"%","")`);
+      sheet.getRange(curRow, 9).setFormula(
+        potenzial > 0
+          ? `=IFERROR(ROUND(C${curRow}/${samenProTopf}*100/${potenzial}*100,1)&"%","—")`
+          : '"—"'
+      );
       curRow++;
     });
     curRow += 1; // Leerzeile
   }
 
-  for (let c = 1; c <= 8; c++) sheet.setColumnWidth(c, c === 1 ? 160 : 80);
+  for (let c = 1; c <= 9; c++) sheet.setColumnWidth(c, c === 1 ? 160 : 80);
 }
 
 /**

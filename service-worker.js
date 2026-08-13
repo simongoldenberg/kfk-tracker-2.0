@@ -3,7 +3,7 @@
 // - Apps-Script-API: network-only (nie cachen)
 // - Bei Offline: letzte bekannte Daten zeigen
 
-const CACHE_VERSION = 'skyseed-kfk-20260810-3831008';
+const CACHE_VERSION = 'skyseed-kfk-20260813-db4b5df';
 const STATIC_CACHE = [
   './',
   './index.html',

@@ -1100,6 +1100,27 @@
   </div>
 </div>
 
+<!-- Chargen bearbeiten (Aussaat/Aktivierung, Saatgutcharge, Substrat) -->
+<div class="overlay" id="chargen-overlay" onclick="if(event.target===this)closeChargenEdit()">
+  <div class="modal" id="chargen-modal">
+    <!-- dynamisch -->
+  </div>
+</div>
+
+<!-- Treatment bearbeiten (Pelletierung, Anker, nackte Saat) -->
+<div class="overlay" id="treatpellet-overlay" onclick="if(event.target===this)closeTreatmentPellet()">
+  <div class="modal" id="treatpellet-modal">
+    <!-- dynamisch -->
+  </div>
+</div>
+
+<!-- Sammeluebernahme Pelletierprotokoll -->
+<div class="overlay" id="sammeluebernahme-overlay" onclick="if(event.target===this)closeSammeluebernahme()">
+  <div class="modal" id="sammeluebernahme-modal">
+    <!-- dynamisch -->
+  </div>
+</div>
+
 <!-- Asana-Kommentar-Preview -->
 <div class="overlay" id="asana-overlay" onclick="if(event.target===this)closeAsana()">
   <div class="modal" id="asana-modal">
@@ -1157,6 +1178,7 @@
 <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
 
 <script src="js/standorte.js"></script>
+<script src="js/chargen.js"></script>
 <script src="js/export.js"></script>
 <script src="js/paste-import.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -1185,8 +1207,8 @@ const STORAGE_KEY = 'kfk-tracker-pref';
 // App-Version + Stand dieser Version (wird dezent in der Kopfzeile angezeigt).
 // APP_VERSION_DATE wird von bump-cache.js beim Frontend-Deploy automatisch auf
 // das Deploy-Datum gesetzt — die Nummer selbst bleibt manuell (s. CLAUDE.md).
-const APP_VERSION = '1.6.0';
-const APP_VERSION_DATE = '2026-08-10';
+const APP_VERSION = '1.7.0';
+const APP_VERSION_DATE = '2026-08-13';
 
 // Zeile fuer die Kopfzeile: "v1.1.0 · 06.08.2026"
 function versionLabel() {
@@ -1217,7 +1239,8 @@ const ICON = {
   inbox: '<svg viewBox="0 0 24 24"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M4 12l1-7h14l1 7v7H4z"/></svg>',
   warn: '<svg viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17v.01"/></svg>',
   sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19v2.4M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M2.5 12h2.4M19 12h2.4M4.9 19l1.7-1.7M17.4 6.6l1.7-1.7"/></svg>',
-  moon: '<svg viewBox="0 0 24 24"><path d="M21 13.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 10.5z"/></svg>'
+  moon: '<svg viewBox="0 0 24 24"><path d="M21 13.5A8.5 8.5 0 1110.5 3a7 7 0 0010.5 10.5z"/></svg>',
+  edit: '<svg viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16v4z"/><path d="M14.5 5.5l4 4"/></svg>'
 };
 
 // ========== Dunkelmodus ==========
@@ -1786,16 +1809,27 @@ function cardHTML(v) {
         <button class="delete-btn" title="Versuch löschen" onclick="event.stopPropagation();openDeleteVersuch('${esc(v.versuchsnr)}')" style="background:none;border:none;color:var(--err);width:36px;height:36px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center">${ICON.trash.replace('<svg ', '<svg style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8" ')}</button>
         <span class="arrow">▶</span>
       </div>
-      <div class="titel">${esc(v.titel || '—')}</div>
+      <div class="titel">${esc(v.titel || '—')}${ankerBadgeHTML(v)}</div>
       <div class="meta">
         <span><strong>${esc(v.baumart_kurz || '?')}</strong></span>
         <span>${esc(v.ort || '?')}</span>
-        <span>Start ${esc(v.start_datum || '?')}</span>
+        <span>Aktivierung ${esc(v.aktivierung_datum || v.start_datum || '?')}</span>
       </div>
       <div class="fortschritt">${azHTML || '<span class="fortschritt-pill">noch keine AZ</span>'}</div>
       ${progressBarHTML(f)}
     </div>
   `;
+}
+
+// Zeigt ob T0 (nackte Saat, Pflicht fuer die Jahresauswertung) und T_ref
+// (Standardmatrix, optional) unter den Treatments vorhanden sind (Punkt 5).
+function ankerBadgeHTML(v) {
+  const treatments = v.treatments || [];
+  const hatT0 = treatments.some(t => t.anker === 't0');
+  const hatTRef = treatments.some(t => t.anker === 't_ref');
+  if (!treatments.length) return '';
+  return ` <span class="small" title="${hatT0 ? 'T0 vorhanden' : 'T0 fehlt'}" style="font-size:13px;padding:1px 5px;border-radius:var(--radius-sm);border:1px solid var(--line);color:${hatT0 ? 'var(--ink-muted)' : 'var(--warn)'}">${hatT0 ? '✓' : '✗'} T0</span>` +
+    (hatTRef ? ` <span class="small" style="font-size:13px;padding:1px 5px;border-radius:var(--radius-sm);border:1px solid var(--line);color:var(--ink-muted)">✓ T_ref</span>` : '');
 }
 
 function archivCardHTML(v) {
@@ -1817,7 +1851,7 @@ function archivCardHTML(v) {
       <div class="meta">
         <span><strong>${esc(v.baumart_kurz || '?')}</strong></span>
         <span>${esc(v.ort || '?')}</span>
-        <span>Start ${esc(v.start_datum || '?')}</span>
+        <span>Aktivierung ${esc(v.aktivierung_datum || v.start_datum || '?')}</span>
       </div>
       <div class="fortschritt">${azHTML || '<span class="fortschritt-pill">keine AZ-Daten</span>'}</div>
     </div>
@@ -1895,6 +1929,8 @@ function renderDetail() {
 
     ${isArchived ? `<div style="background:var(--warn-bg);color:var(--warn);padding:10px 16px;border-radius:var(--radius-md);font-size:17px;font-weight:700;text-align:center;letter-spacing:0.03em;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px">${ICON.archive.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9" ')} ARCHIVIERT – Nur-Lesen · Versuch abgeschlossen</div>` : ''}
 
+    ${renderMissingFieldsBanner(v)}
+
     <div class="status-row">
       <div class="sync-status">
         <span class="sync-dot" id="sync-dot"></span>
@@ -1952,6 +1988,7 @@ function renderDetail() {
 
     <div class="toolbar" style="margin-top:20px">
       <button class="primary" onclick="openAsanaPreview()">${ICON.clipboard} Asana-Kommentar</button>
+      <button onclick="openChargenEdit()">${ICON.flag} Chargen bearbeiten</button>
       <button onclick="openStatHint()">${ICON.chart} Statistik-Hinweis</button>
       <button onclick="exportVersuchCsv()">${ICON.download} Export CSV</button>
       <button onclick="postBackupToClipboard()">${ICON.download} Backup posten</button>
@@ -1960,6 +1997,20 @@ function renderDetail() {
 
   // Benutzer aus pref übernehmen
   if (pref.benutzer) state.benutzer = pref.benutzer;
+}
+
+// Persistenter Hinweis-Banner (nicht der globale #banner fuer Fehler) fuer
+// fehlende Chargen-/Aussaat-Aktivierung-Angaben (siehe CLAUDE.md "Chargen-IDs").
+// Verschwindet automatisch, sobald alles gesetzt ist.
+function renderMissingFieldsBanner(v) {
+  const fehlend = KfkChargen.missingImportFields(v);
+  if (!fehlend.length) return '';
+  return `<div style="background:var(--warn-bg);color:var(--warn);padding:10px 16px;border-radius:var(--radius-md);border-left:3px solid var(--warn);margin-bottom:12px;font-size:17px;display:flex;align-items:flex-start;gap:8px">
+    ${ICON.warn.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0;margin-top:2px" ')}
+    <span>Fehlende Angaben: ${fehlend.map(f => esc(f.label)).join(', ')} — bitte vor der ersten Auszählung nachtragen.
+      <button class="small" onclick="openChargenEdit()" style="margin-left:8px">Jetzt nachtragen</button>
+    </span>
+  </div>`;
 }
 
 function renderInfoPanel(v, f) {
@@ -1979,13 +2030,17 @@ function renderInfoPanel(v, f) {
     </div>`;
   }).join('');
 
+  const ankerBadge = { t0: 'T0', t_ref: 'T_ref' };
   const treatHTML = treatments.map(t => `
     <div class="treatment-item">
       <span class="treatment-dot" style="background:${t.color||'#ccc'}"></span>
       <span class="treatment-code">${esc(t.code)}</span>
       <span>${esc(t.label||'')}</span>
+      ${t.anker && ankerBadge[t.anker] ? `<span class="small" style="padding:1px 6px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;color:var(--ink-muted)">${ankerBadge[t.anker]}</span>` : ''}
+      <button class="small" title="Pelletierung bearbeiten" onclick="openTreatmentPellet('${esc(t.code)}')" style="margin-left:auto;padding:4px 6px">${ICON.edit.replace('<svg ', '<svg style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8" ')}</button>
     </div>
   `).join('');
+  const hatT0 = treatments.some(t => t.anker === 't0');
 
   const driveLink = v.folder_id ? `https://drive.google.com/drive/folders/${v.folder_id}` : '#';
   const sheetLink = v.sheet_file_id ? `https://docs.google.com/spreadsheets/d/${v.sheet_file_id}` : '#';
@@ -2003,10 +2058,14 @@ function renderInfoPanel(v, f) {
           <h3>Eckdaten</h3>
           <div class="info-kv">
             <div class="k">Themenbereich</div><div class="v">${esc(v.themenbereich||'—')}</div>
-            <div class="k">Start-Datum</div><div class="v">${esc(v.start_datum||'—')}</div>
+            <div class="k">Aussaat</div><div class="v">${esc(v.aussaat_datum||'—')}</div>
+            <div class="k">Aktivierung</div><div class="v">${esc(v.aktivierung_datum||'—')}</div>
             <div class="k">Ort</div><div class="v">${esc(v.ort||'—')}</div>
             <div class="k">Verantwortlich</div><div class="v">${esc(v.verantwortlich||'—')}</div>
             <div class="k">Posten-Nr.</div><div class="v">${esc(v.posten_nr||'—')}</div>
+            <div class="k">Saatgutcharge-ID</div><div class="v">${esc(v.saatgutcharge_id||'—')}</div>
+            <div class="k">Potenzial-KFK</div><div class="v">${v.charge_kfk_potenzial ? esc(v.charge_kfk_potenzial) + '%' : '—'}</div>
+            <div class="k">Substratcharge-ID</div><div class="v">${esc(v.substratcharge_id||'—')}</div>
             <div class="k">Status</div><div class="v">${esc(v.status||'—')}</div>
           </div>
         </div>
@@ -2020,7 +2079,9 @@ function renderInfoPanel(v, f) {
         </div>
         <div class="info-section">
           <h3>Treatments</h3>
+          ${!hatT0 && treatments.length ? `<div style="background:var(--warn-bg);color:var(--warn);padding:6px 10px;border-radius:var(--radius-md);border-left:3px solid var(--warn);margin-bottom:8px;font-size:16px">${ICON.warn.replace('<svg ', '<svg style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;vertical-align:-2px" ')} Ohne T0 kann dieser Versuch nicht in die Jahresauswertung eingehen.</div>` : ''}
           <div class="treatments-list">${treatHTML || '<em>keine Treatments definiert</em>'}</div>
+          <button class="small" onclick="openSammeluebernahme()" style="margin-top:8px">${ICON.clipboard} Pelletierprotokoll übernehmen</button>
         </div>
         <div class="info-section">
           <h3>Fortschritt</h3>
@@ -2966,6 +3027,7 @@ function openAbschluss() {
     return { tray: trayNum, block: toRomanNumeral(trayNum), has };
   });
   const fotosFehlen = fotos.filter(f => !f.has);
+  const fehlendeChargen = KfkChargen.missingAbschlussFields(v, v.treatments || []);
 
   const html = `
     <div class="modal-head">
@@ -2989,9 +3051,21 @@ function openAbschluss() {
       </div>
     ` : ''}
 
+    ${fehlendeChargen.length > 0 ? `
+      <div style="background:var(--warn-bg);color:var(--warn);padding:10px;border-radius:var(--radius-md);border-left:3px solid var(--warn);margin-bottom:14px;font-size:19px;display:flex;align-items:flex-start;gap:8px">
+        ${ICON.warn.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0;margin-top:2px" ')}
+        <span>
+          Ohne diese Angaben ist der Versuch später nicht mit anderen Versuchen vergleichbar:<br>
+          ${fehlendeChargen.map(f => esc(f.label)).join(', ')}<br>
+          <button class="small" onclick="closeAbschluss(); openChargenEdit();" style="margin-top:6px">Chargen bearbeiten</button>
+          <button class="small" onclick="closeAbschluss(); openTreatmentPellet('${esc((fehlendeChargen.find(f=>f.treatmentCode)||{}).treatmentCode||'')}');" style="margin-top:6px" ${fehlendeChargen.some(f=>f.treatmentCode) ? '' : 'hidden'}>Treatment bearbeiten</button>
+        </span>
+      </div>
+    ` : ''}
+
     <div class="modal-actions">
       <button onclick="closeAbschluss()">Abbrechen</button>
-      <button class="primary" onclick="confirmAbschluss()">${ICON.check} Abschließen</button>
+      <button class="primary" onclick="confirmAbschluss()" ${fehlendeChargen.length > 0 ? 'disabled' : ''}>${ICON.check} Abschließen</button>
     </div>
   `;
   document.getElementById('abschluss-modal').innerHTML = html;
@@ -3044,6 +3118,8 @@ function openVersuchEnde() {
     `<strong>${esc(r.t.code)} ${esc(r.t.label||'')}</strong>: ${r.azKFs.map((k, i) => k === null ? '–' : 'AZ'+(i+1)+'='+k+'%').join(' / ')}`
   ).join('<br>');
 
+  const fehlendeChargen = KfkChargen.missingAbschlussFields(v, treatments);
+
   const html = `
     <div class="modal-head">
       <h2>${ICON.flag} Versuch abschließen?</h2>
@@ -3061,6 +3137,17 @@ function openVersuchEnde() {
       <strong>Komplett-Trend:</strong><br>${trendStr}
     </div>
 
+    ${fehlendeChargen.length > 0 ? `
+      <div style="background:var(--warn-bg);color:var(--warn);padding:10px;border-radius:var(--radius-md);border-left:3px solid var(--warn);margin-bottom:14px;font-size:19px;display:flex;align-items:flex-start;gap:8px">
+        ${ICON.warn.replace('<svg ', '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0;margin-top:2px" ')}
+        <span>
+          Ohne diese Angaben ist der Versuch später nicht mit anderen Versuchen vergleichbar:<br>
+          ${fehlendeChargen.map(f => esc(f.label)).join(', ')}<br>
+          <button class="small" onclick="closeVersuchEnde(); openChargenEdit();" style="margin-top:6px">Chargen bearbeiten</button>
+        </span>
+      </div>
+    ` : ''}
+
     <div class="field" style="margin-bottom:12px">
       <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Abschluss-Bemerkung (optional)</label>
       <textarea id="versuch-ende-text" style="width:100%;min-height:70px;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)" placeholder="Fazit, Auffälligkeiten, nächste Schritte …"></textarea>
@@ -3068,7 +3155,7 @@ function openVersuchEnde() {
 
     <div class="modal-actions">
       <button onclick="closeVersuchEnde()">Abbrechen</button>
-      <button class="primary" onclick="confirmVersuchEnde()">${ICON.flag} Endgültig abschließen</button>
+      <button class="primary" onclick="confirmVersuchEnde()" ${fehlendeChargen.length > 0 ? 'disabled' : ''}>${ICON.flag} Endgültig abschließen</button>
     </div>
   `;
   document.getElementById('versuch-ende-modal').innerHTML = html;
@@ -3493,6 +3580,340 @@ async function confirmAZPlanned() {
   }
 }
 
+// ========== Chargen bearbeiten (Aussaat/Aktivierung, Saatgutcharge, Substrat) ==========
+// Einzige Stelle, an der diese Felder gesetzt/korrigiert werden - egal ob der
+// Versuch per Asana-Import oder Paste-Import angelegt wurde (siehe CLAUDE.md
+// "Chargen-IDs"). Logik (Wochentag/Ruhedauer/EC-Warnung) in js/chargen.js.
+function cfField(id, label, value, opts) {
+  opts = opts || {};
+  const type = opts.type || 'text';
+  const attrs = opts.numeric ? ' inputmode="numeric"' : '';
+  return `<div class="field" style="margin-bottom:10px">
+    <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">${esc(label)}${opts.required ? ' *' : ''}</label>
+    <input id="${id}" type="${type}"${attrs} value="${esc(value == null ? '' : value)}" placeholder="${esc(opts.placeholder || '')}"
+      oninput="onChargenFieldChange()"
+      style="width:100%;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)">
+  </div>`;
+}
+
+// AZ-Termine sind eine einfache Liste von Tageszahlen (Tage nach Aktivierung),
+// vorbelegt mit dem Vorschlag aus KfkChargen.azTermineVorschlag, frei
+// editierbar/erweiterbar (Punkt 1).
+function renderAzTermineRows(tage) {
+  return tage.map((t, i) => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px" data-az-termin-row>
+      <input type="text" inputmode="numeric" value="${esc(t)}" style="width:80px;padding:8px;font-family:inherit;font-size:19px;border:1.5px solid var(--line);background:var(--bg)">
+      <span style="font-size:16px;color:var(--ink-muted)">Tage</span>
+      <button class="small" onclick="this.closest('[data-az-termin-row]').remove()" style="margin-left:auto">${ICON.trash.replace('<svg ', '<svg style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8" ')}</button>
+    </div>
+  `).join('');
+}
+function addAzTerminRow() {
+  const wrap = document.getElementById('cf-az-termine');
+  wrap.insertAdjacentHTML('beforeend', renderAzTermineRows(['']));
+}
+function readAzTermineFromModal() {
+  return Array.from(document.querySelectorAll('#cf-az-termine [data-az-termin-row] input'))
+    .map(el => Number(el.value))
+    .filter(n => !isNaN(n) && n > 0);
+}
+
+function openChargenEdit() {
+  const v = state.currentVersuch;
+  const html = `
+    <div class="modal-head">
+      <h2>Chargen bearbeiten</h2>
+      <span class="coord">${esc(v.versuchsnr)}</span>
+    </div>
+
+    <p style="margin:0 0 6px;font-size:18px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em">Aussaat &amp; Aktivierung</p>
+    ${cfField('cf-aussaat', 'Aussaat-Datum', v.aussaat_datum, { type: 'date', required: true })}
+    <div id="cf-aussaat-warn"></div>
+    ${cfField('cf-aktivierung', 'Aktivierungs-Datum', v.aktivierung_datum, { type: 'date', required: true })}
+    <div id="cf-aktivierung-warn"></div>
+    <div id="cf-begruendung-wrap" style="display:none">
+      <div class="field" style="margin-bottom:10px">
+        <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Begründung für Abweichung *</label>
+        <textarea id="cf-begruendung" rows="2" oninput="onChargenFieldChange()"
+          style="width:100%;padding:10px;font-family:inherit;font-size:19px;border:1.5px solid var(--warn);background:var(--bg)"></textarea>
+      </div>
+    </div>
+    <div id="cf-ruhedauer" style="margin-bottom:10px;font-size:18px;color:var(--ink-muted)"></div>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:19px">
+      <input type="checkbox" id="cf-ruhephase" ${v.ruhephase_bestaetigt ? 'checked' : ''} style="width:22px;height:22px" onchange="onChargenFieldChange()">
+      Ruhephase bestätigt (trocken und dunkel gelagert)
+    </label>
+
+    <p style="margin:0 0 6px;font-size:18px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em">AZ-Termine (Tage nach Aktivierung)</p>
+    <div id="cf-az-termine">${renderAzTermineRows((v.az_termine && v.az_termine.length) ? v.az_termine : KfkChargen.azTermineVorschlag(v.baumart_kurz, v.baumart_lat))}</div>
+    <button class="small" onclick="addAzTerminRow()" style="margin-bottom:16px">+ Termin hinzufügen</button>
+
+    <p style="margin:16px 0 6px;font-size:18px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em">Saatgutcharge</p>
+    ${cfField('cf-saatgutcharge', 'Saatgutcharge-ID', v.saatgutcharge_id, { required: true, placeholder: 'Postennummer, z. B. SKi-P34 · oder Hanf-001' })}
+    ${cfField('cf-potenzial', 'Potenzial-KFK der Charge (Keimschrank) in %', v.charge_kfk_potenzial, { numeric: true, required: true })}
+
+    <p style="margin:16px 0 6px;font-size:18px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em">Substrat</p>
+    ${cfField('cf-substratcharge', 'Substratcharge-ID', v.substratcharge_id, { required: true, placeholder: 'z. B. SUB-08-13-A' })}
+    ${cfField('cf-substrat-basis', 'Substrat-Basis', v.substrat_basis, { required: true, placeholder: 'z. B. Kokosfaser, gepuffert, feines Mark' })}
+    ${cfField('cf-substrat-zuschlag', 'Substrat-Zuschlag', v.substrat_zuschlag, { placeholder: 'z. B. Quarzsand 0,5–1 mm' })}
+    ${cfField('cf-substrat-verhaeltnis', 'Substrat-Verhältnis (Vol.)', v.substrat_verhaeltnis, { required: true, placeholder: 'immer Volumen-%, nie Massen-%, z. B. 60/40' })}
+    ${cfField('cf-substrat-lot', 'Lieferant / Lot', v.substrat_lieferant_lot, { placeholder: 'z. B. Klasmann / Lot 4471-26' })}
+    ${cfField('cf-substrat-ec', 'EC (mS/cm)', v.substrat_ec, { numeric: true })}
+    <div id="cf-ec-warn"></div>
+    ${cfField('cf-substrat-ph', 'pH', v.substrat_ph, { numeric: true })}
+    ${cfField('cf-substrat-anmerkung', 'Anmerkung', v.substrat_anmerkung)}
+    ${cfField('cf-substrat-gemischt-von', 'Gemischt von', v.substrat_gemischt_von, { placeholder: 'Initialen' })}
+
+    <div class="modal-actions">
+      <button onclick="closeChargenEdit()">Abbrechen</button>
+      <button class="primary" id="cf-confirm" onclick="confirmChargenEdit()">Speichern</button>
+    </div>
+  `;
+  document.getElementById('chargen-modal').innerHTML = html;
+  document.getElementById('chargen-overlay').classList.add('open');
+  onChargenFieldChange();
+}
+
+// Aktualisiert alle Warnhinweise + Ruhedauer + Speichern-Sperre, ohne das
+// Modal neu zu rendern (sonst verliert man Fokus/Cursor in den Textfeldern).
+function onChargenFieldChange() {
+  const warnBox = (msg) => `<div style="background:var(--warn-bg);color:var(--warn);padding:8px 10px;border-radius:var(--radius-md);border-left:3px solid var(--warn);margin:-4px 0 10px;font-size:17px;display:flex;align-items:center;gap:8px">${ICON.warn.replace('<svg ', '<svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0" ')} ${msg}</div>`;
+
+  const aussaat = document.getElementById('cf-aussaat').value;
+  const aktivierung = document.getElementById('cf-aktivierung').value;
+
+  const aussaatCheck = KfkChargen.aussaatWochentagCheck(aussaat);
+  document.getElementById('cf-aussaat-warn').innerHTML = (aussaatCheck && !aussaatCheck.erlaubt)
+    ? warnBox('Aussaat ist ein ' + aussaatCheck.wochentagName + ' — Aussaat sollte Montag bis Donnerstag erfolgen.')
+    : '';
+
+  const aktivierungCheck = KfkChargen.aktivierungWochentagCheck(aktivierung);
+  const abweichung = !!(aktivierungCheck && !aktivierungCheck.erlaubt);
+  document.getElementById('cf-aktivierung-warn').innerHTML = abweichung
+    ? warnBox('Aktivierung ist ein ' + aktivierungCheck.wochentagName + ', kein Donnerstag — Begründung erforderlich.')
+    : '';
+  document.getElementById('cf-begruendung-wrap').style.display = abweichung ? 'block' : 'none';
+
+  const tage = KfkChargen.ruhedauerTage(aussaat, aktivierung);
+  const ruhedauerBox = document.getElementById('cf-ruhedauer');
+  if (tage == null) {
+    ruhedauerBox.innerHTML = '';
+  } else if (KfkChargen.ruhedauerWarnung(tage)) {
+    ruhedauerBox.innerHTML = warnBox('Ruhedauer: <strong>' + tage + ' Tag(e)</strong> — über 4 Tage.');
+  } else {
+    ruhedauerBox.innerHTML = 'Ruhedauer: <strong>' + tage + ' Tag(e)</strong>';
+  }
+
+  const ec = document.getElementById('cf-substrat-ec').value;
+  document.getElementById('cf-ec-warn').innerHTML = KfkChargen.substratEcWarnung(ec)
+    ? warnBox('EC hoch — senkt die Keimung. Vor Verwendung mit Simon klären.')
+    : '';
+
+  const begruendungOk = !abweichung || (document.getElementById('cf-begruendung').value || '').trim() !== '';
+  document.getElementById('cf-confirm').disabled = !begruendungOk;
+}
+
+function closeChargenEdit() { document.getElementById('chargen-overlay').classList.remove('open'); }
+
+async function confirmChargenEdit() {
+  const v = state.currentVersuch;
+  const body = {
+    action: 'updateChargenFelder',
+    versuchsnr: v.versuchsnr,
+    aussaat_datum: document.getElementById('cf-aussaat').value || '',
+    aktivierung_datum: document.getElementById('cf-aktivierung').value || '',
+    ruhephase_bestaetigt: document.getElementById('cf-ruhephase').checked,
+    az_termine: readAzTermineFromModal(),
+    saatgutcharge_id: document.getElementById('cf-saatgutcharge').value || '',
+    charge_kfk_potenzial: Number(document.getElementById('cf-potenzial').value) || '',
+    substratcharge_id: document.getElementById('cf-substratcharge').value || '',
+    substrat_basis: document.getElementById('cf-substrat-basis').value || '',
+    substrat_zuschlag: document.getElementById('cf-substrat-zuschlag').value || '',
+    substrat_verhaeltnis: document.getElementById('cf-substrat-verhaeltnis').value || '',
+    substrat_lieferant_lot: document.getElementById('cf-substrat-lot').value || '',
+    substrat_ec: document.getElementById('cf-substrat-ec').value === '' ? '' : Number(document.getElementById('cf-substrat-ec').value),
+    substrat_ph: document.getElementById('cf-substrat-ph').value === '' ? '' : Number(document.getElementById('cf-substrat-ph').value),
+    substrat_anmerkung: document.getElementById('cf-substrat-anmerkung').value || '',
+    substrat_gemischt_von: document.getElementById('cf-substrat-gemischt-von').value || ''
+  };
+  setSync('wait', 'speichere …');
+  try {
+    await apiPost(body);
+    setSync('ok', 'gespeichert');
+    toast('Chargen-Angaben gespeichert');
+    closeChargenEdit();
+    await loadVersuch(v.versuchsnr);
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Speichern fehlgeschlagen', e.message);
+  }
+}
+
+// ========== Treatment bearbeiten (Pelletierung, Anker, nackte Saat) ==========
+function openTreatmentPellet(code) {
+  const v = state.currentVersuch;
+  const t = (v.treatments || []).find(x => String(x.code) === String(code));
+  if (!t) return;
+  const suggestion = (v.matrixSuggestions && v.matrixSuggestions[code]) || '';
+
+  const html = `
+    <div class="modal-head">
+      <h2>Treatment ${esc(t.code)} bearbeiten</h2>
+      <span class="coord">${esc(v.versuchsnr)}</span>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:19px">
+      <input type="checkbox" id="tp-nackte-saat" ${t.nackte_saat ? 'checked' : ''} style="width:22px;height:22px" onchange="onTreatmentPelletFieldChange()">
+      Nackte Saat (kein Pellet)
+    </label>
+    <div class="field" style="margin-bottom:10px">
+      <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Anker</label>
+      <select id="tp-anker" style="width:100%;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)">
+        <option value="" ${!t.anker ? 'selected' : ''}>— kein Anker —</option>
+        <option value="t0" ${t.anker==='t0' ? 'selected' : ''}>T0 (nackte Saat, Jahresauswertungs-Basis)</option>
+        <option value="t_ref" ${t.anker==='t_ref' ? 'selected' : ''}>T_ref (Standardmatrix)</option>
+        <option value="test" ${(!t.anker || t.anker==='test') ? 'selected' : ''}>Test (Standard)</option>
+      </select>
+    </div>
+    <div id="tp-pellet-fields">
+      ${cfField('tp-pelletcharge', 'Pelletcharge-ID', t.pelletcharge_id, { placeholder: 'z. B. P-08-11-A' })}
+      <div class="field" style="margin-bottom:10px">
+        <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Matrixzusammensetzung</label>
+        ${suggestion && !t.matrixzusammensetzung ? `<div style="font-size:15px;color:var(--ink-muted);margin-bottom:4px">Vorschlag aus Alt-Feld „spec": <button class="small" onclick="document.getElementById('tp-matrix').value=${JSON.stringify(suggestion)}">übernehmen</button> „${esc(suggestion)}"</div>` : ''}
+        <textarea id="tp-matrix" rows="3" placeholder="z. B. Schicht 1: Weiße_Perle_v1 / Schicht 2: Kohle + Alginat 5 %"
+          style="width:100%;padding:10px;font-family:inherit;font-size:19px;border:1.5px solid var(--line);background:var(--bg)">${esc(t.matrixzusammensetzung||'')}</textarea>
+      </div>
+      ${cfField('tp-schichtdicke', 'Schichtdicke', t.schichtdicke, { placeholder: 'z. B. ca. 1 mm oder Schicht 1: 0,5 mm / Schicht 2: 1 mm' })}
+      ${cfField('tp-pelletiert-von', 'Pelletiert von', t.pelletiert_von, { placeholder: 'Initialen, z. B. SK' })}
+      ${cfField('tp-pelletier-datum', 'Pelletier-Datum', t.pelletier_datum, { type: 'date' })}
+      ${cfField('tp-pelletier-anmerkung', 'Anmerkung', t.pelletier_anmerkung, { placeholder: 'z. B. Mischung etwas zu nass' })}
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeTreatmentPellet()">Abbrechen</button>
+      <button class="primary" onclick="confirmTreatmentPellet('${esc(t.code)}')">Speichern</button>
+    </div>
+  `;
+  document.getElementById('treatpellet-modal').innerHTML = html;
+  document.getElementById('treatpellet-overlay').classList.add('open');
+  onTreatmentPelletFieldChange();
+}
+function onTreatmentPelletFieldChange() {
+  const nackteSaat = document.getElementById('tp-nackte-saat').checked;
+  document.getElementById('tp-pellet-fields').style.opacity = nackteSaat ? '0.4' : '1';
+  document.getElementById('tp-pellet-fields').querySelectorAll('input, textarea').forEach(el => el.disabled = nackteSaat);
+}
+function closeTreatmentPellet() { document.getElementById('treatpellet-overlay').classList.remove('open'); }
+async function confirmTreatmentPellet(code) {
+  const body = {
+    action: 'updateTreatmentPellet',
+    versuchsnr: state.currentVersuch.versuchsnr,
+    code,
+    nackte_saat: document.getElementById('tp-nackte-saat').checked,
+    anker: document.getElementById('tp-anker').value || '',
+    pelletcharge_id: document.getElementById('tp-pelletcharge').value || '',
+    matrixzusammensetzung: document.getElementById('tp-matrix').value || '',
+    schichtdicke: document.getElementById('tp-schichtdicke').value || '',
+    pelletiert_von: document.getElementById('tp-pelletiert-von').value || '',
+    pelletier_datum: document.getElementById('tp-pelletier-datum').value || '',
+    pelletier_anmerkung: document.getElementById('tp-pelletier-anmerkung').value || ''
+  };
+  setSync('wait', 'speichere …');
+  try {
+    await apiPost(body);
+    setSync('ok', 'gespeichert');
+    toast('Treatment ' + code + ' gespeichert');
+    closeTreatmentPellet();
+    await loadVersuch(state.currentVersuch.versuchsnr);
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Speichern fehlgeschlagen', e.message);
+  }
+}
+
+// ========== Sammeluebernahme Pelletierprotokoll ==========
+// Papierprotokoll hat keine Treatment-Spalte - der Nutzer waehlt das
+// Treatment nach der Vorschau manuell aus (siehe CLAUDE.md "Chargen-IDs").
+function openSammeluebernahme() {
+  const v = state.currentVersuch;
+  const treatments = v.treatments || [];
+  const html = `
+    <div class="modal-head">
+      <h2>Pelletierprotokoll übernehmen</h2>
+      <span class="coord">${esc(v.versuchsnr)}</span>
+    </div>
+    <p style="font-size:17px;color:var(--ink-muted);margin-bottom:8px">
+      Eine Zeile aus dem Chargenprotokoll Pelletierung einfügen (Tab- oder Semikolon-getrennt):<br>
+      Versuchs-Nr. · Saatgutcharge · Pelletcharge · Matrix · Datum · Anmerkung · Schichtdicke · Person
+    </p>
+    <textarea id="su-input" rows="3" oninput="onSammeluebernahmeInput()"
+      style="width:100%;padding:10px;font-family:inherit;font-size:18px;border:1.5px solid var(--line);background:var(--bg);margin-bottom:10px"></textarea>
+    <div id="su-preview"></div>
+    <div class="field" style="margin-bottom:10px">
+      <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Zuordnung zu Treatment</label>
+      <select id="su-treatment" onchange="updateSammeluebernahmeConfirmState()" style="width:100%;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)">
+        <option value="">— wählen —</option>
+        ${treatments.map(t => `<option value="${esc(t.code)}">${esc(t.code)} ${esc(t.label||'')}</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeSammeluebernahme()">Abbrechen</button>
+      <button class="primary" id="su-confirm" onclick="confirmSammeluebernahme()" disabled>Übernehmen</button>
+    </div>
+  `;
+  document.getElementById('sammeluebernahme-modal').innerHTML = html;
+  document.getElementById('sammeluebernahme-overlay').classList.add('open');
+}
+function onSammeluebernahmeInput() {
+  const parsed = KfkChargen.parsePelletProtokollZeile(document.getElementById('su-input').value);
+  state._sammeluebernahmeParsed = parsed;
+  const preview = document.getElementById('su-preview');
+  if (!parsed) {
+    preview.innerHTML = '<p style="font-size:16px;color:var(--ink-muted)">Zeile hat weniger als 8 Felder — noch keine gültige Vorschau.</p>';
+  } else {
+    preview.innerHTML = `<div class="info-kv" style="margin-bottom:10px">
+      <div class="k">Versuchs-Nr.</div><div class="v">${esc(parsed.versuchsnr)}</div>
+      <div class="k">Saatgutcharge</div><div class="v">${esc(parsed.saatgutchargeId)}</div>
+      <div class="k">Pelletcharge</div><div class="v">${esc(parsed.pelletchargeId)}</div>
+      <div class="k">Matrix</div><div class="v">${esc(parsed.matrixzusammensetzung)}</div>
+      <div class="k">Datum</div><div class="v">${esc(parsed.pelletierDatum)}</div>
+      <div class="k">Anmerkung</div><div class="v">${esc(parsed.pelletierAnmerkung)}</div>
+      <div class="k">Schichtdicke</div><div class="v">${esc(parsed.schichtdicke)}</div>
+      <div class="k">Person</div><div class="v">${esc(parsed.pelletiertVon)}</div>
+    </div>`;
+  }
+  updateSammeluebernahmeConfirmState();
+}
+function updateSammeluebernahmeConfirmState() {
+  const code = document.getElementById('su-treatment').value;
+  document.getElementById('su-confirm').disabled = !(state._sammeluebernahmeParsed && code);
+}
+function closeSammeluebernahme() { document.getElementById('sammeluebernahme-overlay').classList.remove('open'); }
+async function confirmSammeluebernahme() {
+  const parsed = state._sammeluebernahmeParsed;
+  const code = document.getElementById('su-treatment').value;
+  if (!parsed || !code) return;
+  setSync('wait', 'speichere …');
+  try {
+    await apiPost({
+      action: 'updateTreatmentPellet',
+      versuchsnr: state.currentVersuch.versuchsnr,
+      code,
+      pelletcharge_id: parsed.pelletchargeId,
+      matrixzusammensetzung: parsed.matrixzusammensetzung,
+      schichtdicke: parsed.schichtdicke,
+      pelletiert_von: parsed.pelletiertVon,
+      pelletier_datum: parsed.pelletierDatum,
+      pelletier_anmerkung: parsed.pelletierAnmerkung
+    });
+    setSync('ok', 'gespeichert');
+    toast('Treatment ' + code + ' aktualisiert');
+    closeSammeluebernahme();
+    await loadVersuch(state.currentVersuch.versuchsnr);
+  } catch (e) {
+    setSync('err', 'Fehler');
+    showBanner('Speichern fehlgeschlagen', e.message);
+  }
+}
+
 // ========== Asana-Kommentar ==========
 function openAsanaPreview() {
   const v = state.currentVersuch;
@@ -3641,7 +4062,7 @@ window.addEventListener('offline', () => setSync('err', 'offline'));
 // ========== ESC handler ==========
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    ['topf-overlay','abschluss-overlay','azplanned-overlay','asana-overlay','stat-overlay','versuch-ende-overlay','import-overlay','delete-overlay'].forEach(id => {
+    ['topf-overlay','abschluss-overlay','azplanned-overlay','asana-overlay','stat-overlay','versuch-ende-overlay','import-overlay','delete-overlay','chargen-overlay','treatpellet-overlay','sammeluebernahme-overlay'].forEach(id => {
       document.getElementById(id).classList.remove('open');
     });
   }
@@ -3655,7 +4076,7 @@ function startPolling() {
     if (state.pendingSave) return;
     if (!navigator.onLine) return;
     // Keine Aktualisierung, wenn ein Modal offen ist
-    const anyOpen = ['topf-overlay','abschluss-overlay','azplanned-overlay','asana-overlay','stat-overlay','versuch-ende-overlay','import-overlay','delete-overlay']
+    const anyOpen = ['topf-overlay','abschluss-overlay','azplanned-overlay','asana-overlay','stat-overlay','versuch-ende-overlay','import-overlay','delete-overlay','chargen-overlay','treatpellet-overlay','sammeluebernahme-overlay']
       .some(id => document.getElementById(id).classList.contains('open'));
     if (anyOpen) return;
 

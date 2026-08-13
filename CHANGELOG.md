@@ -2,6 +2,42 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.7.0 — 2026-08-13
+
+### 🚀 Added
+- **Chargen-IDs**: bildet die beiden Papierprotokolle "Chargenprotokoll
+  Pelletierung" und "Chargenprotokoll Substrat" ab. Neue Felder auf
+  Versuchsebene (Saatgutcharge-ID, Potenzial-KFK der Charge, kompletter
+  Substrat-Block) im neuen Modal "Chargen bearbeiten", neue Felder je
+  Treatment (Pelletcharge-ID, Matrixzusammensetzung, Schichtdicke,
+  Pelletiert von, Anker T0/T_ref/Test, nackte Saat) im neuen Modal
+  "Treatment bearbeiten". "Sammelübernahme"-Helfer parst eine Zeile aus
+  dem Pelletierprotokoll direkt in die Treatment-Felder.
+- **Aussaat vs. Aktivierung**: trennt Aussaat- von Aktivierungsdatum (Tag 0
+  für alle Keimzeitberechnungen ist jetzt die Aktivierung). Wochentag-
+  Validierung (Aussaat Mo–Do, Aktivierung nur Do) mit Begründungspflicht
+  bei Abweichung, Ruhephase-Bestätigung, editierbare AZ-Termine-Vorschläge
+  je Artengruppe.
+- **Gelber Hinweis-Banner** in der Versuchsansicht für fehlende Chargen-/
+  Aussaat-Aktivierung-Angaben; verschwindet automatisch sobald vollständig.
+- **Blockierende Prüfung**: sowohl der Abschluss einer einzelnen AZ-Runde
+  als auch der Versuchsabschluss verweigern sich ohne die Chargen-
+  Pflichtangaben (inkl. Pelletcharge-ID je nicht-nackter Treatment).
+- **rel. KFK (relative Keimleistung)**: neue Spalte im `Auswertung`-Tab
+  jedes Versuchs-Datensheets (kumulative KFK% im Verhältnis zum
+  Chargenpotenzial), nur für neu angelegte Versuche.
+- **T0/T_ref-Symbol** auf den Versuchskarten zeigt, ob die Anker-Treatments
+  für die Jahresauswertung vorhanden sind.
+- Import-Schema `kfk-protocol-v3` (Chargen-IDs, Aussaat/Aktivierung),
+  rückwärtskompatibel zu v1/v2.
+
+### 💥 Breaking Changes
+- **CSV-Export auf Long-Format umgestellt**: der Button "Export CSV" liefert
+  jetzt eine Zeile pro (Versuch × Topf × AZ) mit neuen, snake_case
+  Spaltennamen, Komma- statt Semikolon-getrennt (RFC 4180) — für die
+  versuchsübergreifende Meta-Analyse per R-Skript. Bestehende Auswertungen,
+  die auf dem alten Wide-Format aufbauen, müssen angepasst werden.
+
 ## Version 1.6.0 — 2026-08-10
 
 ### 🚀 Added

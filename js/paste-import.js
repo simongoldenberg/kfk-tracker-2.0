@@ -1,5 +1,5 @@
 // Paste-Import: parst + validiert einen per Copy-Paste eingefuegten
-// KFK-DATA-Block (Schema kfk-protocol-v1/v2), damit ein Versuch angelegt
+// KFK-DATA-Block (Schema kfk-protocol-v1/v2/v3), damit ein Versuch angelegt
 // werden kann, ohne den Umweg ueber Asana/Google-Doc-API zu gehen.
 //
 // Spiegelt die Backend-Logik in kfk-apps-script.gs (readKfkDataFromDoc_,
@@ -65,7 +65,7 @@
     }
 
     if (data.schema && String(data.schema).indexOf('kfk-protocol') !== 0) {
-      return { ok: false, error: 'schema: Unerwartetes Schema "' + data.schema + '" (erwartet: kfk-protocol-v1/v2)' };
+      return { ok: false, error: 'schema: Unerwartetes Schema "' + data.schema + '" (erwartet: kfk-protocol-v1/v2/v3)' };
     }
 
     if (!data.versuchsnr) return { ok: false, error: 'versuchsnr: Feld fehlt' };
@@ -112,6 +112,8 @@
       artParsed = parseArtField(data.art);
     }
 
+    const { treatments, matrixSuggestions } = mapTreatmentsV3_(data.treatments);
+
     return {
       ok: true,
       data: {
@@ -121,14 +123,41 @@
         themenbereich: data.themenbereich || '',
         hypothese: data.hypothese || '',
         start_datum: data.start_datum || '',
+        // Aussaat/Aktivierung (Punkt 1): aktivierung_datum faellt auf das
+        // aeltere start_datum zurueck, wenn kein eigenes Feld mitgeliefert
+        // wurde (reine Umbenennung fuer Alt-Bloecke, kein Raten).
+        aussaat_datum: data.aussaat_datum || '',
+        aktivierung_datum: data.aktivierung_datum || data.start_datum || '',
         mdd_pp: data.mdd_pp || '',
         saatgutcharge: data.saatgutcharge || '',
+        // Saatgutcharge-ID (Punkt 2): neues Feld gewinnt, sonst Alt-Feld saatgutcharge.
+        saatgutcharge_id: data.saatgutcharge_id || data.saatgutcharge || '',
+        charge_kfk_potenzial: data.charge_kfk_potenzial != null ? Number(data.charge_kfk_potenzial) : '',
+        // Substratcharge (Punkt 3): id/basis/verhaeltnis sind laut Projektauftrag
+        // Pflicht, aber auch hier gilt Rueckwaertskompatibilitaet - fehlende
+        // Felder werden nicht erraten, sondern bleiben leer (Banner zeigt sie an).
+        substratcharge_id: data.substratcharge_id || '',
+        substrat_basis: data.substrat_basis || '',
+        substrat_zuschlag: data.substrat_zuschlag || '',
+        substrat_verhaeltnis: data.substrat_verhaeltnis || '',
+        substrat_lieferant_lot: data.substrat_lieferant_lot || '',
+        substrat_ec: data.substrat_ec != null ? Number(data.substrat_ec) : '',
+        substrat_ph: data.substrat_ph != null ? Number(data.substrat_ph) : '',
+        substrat_anmerkung: data.substrat_anmerkung || '',
+        substrat_gemischt_von: data.substrat_gemischt_von || '',
+        // AZ-Termine (Punkt 1): Vorschlaege sind frei editierbar, daher hier
+        // nur durchgereicht (kein Berechnen/Raten im Parser).
+        az_termine: Array.isArray(data.az_termine) ? data.az_termine : null,
         ort: data.ort || '',
         verantwortlich: data.verantwortlich || '',
         id_nummer: data.id_nummer || '',
         baumart_lat: artParsed.lat,
         baumart_kurz: artParsed.kurz,
-        treatments: data.treatments,
+        treatments,
+        // Vorschlaege fuer matrixzusammensetzung aus dem alten spec-Feld, wo
+        // das neue Feld fehlt - werden der UI angeboten, NIE automatisch
+        // uebernommen (siehe Projektauftrag Punkt 6).
+        matrixSuggestions,
         rbd: data.rbd,
         anzahl_trays: anzahlTrays,
         raster_cols: rasterCols,
@@ -140,6 +169,28 @@
         standorte: Array.isArray(data.standorte) ? data.standorte : null
       }
     };
+  }
+
+  // Wendet die Alt-Feld-Zuordnung aus Punkt 6 auf jedes Treatment an, ohne die
+  // Eingabe zu mutieren: treatments[].spec.charge -> pelletcharge_id (nur wenn
+  // das neue Feld fehlt), treatments[].spec (gesamt) -> Vorschlag fuer
+  // matrixzusammensetzung (nur als separate Map, nie automatisch uebernommen).
+  function mapTreatmentsV3_(treatmentsIn) {
+    const matrixSuggestions = {};
+    if (!Array.isArray(treatmentsIn)) return { treatments: treatmentsIn, matrixSuggestions };
+    const treatments = treatmentsIn.map(t => {
+      if (!t || typeof t !== 'object') return t;
+      const out = Object.assign({}, t);
+      if ((out.pelletcharge_id === undefined || out.pelletcharge_id === '') &&
+          t.spec && typeof t.spec === 'object' && t.spec.charge) {
+        out.pelletcharge_id = t.spec.charge;
+      }
+      if (!out.matrixzusammensetzung && t.spec) {
+        matrixSuggestions[t.code || ''] = (typeof t.spec === 'string') ? t.spec : JSON.stringify(t.spec);
+      }
+      return out;
+    });
+    return { treatments, matrixSuggestions };
   }
 
   return {

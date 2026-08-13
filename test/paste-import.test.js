@@ -80,6 +80,99 @@ describe('parseAndValidateKfkData — gueltige Bloecke', () => {
   });
 });
 
+function baseV3() {
+  return {
+    ...baseV1(),
+    schema: 'kfk-protocol-v3',
+    aussaat_datum: '2026-08-10',
+    aktivierung_datum: '2026-08-13',
+    saatgutcharge_id: 'SKi-P34',
+    charge_kfk_potenzial: 92,
+    substratcharge_id: 'SUB-08-13-A',
+    substrat_basis: 'Kokosfaser, gepuffert',
+    substrat_verhaeltnis: '60/40',
+    treatments: [
+      { code: 'T0', label: 'Kontrolle', color: '#5a7237', nackte_saat: true },
+      { code: 'T1', label: 'Pellet', color: '#b9633f', pelletcharge_id: 'P-08-11-A' }
+    ]
+  };
+}
+
+describe('parseAndValidateKfkData — Schema v3 (Chargen-IDs, Aussaat/Aktivierung)', () => {
+  it('liest die neuen Versuchsfelder', () => {
+    const res = parseAndValidateKfkData(JSON.stringify(baseV3()));
+    expect(res.ok).toBe(true);
+    expect(res.data.aussaat_datum).toBe('2026-08-10');
+    expect(res.data.aktivierung_datum).toBe('2026-08-13');
+    expect(res.data.saatgutcharge_id).toBe('SKi-P34');
+    expect(res.data.charge_kfk_potenzial).toBe(92);
+    expect(res.data.substratcharge_id).toBe('SUB-08-13-A');
+    expect(res.data.substrat_verhaeltnis).toBe('60/40');
+  });
+
+  it('aktivierung_datum faellt auf start_datum zurueck, wenn nicht mitgeliefert', () => {
+    const v = baseV3();
+    delete v.aktivierung_datum;
+    v.start_datum = '2026-08-06';
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    expect(res.data.aktivierung_datum).toBe('2026-08-06');
+    expect(res.data.aussaat_datum).toBe('2026-08-10');
+  });
+
+  it('saatgutcharge_id faellt auf das Alt-Feld saatgutcharge zurueck', () => {
+    const v = baseV3();
+    delete v.saatgutcharge_id;
+    v.saatgutcharge = 'Hanf-001';
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    expect(res.data.saatgutcharge_id).toBe('Hanf-001');
+  });
+
+  it('treatments[].spec.charge wird als pelletcharge_id uebernommen, wenn das neue Feld fehlt', () => {
+    const v = baseV3();
+    v.treatments = [
+      { code: 'T0', label: 'Kontrolle', color: '#5a7237', nackte_saat: true },
+      { code: 'T1', label: 'Pellet', color: '#b9633f', spec: { charge: 'P-08-11-A', schicht: 1 } }
+    ];
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    const t1 = res.data.treatments.find(t => t.code === 'T1');
+    expect(t1.pelletcharge_id).toBe('P-08-11-A');
+  });
+
+  it('vorhandenes pelletcharge_id wird nicht von spec.charge ueberschrieben', () => {
+    const v = baseV3();
+    v.treatments[1].spec = { charge: 'P-ANDERE' };
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    const t1 = res.data.treatments.find(t => t.code === 'T1');
+    expect(t1.pelletcharge_id).toBe('P-08-11-A');
+  });
+
+  it('spec (gesamt) wird als matrixSuggestion angeboten, nicht automatisch uebernommen', () => {
+    const v = baseV3();
+    v.treatments[1].spec = 'Schicht 1: Weisse_Perle_v1';
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    const t1 = res.data.treatments.find(t => t.code === 'T1');
+    expect(t1.matrixzusammensetzung).toBeUndefined();
+    expect(res.data.matrixSuggestions.T1).toBe('Schicht 1: Weisse_Perle_v1');
+  });
+
+  it('nackte_saat und anker reisen unveraendert durch', () => {
+    const v = baseV3();
+    v.treatments[0].anker = 't0';
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    const t0 = res.data.treatments.find(t => t.code === 'T0');
+    expect(t0.nackte_saat).toBe(true);
+    expect(t0.anker).toBe('t0');
+  });
+
+  it('fehlende neue Felder blockieren den Import nicht (Rueckwaertskompatibilitaet)', () => {
+    const res = parseAndValidateKfkData(JSON.stringify(baseV1()));
+    expect(res.ok).toBe(true);
+    expect(res.data.aussaat_datum).toBe('');
+    expect(res.data.saatgutcharge_id).toBe('');
+    expect(res.data.substratcharge_id).toBe('');
+  });
+});
+
 describe('parseAndValidateKfkData — Fehlerfaelle', () => {
   it('kaputtes JSON -> Fehlermeldung nennt "kein gültiges JSON"', () => {
     const res = parseAndValidateKfkData('{ das ist kein json');

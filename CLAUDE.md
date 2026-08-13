@@ -97,7 +97,8 @@ getestet). Geprüft werden: JSON-Gültigkeit, `schema`-Präfix (`kfk-protocol`),
 Pflichtfelder `versuchsnr`/`titel`/`treatments`/`rbd`, dass jeder
 `rbd[].t`-Code in `treatments` vorkommt, und dass `rbd.length` nicht mehr
 Plätze braucht als `anzahl_trays × raster_cols × raster_rows` hergibt.
-Unterstützt Schema v1 und v2 (v2 bringt zusätzlich `standorte`) identisch.
+Unterstützt Schema v1, v2 und v3 identisch (v2 bringt zusätzlich `standorte`,
+v3 bringt Aussaat/Aktivierung + Chargen-IDs, siehe Abschnitt "Chargen-IDs").
 Nach dem Anlegen (`createVersuch`) befüllt ein zweiter Call
 (`importRbdRaw` in kfk-apps-script.gs) das Raster direkt aus dem
 mitgelieferten `rbd`-Array — die Auto-RBD-Logik in `createVersuchInIndex`
@@ -158,6 +159,117 @@ berechnet:
 - **Rohdaten-Block im Asana-Bericht** (`buildRohdatenHtml_`) bleibt bewusst
   roh (Einzelwerte pro Runde) — die Kumulierung steht dort nur als Formel im
   Kommentar, nicht vorgerechnet.
+
+## Aussaat vs. Aktivierung (seit 13.08.2026)
+Ausgesät wird Montag–Donnerstag, die **erste Wasserzugabe (Aktivierung) erfolgt
+immer donnerstags** — dazwischen ruht der Versuch trocken und dunkel. **Tag 0
+für alle Keimzeitberechnungen ist die Aktivierung, nicht die Aussaat.**
+
+- `aussaat_datum` (neu, Spalte `Aussaat_Datum`) und `aktivierung_datum` sind
+  getrennte Felder. `aktivierung_datum` ist ein **Alias auf die bestehende
+  Spalte `Start_Datum`** (`readIndex()` setzt `v.aktivierung_datum =
+  v.start_datum`) — bewusst **keine Sheet-Umbenennung**: Alt-Zeilen hatten schon
+  vorher genau diesen Wert dort stehen, die Migrationsregel "fehlt
+  `aussaat_datum`, gilt `aktivierung_datum = start_datum`" ist damit ohne
+  Zusatzcode automatisch erfüllt. Neuer Code schreibt/liest **immer**
+  `aktivierung_datum`, nie mehr `start_datum` direkt (Ausnahme: Backend-interne
+  Spalten-Zugriffe, die zwangsläufig den physischen Namen brauchen).
+- **Ruhedauer** (`ruhedauerTage()` in `js/chargen.js`) ist rein abgeleitet
+  (Aktivierung − Aussaat), wird nirgends gespeichert. Warnung bei > 4 Tagen.
+- **Wochentag-Validierung** (`aussaatWochentagCheck`/`aktivierungWochentagCheck`
+  in `js/chargen.js`) ist ein reiner UI-Hinweis, kein Blocker — Aktivierung an
+  einem Nicht-Donnerstag verlangt im Modal "Chargen bearbeiten" zusätzlich eine
+  ausgefüllte Begründung, bevor gespeichert werden kann (`onChargenFieldChange`
+  sperrt den Speichern-Button).
+- **Ruhephase bestätigt** (`ruhephase_bestaetigt`, Checkbox „trocken und dunkel
+  gelagert") ist Pflicht vor der ersten Auszählung — Teil der Blockierprüfung
+  unten.
+- **AZ-Termine-Vorschläge** (`azTermineVorschlag()`/`AZ_TERMINE_VORSCHLAG` in
+  `js/chargen.js`, Tage nach Aktivierung): Hanf/Weizen → 4/7/11, SKi/WKi/ELä →
+  7/14/21/28, KüTa → 14/21/28/35, unbekannte Arten fallen auf den
+  SKi/WKi/ELä-Rhythmus zurück. **Bewusst vorläufig bei Gehölzen** — nach 2–3
+  Versuchen je Art gegen echte Keimverläufe prüfen. Frei editierbar/erweiterbar
+  im Modal "Chargen bearbeiten", gespeichert als `az_termine`
+  (`AZ_Termine_JSON`-Spalte, JSON-Bündel analog `Treatments_JSON`). Bleiben
+  reine Vorschläge — das tatsächliche AZ-Datum wird weiterhin pro Auszählung
+  real erfasst (`AZ{n}_Datum`-Spalte im Daten-Sheet, existierte bereits vor
+  diesem Feature über `saveTopf`/`readDaten`).
+
+## Chargen-IDs (seit 13.08.2026)
+Bildet zwei Papierprotokolle ab (Aushang am Pelletierteller bzw. Mischplatz),
+damit Chargeneffekte später von Rezeptureffekten getrennt werden können.
+Zentrale Logik in `js/chargen.js` (`KfkChargen`, UMD-Modul wie
+`js/standorte.js`, per Vitest getestet).
+
+**Versuchsebene** (Modal "Chargen bearbeiten", `openChargenEdit()` in
+index.html, Backend-Action `updateChargenFelder`):
+- `saatgutcharge_id` (Alias auf die bestehende Spalte `Saatgutcharge` — bei
+  Gehölzen die amtliche Postennummer, sonst eigene Kennung) +
+  `charge_kfk_potenzial` (Potenzial-KFK der Charge in %, neue Spalte
+  `Charge_KFK_Potenzial`).
+- Substrat-Block (`substratcharge_id`/`substrat_basis`/`substrat_zuschlag`/
+  `substrat_verhaeltnis`/`substrat_lieferant_lot`/`substrat_ec`/`substrat_ph`/
+  `substrat_anmerkung`/`substrat_gemischt_von`), als **ein** JSON-Bündel in der
+  neuen Spalte `Substrat_JSON` gespeichert (analog `Treatments_JSON` — deutlich
+  weniger neue Spalten als ein Feld pro Substrat-Attribut). EC > 1,0 mS/cm
+  zeigt eine Warnung (`substratEcWarnung()`).
+
+**Treatment-Ebene** (Modal "Treatment bearbeiten", `openTreatmentPellet(code)`,
+Backend-Action `updateTreatmentPellet`): `pelletcharge_id`,
+`matrixzusammensetzung` (mehrzeilig), `schichtdicke` (bewusst **kein** Enum —
+Freitext, weil je Schicht angegeben, getrennt von einer eventuellen
+Sieb-`dickenklasse`), `pelletiert_von`, `pelletier_datum`,
+`pelletier_anmerkung`, `anker` (`t0`/`t_ref`/`test`), `nackte_saat` (Boolean,
+deaktiviert die Pelletfelder im UI). Alle Felder reisen unverändert in
+`Treatments_JSON` mit — **keine neue Sheet-Spalte nötig**, exakt wie
+`treatments[].spec` das vorher schon tat. "Sammelübernahme" (Button neben der
+Treatment-Liste) parst eine Zeile aus dem Pelletierprotokoll
+(`parsePelletProtokollZeile()`, Tab- oder Semikolon-getrennt) und lässt danach
+manuell das Ziel-Treatment wählen — das Papierprotokoll hat keine
+Treatment-Spalte.
+
+**Import (`kfk-protocol-v3`, `js/paste-import.js`):** liest alle obigen Felder,
+mit Rückwärtskompatibilität zu v1/v2 — fehlende Felder blockieren den Import
+nicht. Alt-Feld-Mapping: `saatgutcharge`→`saatgutcharge_id`,
+`treatments[].spec.charge`→`pelletcharge_id`, `spec` (gesamt) wird als
+`matrixSuggestions[code]`-Vorschlag zurückgegeben, nie automatisch übernommen.
+
+**Blockierende Prüfung** (`missingAbschlussFields()` in `js/chargen.js`,
+serverseitig gespiegelt als `missingAbschlussFelder_` in
+`kfk-apps-script.gs`): verweigert sowohl den Abschluss einer einzelnen
+AZ-Runde (`openAbschluss()`) als auch den Versuchsabschluss
+(`openVersuchEnde()`/`markVersuchAbgeschlossen`), wenn `saatgutcharge_id`,
+`charge_kfk_potenzial`, `substratcharge_id`, `substrat_verhaeltnis`,
+`aktivierung_datum`, `ruhephase_bestaetigt` oder — pro nicht als `nackte_saat`
+markiertem Treatment — `pelletcharge_id` fehlen. Die breitere, nicht
+blockierende Liste (`missingImportFields()`) treibt den gelben
+"Fehlende Angaben"-Banner oben in der Versuchsansicht.
+
+**rel. KFK (relative Keimleistung):** `rel_KFK = kumulative KFK% / 
+charge_kfk_potenzial * 100` (`relKfk()` in `js/chargen.js`, kein Deckel nach
+oben, `null`/"—" ohne Potenzial). Erscheint als 9. Spalte "rel. KFK %" im
+Live-Auswertung-Tab `Auswertung` jedes Versuchs-Datensheets
+(`buildAuswertungTab()`) — das Potenzial wird beim Sheet-Aufbau als Formel-
+Literal eingesetzt (wie `samenProTopf` schon vorher), ändert es sich später,
+braucht der Tab einen manuellen Rebuild. Gilt nur für **neu angelegte**
+Versuche; bestehende Auswertung-Tabs bekommen die Spalte nicht rückwirkend.
+
+**CSV-Export (Long-Format, seit 13.08.2026):** `js/export.js`
+(`buildExportCsv`) wurde vom Wide- auf ein **Long-Format** umgestellt — eine
+Zeile pro (Versuch × Topf × AZ), Komma-getrennt (RFC 4180), damit Exporte
+mehrerer Versuche für die versuchsübergreifende Meta-Analyse (R-Skript)
+aneinandergehängt werden können. Spaltenreihenfolge/-namen sind fest (siehe
+`CSV_HEADER` in `js/export.js`) — das R-Skript liest genau diese Namen. Das
+ist eine **bewusste Breaking Change** gegenüber dem alten Wide-Format-Export
+(gleicher Button "Export CSV" in der Versuchsansicht, anderes Ergebnis).
+`tage_nach_aktivierung` nutzt das **tatsächliche** AZ-Datum je Runde
+(`AZ{n}_Datum`-Spalte, existierte schon vor diesem Feature), nicht das
+geplante.
+
+**Supabase:** keine Schema-Migration nötig — alle neuen Versuchs-/Treatment-
+Felder liegen automatisch in `versuche.kfk_data` (voller Snapshot, siehe
+"Supabase-Spiegelung" unten), genau wie `saatgutcharge`/`mdd_pp`/`posten_nr`
+das schon vorher taten.
 
 ## Wartungsfunktionen (Apps-Script-Editor, manuell ausführen)
 - `normalizeIndexArten(dryRun=true)`: normalisiert Baumart_lat/Baumart_kurz

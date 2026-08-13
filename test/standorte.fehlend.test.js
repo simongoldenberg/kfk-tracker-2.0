@@ -24,9 +24,15 @@ describe('Verhalten bei fehlendem Standort (Punkt 3 + 6)', () => {
   it('Export: bei fehlendem Standort bleiben Regal/Boden leer statt geraten - Zaehldaten werden dadurch NICHT blockiert', () => {
     const v = { anzahl_trays: 1, samen_pro_topf: 36, az_geplant: 1 };
     const daten = [{ topf: 1, tray: 1, treatment: 'T0', az1_zahl: 4 }];
-    const { rows } = buildExportRows(v, daten);
+    const { header, rows } = buildExportRows(v, daten);
     expect(rows).toHaveLength(1);
-    expect(rows[0].slice(0, 5)).toEqual([1, 1, '', '', 'T0']);
-    expect(rows[0].slice(-2)).toEqual([4, 11.1]);
+    const row = {};
+    header.forEach((h, i) => row[h] = rows[0][i]);
+    expect(row.tray).toBe(1);
+    expect(row.treatment_code).toBe('T0');
+    expect(row.regal).toBe('');
+    expect(row.boden).toBe('');
+    expect(row.neu_gekeimt).toBe(4);
+    expect(row.kfk_prozent).toBe(11.1);
   });
 });

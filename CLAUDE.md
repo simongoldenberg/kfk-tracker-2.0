@@ -113,6 +113,21 @@ sonst werden die Werte beim Lesen/Schreiben stillschweigend leer
 `treatments[].spec` braucht dagegen keine Backend-Änderung — reist unangetastet
 in `Treatments_JSON` mit.
 
+**Kachelfarbe (`treatments[].color`, kanonisches Feld):** Die RBD-Rasteransicht
+(`renderRBD`/`renderRBDForTray` in index.html) liest für die Topf-Hintergrundfarbe
+ausschließlich `t.color` — ein Hex-String **mit** führendem `#` (z.B.
+`"#22c55e"`), identisch zum Feld, das der Asana-Doc-Parser aus `T0 (#hex)`-Zeilen
+erzeugt (`kfk-apps-script.gs`, `extractTreatmentsFromAsana_`) und das in
+`Treatments_JSON` gespeichert wird. **Kein anderes Feld wird dafür gelesen.**
+Ein SOP-Entwurfsfehler (v3) hat KFK-DATA-Blöcke mit `farbe_hex` (ohne `#`)
+statt `color` erzeugt — dadurch blieb die Kachelfarbe beim Import leer
+(Fallback-Grau `#f4eee3`, siehe `renderRBDForTray`). `mapTreatmentsV3_()` in
+`js/paste-import.js` fängt das seit dem 14.08.2026 automatisch ab: fehlt
+`color`, aber `farbe_hex` ist gesetzt, wird es übernommen und ein fehlendes
+`#` ergänzt. Neue KFK-DATA-Blöcke (SOP/Skill) sollten trotzdem direkt
+`"color":"#hexcode"` verwenden — der Fallback ist nur ein Sicherheitsnetz für
+Altbestand, keine Empfehlung.
+
 ## Asana-Abschlussbericht (Auswertung durch Claude)
 Beim vollstaendigen Abschluss (`markVersuchAbgeschlossen`) postet das Backend
 in den Subtask „Auswertung & Bericht":

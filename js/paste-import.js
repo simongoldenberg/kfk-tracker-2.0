@@ -188,6 +188,14 @@
       if (!out.matrixzusammensetzung && t.spec) {
         matrixSuggestions[t.code || ''] = (typeof t.spec === 'string') ? t.spec : JSON.stringify(t.spec);
       }
+      // Alt-/Fehlschreibung farbe_hex (ohne '#', SOP-Draft-Fehler) -> color
+      // (Tracker-Rendering liest ausschliesslich treatments[].color, siehe
+      // index.html renderRBD/renderRBDForTray). Nur greifen, wenn color noch
+      // fehlt - ein bereits vorhandenes color-Feld hat Vorrang.
+      if (!out.color && t.farbe_hex) {
+        const hex = String(t.farbe_hex).trim();
+        out.color = hex.startsWith('#') ? hex : ('#' + hex);
+      }
       return out;
     });
     return { treatments, matrixSuggestions };

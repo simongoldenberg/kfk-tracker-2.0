@@ -155,6 +155,27 @@ describe('parseAndValidateKfkData — Schema v3 (Chargen-IDs, Aussaat/Aktivierun
     expect(res.data.matrixSuggestions.T1).toBe('Schicht 1: Weisse_Perle_v1');
   });
 
+  it('farbe_hex (SOP-Draft-Fehlschreibung ohne #) wird auf color gemappt', () => {
+    const v = baseV3();
+    v.treatments = [
+      { code: 'T0', label: 'Kontrolle', farbe_hex: '22c55e', nackte_saat: true },
+      { code: 'T1', label: 'Pellet', farbe_hex: '#eab308' }
+    ];
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    const t0 = res.data.treatments.find(t => t.code === 'T0');
+    const t1 = res.data.treatments.find(t => t.code === 'T1');
+    expect(t0.color).toBe('#22c55e');
+    expect(t1.color).toBe('#eab308');
+  });
+
+  it('vorhandenes color-Feld hat Vorrang vor farbe_hex', () => {
+    const v = baseV3();
+    v.treatments[0].farbe_hex = 'ff0000';
+    const res = parseAndValidateKfkData(JSON.stringify(v));
+    const t0 = res.data.treatments.find(t => t.code === 'T0');
+    expect(t0.color).toBe('#5a7237');
+  });
+
   it('nackte_saat und anker reisen unveraendert durch', () => {
     const v = baseV3();
     v.treatments[0].anker = 't0';

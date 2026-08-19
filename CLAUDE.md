@@ -39,7 +39,7 @@ Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
    Setzen/Rotieren via setupAsanaPat() oder direkt im UI.
 6. kfk-apps-script.gs liegt in DIESEM Repo (2.0) und wird per `clasp`
    deployt:
-   C:\Users\nils_\Desktop\Claude Code\Projekte\kfk-tracker 2.0\kfk-apps-script.gs
+   C:\Users\nils_\Claude_Projekte\kfk-tracker-2.0\kfk-apps-script.gs
    Das alte GitHub-Repo `kfk-tracker` (Vorgaengerstand) wurde am 2026-08-07
    von Simon geloescht (inkl. Pages-Site). Der lokale Ordner
    `…\Projekte\kfk-tracker\` liegt noch auf der Platte und kann geloescht
@@ -50,6 +50,13 @@ Frontend (index.html) + Service Worker (service-worker.js) + manifest.json
 7. Versionierung: APP_VERSION in index.html (Anzeige in der Kopfzeile) und
    `version` in package.json synchron halten. Nummer nur beim Release
    (Version-PR develop -> main) erhoehen, danach Git-Tag setzen.
+8. EINZIGE massgebliche Quelle fuer das KFK-DATA-Schema, die Zaehlregeln, die
+   Chargen-IDs und die Farbpalette ist `SOP_Versuchsplanung_Skyseed.md` im
+   Claude-Projekt "Forschungsplan_Skyseed" (Abschnitt 4.2). Dieses Repo
+   dokumentiert nur die Umsetzung, nie das Soll. Weicht der Code von der SOP ab,
+   ist das ein Bug im Code oder eine Luecke in der SOP - nie eine dritte
+   Wahrheit. `FORSCHUNGSPLAN-Projektanweisung.md` war bis 15.08.2026 eine
+   konkurrierende Schemaquelle (Stand v1) und ist auf einen Verweis reduziert.
 
 ## Wichtige URLs / IDs
 - Frontend (GitHub Pages, aktuell): https://simongoldenberg.github.io/kfk-tracker-2.0/
@@ -174,6 +181,54 @@ berechnet:
 - **Rohdaten-Block im Asana-Bericht** (`buildRohdatenHtml_`) bleibt bewusst
   roh (Einzelwerte pro Runde) — die Kumulierung steht dort nur als Formel im
   Kommentar, nicht vorgerechnet.
+- **Auswertungs-Tab im Versuchs-Sheet** (`buildAuswertungTab`/`fillAuswertungTab_`,
+  seit v1.8.0): rechnet ebenfalls kumulativ. Bis v1.7.1 griffen die Formeln dort
+  faelschlich auf die rohe Rundenspalte zu (`AVERAGEIFS(Daten!J:J,…)` fuer AZ2) —
+  der Tab zeigte damit pro Block nur die neu gekeimten Samen EINER Runde als
+  "KF %". Behoben; Altbestand per `rebuildAuswertungTabForAll(false)` nachziehen.
+
+## Auswertungs-Tab (seit v1.8.0)
+Jeder Versuchs-Sheet hat einen Tab `Auswertung` mit einem Block je AZ-Runde
+("Kumulativ bis AZn") plus einem hervorgehobenen Block **`Gesamt`** (Summe ueber
+alle Runden). Spalten: `Treatment · n · Mean · SD · Min · Max · KFK % · CV % ·
+rel. KFK %`. Die Inferenzstatistik (GLM/ANOVA, eta^2, CLD) laeuft laut SOP immer
+auf dem Gesamt-Block, nie auf einem Einzel-AZ.
+
+Die Formeln sind Array-Formeln ueber `Daten!$X$2:$X$500` mit drei Bausteinen:
+`MASK` (Zeile gehoert zum Treatment, ueber `LEFT(Treatment-Spalte, len+1)`),
+`HAS` (Topf hat bis dahin ueberhaupt einen Wert -> zaehlt fuer n) und `CUM`
+(Summe der Rundenspalten bis n). Spaltenbuchstaben sind **nicht** mehr hart
+kodiert, sondern werden von `datenSpaltenAufloesen_(ss)` aus der echten
+Kopfzeile geholt — deshalb ist der Tab auch bei vorhandener Tray-Spalte und
+nach dem Anhaengen neuer Spalten korrekt.
+
+`charge_kfk_potenzial` und `samen_pro_topf` stehen als Literale in den Formeln.
+Aendert sich einer der beiden Werte: `rebuildAuswertungTab('26_0XX')`.
+
+## Dickenklasse je Topf (seit v1.8.0)
+Die SOP fuehrt die Sieb-Dickenklasse als Pflicht-Kovariate ("Pellets werden vor
+jedem Versuch gesiebt, Dickenklasse je Topf notiert"). Umsetzung:
+- Spalte `Dickenklasse` (Konstante `DICKENKLASSE_COL`) **am Ende** der Kopfzeile
+  des Daten-Sheets — bewusst angehaengt, nicht eingeschoben, damit keine
+  bestehende Spaltenposition wandert. `ensureDickenklasseColumn_(sheet)` legt sie
+  bei Altbestand nach, `ensureDickenklasseColumnForAll(dryRun)` fuer alle Sheets.
+- Freitext (z.B. `2,0-2,5 mm`), bewusst **kein** Enum — die Siebgroessen wechseln
+  je angestrebter Schichtdicke. Getrennt von `treatments[].schichtdicke`, das die
+  angestrebte Pelletschicht beschreibt, nicht die gemessene Siebklasse.
+- Eingabe im Topf-Modal (`#topf-dickenklasse`), reist als `dickenklasse` in
+  `saveTopf` mit. `undefined` = unveraendert lassen, `''` = bewusst geleert.
+- `js/export.js` befuellt damit die Spalte `dickenklasse` des Long-Format-Exports,
+  die vorher dauerhaft leer war.
+
+## Saatgutcharge-ID = Posten-Nr. (seit v1.8.0)
+`posten_nr` und `saatgutcharge_id` sind **dieselbe Groesse** (Entscheidung Simon,
+15.08.2026): bei Gehoelzen die amtliche Postennummer, bei Hanf/Weizen eine
+eigene Kennung. Es gibt nur noch **ein** Feld im UI und im KFK-DATA-Block.
+Die physische Sheet-Spalte `Posten_Nr` bleibt fuer Alt-Zeilen bestehen;
+`readIndex()` zieht ihren Wert hoch, wenn `Saatgutcharge` leer ist, und liefert
+`posten_nr` danach nur noch als Alias auf `saatgutcharge_id`. `js/paste-import.js`
+akzeptiert `posten_nr` als drittes Alt-Feld nach `saatgutcharge_id` und
+`saatgutcharge`.
 
 ## Aussaat vs. Aktivierung (seit 13.08.2026)
 Ausgesät wird Montag–Donnerstag, die **erste Wasserzugabe (Aktivierung) erfolgt
@@ -285,6 +340,52 @@ geplante.
 Felder liegen automatisch in `versuche.kfk_data` (voller Snapshot, siehe
 "Supabase-Spiegelung" unten), genau wie `saatgutcharge`/`mdd_pp`/`posten_nr`
 das schon vorher taten.
+
+## Aenderungsmeldung an das Claude-Projekt (seit v1.8.0)
+Das Claude-Projekt "Forschungsplan_Skyseed" soll jede Aenderung am Tracker
+mitbekommen, ohne dass Simon sie dort erzaehlt. Traeger ist eine einzige
+maschinenlesbare Datei im Repo-Wurzelverzeichnis:
+
+**`tracker-status.json`** (Schema `kfk-tracker-status-v1`) - erzeugt von
+`scripts/stamp-status.js`, **nie von Hand bearbeiten**. Inhalt: Version,
+APP_VERSION + Datum, Branch, Commit, Zeitstempel, die aktiven Schemata
+(`kfk-protocol-v3`, Long-Format-CSV), die Aenderungsliste des obersten
+CHANGELOG-Abschnitts und die noch offenen Apps-Script-Migrationen.
+
+Zwei Abrufpunkte, deren Differenz die eigentliche Information ist:
+
+| Zweck | URL |
+|---|---|
+| **LIVE** (Branch `main`, via GitHub Pages) | `https://simongoldenberg.github.io/kfk-tracker-2.0/tracker-status.json` |
+| **Entwicklung** (Branch `develop`, via raw) | `https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/develop/tracker-status.json` |
+
+Unterscheiden sich die Versionen, liegt etwas Fertiges auf `develop`, das noch
+nicht deployt ist. Genau das soll die Versuchsleitung beim Sitzungsbeginn sehen.
+
+**Wann gestempelt wird**
+- bei jedem Commit ueber den `pre-commit`-Hook (einmalig `npm run hooks:install`;
+  Hooks liegen in `.git/hooks` und sind nicht versionierbar, daher das Skript)
+- bei `npm run deploy:frontend` und `npm run deploy:backend` (fest in den
+  npm-Scripts verdrahtet)
+- von Hand mit `npm run stamp`
+
+**Pflicht bei jeder Aenderung:** einen CHANGELOG-Eintrag unter der obersten
+Versionsueberschrift anlegen, bevor committet wird. Der Stempler liest genau
+diesen Abschnitt - ohne Eintrag meldet die Datei die Aenderung nicht. Kommt
+eine Migration im Apps-Script-Editor dazu, gehoert sie in einen Abschnitt
+"### Nach dem Deploy einmalig ausfuehren" mit Code-Block; der Stempler zieht
+die Zeilen nach `offene_migrationen`.
+
+Der Stempler warnt, wenn `APP_VERSION`, `package.json` und der oberste
+CHANGELOG-Eintrag auseinanderlaufen - die Warnung landet als Feld `warnungen`
+in der JSON-Datei und ist damit auch fuer das Projekt sichtbar.
+
+## Standort-Zaehlrichtung
+**Boden 1 = UNTEN, Boden 5 = OBEN** (`BODEN_LABELS` in index.html).
+Verbindlich seit 15.08.2026. Die SOP sagte bis v2.1 das Gegenteil; die
+Tracker-Beschriftung war die richtige und die SOP wurde angepasst, nicht
+umgekehrt - bereits erfasste Standorte wurden gegen diese Beschriftung
+eingetragen. Nicht wieder umdrehen.
 
 ## Wartungsfunktionen (Apps-Script-Editor, manuell ausführen)
 - `normalizeIndexArten(dryRun=true)`: normalisiert Baumart_lat/Baumart_kurz
@@ -476,10 +577,16 @@ Inline-SVGs in der JS-Konstante `ICON` (Kamera, Muelleimer, Archiv, etc.).
 `confirmVersuchEnde()`), bleiben unveraendert — das ist Text fuer Asana, keine
 App-UI.
 
-**Treatment-/Themenbereich-Farben:** `themenbereichToFarbe()` und die
-Platzhalter im Import-Formular nutzen jetzt eine entsaettigte Erdpalette
-(Rost/Teal/Amber/Moos) statt der fruehereren Tailwind-Grundfarben. **Wichtig:**
-Treatment-Farben einzelner Toepfe (T0-T6 im Tray-Raster) kommen als Hex-Code
-direkt aus dem Asana-Protokoll (`T0 (#hex)`-Zeilen) — die App kann bereits
-angelegte Versuche nicht rueckwirkend umfaerben. Neue Versuchsprotokolle
-sollten die Erdpalette verwenden.
+**Themenbereich-Farben (seit v1.8.0 wieder SOP-konform):**
+`themenbereichToFarbe()` liefert exakt die Farben aus SOP Abschnitt 4.1, also die
+des DOCX-Protokoll-Titelblocks: A = rot `#ef4444`, B = blau `#3b82f6`,
+C = gelb `#eab308`, D = gruen `#22c55e`. Zwischen v1.4.0 und v1.7.1 lief hier
+eine entsaettigte Erdpalette (Rost/Teal/Amber/Moos) — dadurch hatten Protokoll
+und Tracker fuer denselben Versuch unterschiedliche Farben. Entscheidung vom
+15.08.2026: die SOP gewinnt, weil das gedruckte Protokoll der Bezugspunkt im
+Growzelt ist. Die uebrige App-Oberflaeche bleibt bei den Skyseed-Erdtoenen.
+
+**Treatment-Farben einzelner Toepfe** (T0-T6 im Tray-Raster) kommen als Hex-Code
+mit fuehrendem `#` aus `treatments[].color` — aus dem KFK-DATA-Block bzw. aus den
+`T0 (#hex)`-Zeilen des Asana-Protokolls. Die App kann bereits angelegte Versuche
+nicht rueckwirkend umfaerben.

@@ -77,6 +77,20 @@
       return { ok: false, error: 'rbd: Feld fehlt oder ist ein leeres Array' };
     }
 
+    // Treatment-Codes muessen dem Muster T+Zahl folgen (SOP 4.2). Bisher fiel
+    // das erst im Backend auf (rbdEntriesToMap_ filtert /^T\d+$/) - und dort
+    // still: abweichende rbd-Eintraege wurden kommentarlos verworfen. Hier
+    // bricht der Import stattdessen mit einer klaren Meldung ab.
+    for (let ti = 0; ti < data.treatments.length; ti++) {
+      const tc = String((data.treatments[ti] && data.treatments[ti].code) || '').trim();
+      if (!/^T\d+$/.test(tc)) {
+        return {
+          ok: false,
+          error: 'treatments[' + ti + '].code: "' + tc + '" passt nicht auf das Muster T+Zahl (T0, T1, … T12)'
+        };
+      }
+    }
+
     const treatmentCodes = new Set(
       data.treatments
         .map(t => String((t && t.code) || '').toUpperCase().trim())
@@ -130,8 +144,11 @@
         aktivierung_datum: data.aktivierung_datum || data.start_datum || '',
         mdd_pp: data.mdd_pp || '',
         saatgutcharge: data.saatgutcharge || '',
-        // Saatgutcharge-ID (Punkt 2): neues Feld gewinnt, sonst Alt-Feld saatgutcharge.
-        saatgutcharge_id: data.saatgutcharge_id || data.saatgutcharge || '',
+        // Saatgutcharge-ID: neues Feld gewinnt, sonst Alt-Feld saatgutcharge,
+        // sonst posten_nr. posten_nr und saatgutcharge_id sind DIESELBE Groesse
+        // (Entscheidung 15.08.2026) - bei Gehoelzen die amtliche Postennummer,
+        // bei Hanf/Weizen eine eigene Kennung. Es gibt nur noch ein Feld.
+        saatgutcharge_id: data.saatgutcharge_id || data.saatgutcharge || data.posten_nr || '',
         charge_kfk_potenzial: data.charge_kfk_potenzial != null ? Number(data.charge_kfk_potenzial) : '',
         // Substratcharge (Punkt 3): id/basis/verhaeltnis sind laut Projektauftrag
         // Pflicht, aber auch hier gilt Rueckwaertskompatibilitaet - fehlende
@@ -148,6 +165,7 @@
         // AZ-Termine (Punkt 1): Vorschlaege sind frei editierbar, daher hier
         // nur durchgereicht (kein Berechnen/Raten im Parser).
         az_termine: Array.isArray(data.az_termine) ? data.az_termine : null,
+        ruhephase_bestaetigt: !!data.ruhephase_bestaetigt,
         ort: data.ort || '',
         verantwortlich: data.verantwortlich || '',
         id_nummer: data.id_nummer || '',
@@ -163,12 +181,35 @@
         raster_cols: rasterCols,
         raster_rows: rasterRows,
         samen_pro_topf: data.samen_pro_topf != null ? Number(data.samen_pro_topf) : 36,
-        az_geplant: data.az_geplant != null ? Number(data.az_geplant) : null,
+        // az_geplant bestimmt, wie viele AZ-Tabs die App anlegt. Fehlt es, wird
+        // es aus der Laenge von az_termine abgeleitet - sonst bekaeme ein
+        // Gehoelzversuch mit vier geplanten Terminen nur drei Tabs und die
+        // letzte Runde waere nicht erfassbar (SOP: im Zweifel einen Termin
+        // zusaetzlich zaehlen, nie einen weglassen). Deckel 5 = Maximum der App.
+        az_geplant: azGeplantAbleiten_(data.az_geplant, data.az_termine),
         // Schema v1 kennt kein standorte-Feld - dann null (kein Raten), siehe
         // KfkStandorte.applyImportStandorte fuers spaetere Verhalten im Frontend.
         standorte: Array.isArray(data.standorte) ? data.standorte : null
       }
     };
+  }
+
+  // az_geplant: explizite Angabe gewinnt; sonst Anzahl der geplanten AZ-Termine;
+  // sonst null (der Aufrufer setzt dann den App-Default). Immer 1..5, weil die
+  // App nur fuenf AZ-Runden kennt.
+  function azGeplantAbleiten_(azGeplant, azTermine) {
+    let n = null;
+    // Nur eine echte Runden-Zahl >= 1 gilt als explizite Angabe. 0, '', false
+    // oder ' ' sind Platzhalter und duerfen vorhandene az_termine NICHT
+    // verwerfen - sonst bekaeme ein Gehoelzversuch mit vier Terminen und
+    // "az_geplant": 0 genau einen AZ-Tab.
+    if (azGeplant != null && azGeplant !== '' && !isNaN(Number(azGeplant)) && Number(azGeplant) >= 1) {
+      n = Number(azGeplant);
+    } else if (Array.isArray(azTermine) && azTermine.length) {
+      n = azTermine.length;
+    }
+    if (n == null) return null;
+    return Math.min(5, Math.max(1, Math.round(n)));
   }
 
   // Wendet die Alt-Feld-Zuordnung aus Punkt 6 auf jedes Treatment an, ohne die
@@ -204,6 +245,7 @@
   return {
     extractKfkDataJson,
     parseArtField,
-    parseAndValidateKfkData
+    parseAndValidateKfkData,
+    azGeplantAbleiten: azGeplantAbleiten_
   };
 });

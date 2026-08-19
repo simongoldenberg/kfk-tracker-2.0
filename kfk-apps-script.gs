@@ -113,6 +113,26 @@ const INDEX_COLS = {
 // (Regal/Boden je Tray, siehe standorte/standortHistorie) hinzugekommen.
 const VERSUCH_SCHEMA_VERSION = 2;
 
+// Spaltenname der Sieb-Dickenklasse je Topf (SOP: Pellets werden vor jedem
+// Versuch gesiebt, die Dickenklasse wird je Topf notiert und in der Auswertung
+// als Kovariate gefuehrt). Bewusst Freitext (z.B. "2,0-2,5 mm") - die
+// Siebgroessen wechseln je angestrebter Schichtdicke, ein Enum waere zu eng.
+const DICKENKLASSE_COL = 'Dickenklasse';
+
+// Legt die Dickenklasse-Spalte in einem Daten-Sheet nachtraeglich an, falls sie
+// fehlt (Altbestand). Liefert den 0-basierten Spaltenindex zurueck, oder -1 wenn
+// das Sheet keine Kopfzeile hat. Analog ensureTrayColumnForAll().
+function ensureDickenklasseColumn_(sheet) {
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return -1;
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  for (var i = 0; i < headers.length; i++) {
+    if (String(headers[i]).trim() === DICKENKLASSE_COL) return i;
+  }
+  sheet.getRange(1, lastCol + 1).setValue(DICKENKLASSE_COL).setFontWeight('bold');
+  return lastCol;
+}
+
 // ========== HTTP-Entry-Points ==========
 
 function doGet(e) {
@@ -433,6 +453,14 @@ function readIndex() {
     // Alt-Zeilen liefern hier automatisch den bisherigen Wert.
     v.aktivierung_datum = v.start_datum;
     v.saatgutcharge_id = v.saatgutcharge || '';
+    // Chargen-Konsolidierung (15.08.2026, Entscheidung Simon): Posten_Nr und
+    // Saatgutcharge sind DIESELBE Groesse - bei Gehoelzen die amtliche
+    // Postennummer, bei Hanf/Weizen eine eigene Kennung. Es gibt ab jetzt nur
+    // noch EIN Feld (saatgutcharge_id). Die physische Spalte Posten_Nr bleibt
+    // fuer Alt-Zeilen bestehen und wird nur noch gelesen, nie mehr getrennt
+    // geschrieben; posten_nr wird als reiner Alias ausgeliefert.
+    if (!v.saatgutcharge_id && v.posten_nr) v.saatgutcharge_id = String(v.posten_nr);
+    v.posten_nr = v.saatgutcharge_id;
     v.ruhephase_bestaetigt = !!v.ruhephase_bestaetigt;
 
     // Substrat-Block + AZ-Termine parsen (JSON-Buendel analog Treatments_JSON).
@@ -573,6 +601,11 @@ function readDaten(v) {
     entry.wdh = Number(row[colIdx['Wdh']] || 0);
     entry.tray = colIdx['Tray'] !== undefined ? Number(row[colIdx['Tray']] || 1) : 1;
     entry.treatment = String(row[colIdx['Treatment']] || '');
+    // Sieb-Dickenklasse je Topf (Kovariate). Altbestand ohne die Spalte liefert
+    // '' - kein Raten, der CSV-Export laesst die Zelle dann leer.
+    entry.dickenklasse = colIdx[DICKENKLASSE_COL] !== undefined
+      ? String(row[colIdx[DICKENKLASSE_COL]] || '')
+      : '';
 
     // AZ1-AZ5 einlesen
     for (let az = 1; az <= 5; az++) {
@@ -658,6 +691,19 @@ function saveTopf(body) {
   }
   if (body.datum) sheet.getRange(rowIdx, datumCol).setValue(body.datum);
   if (body.benutzer) sheet.getRange(rowIdx, benutzerCol).setValue(body.benutzer);
+
+  // Dickenklasse (Sieb) je Topf - unabhaengig von der AZ-Runde, wird nur
+  // geschrieben wenn das Feld ueberhaupt mitgeschickt wurde (undefined =
+  // unveraendert lassen, '' = bewusst leeren). Spalte wird bei Altbestand
+  // nachtraeglich angelegt.
+  if (body.dickenklasse !== undefined) {
+    const dkIdx = ensureDickenklasseColumn_(sheet);
+    if (dkIdx >= 0) {
+      const cell = sheet.getRange(rowIdx, dkIdx + 1);
+      if (body.dickenklasse === null || body.dickenklasse === '') cell.clearContent();
+      else cell.setValue(String(body.dickenklasse));
+    }
+  }
 
   SpreadsheetApp.flush();
   return { ok: true, topf: body.topf, tray: body.tray || null, az: az, zahl: body.zahl };
@@ -1617,6 +1663,10 @@ function buildDatenSheetFromRbdMap_(v, rbdMap, cols, rows, anzahlTrays, treatmen
       headers.push(anzahlTrays > 1 ? 'Foto_AZ' + az2 + '_Tray' + tray : 'Foto_AZ' + az2);
     }
   }
+  // Dickenklasse bewusst ganz am Ende - dieselbe Position, die
+  // ensureDickenklasseColumn_ bei Altbestand anlegt, und keine Verschiebung
+  // bestehender Spalten.
+  headers.push(DICKENKLASSE_COL);
 
   // Datenzeilen
   const dataRows = [];
@@ -1636,6 +1686,7 @@ function buildDatenSheetFromRbdMap_(v, rbdMap, cols, rows, anzahlTrays, treatmen
 
       for (var k = 0; k < 15; k++) row.push('');             // AZ1-AZ5 (3 Spalten je)
       for (var k2 = 0; k2 < 6 * anzahlTrays; k2++) row.push(''); // Foto-Spalten
+      row.push('');                                          // Dickenklasse (Sieb)
       dataRows.push(row);
     }
   }
@@ -1756,6 +1807,9 @@ function parseArtField_(art) {
 // Arten-Lexikon fuer die Zuordnung deutscher Namen/Kuerzel -> lateinischer Name.
 // 'keys' sind normalisierte Suchbegriffe (s. normArtKey_), 'kurz' ist die im
 // Index gebraeuchliche Kurzform. Bei neuen Arten hier ergaenzen.
+// ACHTUNG: Wer hier eine Art ergaenzt, ergaenzt sie auch in
+// ARTENGRUPPEN_ZUORDNUNG in js/chargen.js (Kurzname UND lateinischer Name) -
+// sonst schlaegt der Tracker fuer diese Art das falsche AZ-Raster vor.
 const ART_LEXIKON = [
   { lat: 'Cannabis sativa',       kurz: 'Hanf',       keys: ['hanf'] },
   { lat: 'Pinus nigra',           kurz: 'SKi',        keys: ['schwarzkiefer', 'ski'] },
@@ -1763,6 +1817,7 @@ const ART_LEXIKON = [
   { lat: 'Picea abies',           kurz: 'Fi',         keys: ['fichte', 'rotfichte', 'gemeinefichte'] },
   { lat: 'Pseudotsuga menziesii', kurz: 'Dgl',        keys: ['douglasie', 'dgl'] },
   { lat: 'Abies alba',            kurz: 'WTa',        keys: ['weisstanne', 'tanne', 'wta'] },
+  { lat: 'Abies grandis',         kurz: 'KueTa',      keys: ['kuestentanne', 'kueta', 'grosstanne', 'grandistanne'] },
   { lat: 'Larix decidua',         kurz: 'ELa',        keys: ['laerche', 'europaeischelaerche', 'ela'] },
   { lat: 'Fagus sylvatica',       kurz: 'Bu',         keys: ['buche', 'rotbuche'] },
   { lat: 'Quercus robur',         kurz: 'SEi',        keys: ['stieleiche', 'eiche', 'sei'] },
@@ -1782,6 +1837,7 @@ const ART_LEXIKON = [
   { lat: 'Salix caprea',          kurz: 'SWe',        keys: ['salweide', 'weide'] },
   { lat: 'Ulmus glabra',          kurz: 'BUl',        keys: ['bergulme', 'ulme'] },
   { lat: 'Secale cereale',        kurz: 'Roggen',     keys: ['roggen'] },
+  { lat: 'Triticum aestivum',     kurz: 'Weizen',     keys: ['weizen', 'saatweizen', 'weichweizen'] },
   { lat: 'Lepidium sativum',      kurz: 'Kresse',     keys: ['gartenkresse', 'kresse'] }
 ];
 
@@ -2247,7 +2303,9 @@ function createVersuchInIndex(body) {
     az_termine_json: JSON.stringify(Array.isArray(body.az_termine) ? body.az_termine : []),
     ort:           body.ort || 'Growzelt',
     verantwortlich: body.verantwortlich || 'Simon Goldenberg',
-    posten_nr:     body.posten_nr || '',
+    // Posten_Nr wird mit derselben Groesse befuellt wie Saatgutcharge (eine
+    // Groesse, zwei historische Spalten - siehe readIndex).
+    posten_nr:     body.saatgutcharge_id || body.saatgutcharge || body.posten_nr || '',
     status:        'Aktiv',
     asana_task_gid: body.asana_task_gid || '',
     sheet_file_id: '',
@@ -2634,6 +2692,7 @@ function buildDatenTab(ss, cols, rows, anzahlTrays) {
       headers.push(anzahlTrays > 1 ? 'Foto_AZ' + az + '_Tray' + tray : 'Foto_AZ' + az);
     }
   }
+  headers.push(DICKENKLASSE_COL);   // ganz am Ende, siehe ensureDickenklasseColumn_
 
   sheet.getRange(1, 1, 1, headers.length).setValues([headers])
     .setFontWeight('bold')
@@ -2653,6 +2712,7 @@ function buildDatenTab(ss, cols, rows, anzahlTrays) {
       const row = [topf, blocks[blockIdx], wdh, '', ''];
       for (let i = 0; i < 15; i++) row.push('');
       for (let i = 0; i < fotoColCount; i++) row.push('');
+      row.push('');                 // Dickenklasse (Sieb)
       dataRows.push(row);
     }
   }
@@ -2689,56 +2749,213 @@ function buildMetaTab(ss, versuchsnr, treatments) {
   meta.setColumnWidth(2, 500);
 }
 
+// ========== Live-Auswertung im Versuchs-Sheet ==========
+//
+// KERNREGEL (SOP): KFK = AZ1 + AZ2 + AZ3 + ...  Je AZ-Runde wird nur die Zahl
+// der NEU gekeimten Samen erfasst; ein einzelner AZ-Wert ist niemals der
+// Endkeimwert. Der Auswertungs-Tab rechnet deshalb ausschliesslich KUMULATIV:
+// jeder AZ-Block zeigt Summe(AZ1..AZn) je Topf, der Block "Gesamt" die Summe
+// ueber alle erfassten Runden. (Bis v1.7.1 griffen die Formeln hier
+// faelschlich auf die rohe Einzelrunden-Spalte zu.)
+//
+// Spaltenbuchstaben werden NICHT mehr hart kodiert, sondern aus der echten
+// Kopfzeile des Tabs "Daten" aufgeloest - damit bleibt der Tab korrekt, egal ob
+// eine Tray-Spalte existiert oder spaeter Spalten dazukommen (z.B.
+// Dickenklasse).
+
+// 0-basierter Spaltenindex -> Spaltenbuchstabe (A, B, ... Z, AA, AB, ...).
+function colLetter_(idx) {
+  var n = Number(idx) + 1, out = '';
+  while (n > 0) {
+    var rest = (n - 1) % 26;
+    out = String.fromCharCode(65 + rest) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
+}
+
+// Liefert { treatmentCol: 'D', azZahlCols: {1:'G', 2:'J', ...} } aus der
+// Kopfzeile des Daten-Tabs. Fehlende Spalten fehlen auch im Ergebnis (kein
+// Raten) - der Aufrufer ueberspringt sie dann.
+function datenSpaltenAufloesen_(ss) {
+  const daten = ss.getSheetByName('Daten');
+  if (!daten || daten.getLastColumn() < 1) return { treatmentCol: null, azZahlCols: {} };
+  const headers = daten.getRange(1, 1, 1, daten.getLastColumn()).getValues()[0];
+  const map = { treatmentCol: null, azZahlCols: {} };
+  headers.forEach(function (h, i) {
+    const name = String(h).trim();
+    if (name === 'Treatment') map.treatmentCol = colLetter_(i);
+    const m = /^AZ(\d)_Zahl$/.exec(name);
+    if (m) map.azZahlCols[Number(m[1])] = colLetter_(i);
+  });
+  return map;
+}
+
+const AUSWERTUNG_ZEILEN = 500;   // Puffer weit ueber jeder realen Topfzahl
+
 function buildAuswertungTab(ss, treatments, samenProTopf, chargeKfkPotenzial) {
   const sheet = ss.insertSheet('Auswertung');
+  fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenzial);
+  return sheet;
+}
+
+function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenzial) {
   const potenzial = Number(chargeKfkPotenzial || 0);
-  sheet.getRange(1, 1).setValue('Live-Auswertung')
+  const samen = Number(samenProTopf) || 36;
+  const spalten = datenSpaltenAufloesen_(ss);
+  const tCol = spalten.treatmentCol || 'D';
+  const R = AUSWERTUNG_ZEILEN;
+
+  sheet.clear();
+
+  sheet.getRange(1, 1).setValue('Live-Auswertung (kumulativ)')
     .setFontSize(13).setFontWeight('bold')
     .setBackground('#2d4a23').setFontColor('#f4f0e6');
   sheet.getRange(1, 1, 1, 9).merge();
 
-  sheet.getRange(2, 1).setValue('Hinweis: Fuer ANOVA, eta^2 und Post-hoc-Tukey siehe Python/R-Notebook am Laptop.')
-    .setFontStyle('italic').setFontColor('#6b5f4e');
+  sheet.getRange(2, 1).setValue(
+      'KFK = AZ1 + AZ2 + AZ3 + ... — jeder Block zeigt die KUMULATIVE Summe bis zu dieser Runde, '
+    + '"Gesamt" die Summe ueber alle Runden. Fuer GLM/ANOVA, eta^2 und Post-hoc siehe R/Python auf dem Gesamt-Block.')
+    .setFontStyle('italic').setFontColor('#6b5f4e').setWrap(true);
   sheet.getRange(2, 1, 1, 9).merge();
 
-  // AZ-Zahl-Spalten in "Daten": AZ1=G, AZ2=J, AZ3=M, AZ4=P, AZ5=S
-  const azCols = { 1: 'G', 2: 'J', 3: 'M', 4: 'P', 5: 'S' };
+  // Welche AZ-Runden gibt es ueberhaupt als Spalte?
+  const azNummern = Object.keys(spalten.azZahlCols).map(Number).sort(function (a, b) { return a - b; });
+  if (!azNummern.length) {
+    sheet.getRange(4, 1).setValue('Keine AZ-Spalten im Tab "Daten" gefunden.');
+    return;
+  }
+
+  // Bausteine der Array-Formeln, jeweils bis einschliesslich Runde bisAz:
+  //   CUM  = Summe der Rundenwerte je Topf (leere Zellen zaehlen als 0)
+  //   HAS  = hat der Topf bis dahin ueberhaupt einen Wert? (sonst zaehlt er nicht als n)
+  //   MASK = gehoert die Zeile zu diesem Treatment?
+  function cumExpr(bisAz) {
+    return azNummern.filter(function (a) { return a <= bisAz; })
+      .map(function (a) { return 'N(Daten!$' + spalten.azZahlCols[a] + '$2:$' + spalten.azZahlCols[a] + '$' + R + ')'; })
+      .join('+');
+  }
+  function hasExpr(bisAz) {
+    return '((' + azNummern.filter(function (a) { return a <= bisAz; })
+      .map(function (a) { return '(Daten!$' + spalten.azZahlCols[a] + '$2:$' + spalten.azZahlCols[a] + '$' + R + '<>"")'; })
+      .join('+') + ')>0)';
+  }
+  // Die Treatment-Spalte enthaelt je nach Anlageweg den nackten Code ("T1",
+  // so schreibt ihn buildDatenSheetFromRbdMap_), "T1 Kontrolle" (Handeintrag,
+  // Patches.js) oder "T1 (Kontrolle)". Die Maske muss alle drei treffen und
+  // darf T1 nicht mit T10 verwechseln - deshalb Regex auf Wortende statt
+  // LEFT(...) mit erzwungenem Leerzeichen.
+  function maskExpr(code) {
+    return 'ARRAYFORMULA(REGEXMATCH(Daten!$' + tCol + '$2:$' + tCol + '$' + R
+         + '&"","^' + code + '(?:$|[\\s(])"))';
+  }
+
+  const HEADER = ['Treatment', 'n', 'Ø', 'SD', 'Min', 'Max', 'KFK %', 'CV %', 'rel. KFK %'];
   let curRow = 4;
 
-  for (let az = 1; az <= 5; az++) {
-    sheet.getRange(curRow, 1).setValue('AZ' + az).setFontWeight('bold').setFontColor('#4a6b3a').setFontSize(12);
+  function block(titel, bisAz, hervorheben) {
+    sheet.getRange(curRow, 1).setValue(titel)
+      .setFontWeight('bold').setFontSize(12)
+      .setFontColor(hervorheben ? '#2d4a23' : '#4a6b3a');
     curRow++;
-    // rel. KFK % (Punkt 8): KF% dieser Zeile / Chargenpotenzial * 100, "—"
-    // wenn kein Potenzial gesetzt ist (statt Div/0-Fehler). Potenzial wird
-    // beim Sheet-Aufbau fest eingesetzt, analog samenProTopf - aendert sich
-    // charge_kfk_potenzial spaeter, braucht der Tab einen manuellen Rebuild.
-    const headerRow = ['Treatment', 'n', 'Mean', 'SD', 'Min', 'Max', 'KF %', 'CV %', 'rel. KFK %'];
-    sheet.getRange(curRow, 1, 1, 9).setValues([headerRow])
-      .setFontWeight('bold').setBackground('#ebe5d3').setHorizontalAlignment('center');
+    sheet.getRange(curRow, 1, 1, 9).setValues([HEADER])
+      .setFontWeight('bold')
+      .setBackground(hervorheben ? '#d9e4cd' : '#ebe5d3')
+      .setHorizontalAlignment('center');
     curRow++;
 
-    const col = azCols[az];
-    treatments.forEach(t => {
-      const prefix = t.code; // z.B. "T0"
-      sheet.getRange(curRow, 1).setValue(prefix + ' ' + (t.label || ''));
-      sheet.getRange(curRow, 2).setFormula(`=COUNTIFS(Daten!D:D,"${prefix} *",Daten!${col}:${col},">=0")`);
-      sheet.getRange(curRow, 3).setFormula(`=IFERROR(AVERAGEIFS(Daten!${col}:${col},Daten!D:D,"${prefix} *"),"")`);
-      sheet.getRange(curRow, 4).setFormula(`=IFERROR(STDEV(IF(LEFT(Daten!D2:D100,${prefix.length + 1})="${prefix} ",Daten!${col}2:${col}100)),"")`);
-      sheet.getRange(curRow, 5).setFormula(`=IFERROR(MINIFS(Daten!${col}:${col},Daten!D:D,"${prefix} *"),"")`);
-      sheet.getRange(curRow, 6).setFormula(`=IFERROR(MAXIFS(Daten!${col}:${col},Daten!D:D,"${prefix} *"),"")`);
-      sheet.getRange(curRow, 7).setFormula(`=IFERROR(ROUND(C${curRow}/${samenProTopf}*100,0)&"%","")`);
-      sheet.getRange(curRow, 8).setFormula(`=IFERROR(ROUND(D${curRow}/C${curRow}*100,1)&"%","")`);
-      sheet.getRange(curRow, 9).setFormula(
+    const CUM = '(' + cumExpr(bisAz) + ')';
+    const HAS = hasExpr(bisAz);
+
+    treatments.forEach(function (t) {
+      const code = String(t.code || '').trim();
+      if (!code) return;
+      const SEL = maskExpr(code) + '*' + HAS;
+      const WERTE = 'ARRAYFORMULA(IF(' + SEL + ',' + CUM + ',""))';
+      const r = curRow;
+
+      sheet.getRange(r, 1).setValue(code + ' ' + (t.label || ''));
+      sheet.getRange(r, 2).setFormula('=IFERROR(SUMPRODUCT(' + SEL + '),"")');
+      sheet.getRange(r, 3).setFormula('=IFERROR(AVERAGE(' + WERTE + '),"")');
+      sheet.getRange(r, 4).setFormula('=IFERROR(STDEV(' + WERTE + '),"")');
+      // MIN/MAX ignorieren Text und liefern sonst 0, auch wenn gar kein Topf
+      // matcht - das laese sich als Messwert lesen. Ueber n absichern.
+      sheet.getRange(r, 5).setFormula('=IFERROR(IF(N(B' + r + ')=0,"",MIN(' + WERTE + ')),"")');
+      sheet.getRange(r, 6).setFormula('=IFERROR(IF(N(B' + r + ')=0,"",MAX(' + WERTE + ')),"")');
+      // KFK % = kumulativer Mittelwert / Samen pro Topf
+      sheet.getRange(r, 7).setFormula('=IFERROR(ROUND(C' + r + '/' + samen + '*100,1)&"%","")');
+      sheet.getRange(r, 8).setFormula('=IFERROR(ROUND(D' + r + '/C' + r + '*100,1)&"%","")');
+      // rel. KFK % = KFK % / Potenzial-KFK der Charge * 100 (SOP-Kernregel).
+      // Potenzial wird als Literal eingesetzt - aendert es sich spaeter, den Tab
+      // per rebuildAuswertungTab(versuchsnr) neu aufbauen.
+      sheet.getRange(r, 9).setFormula(
         potenzial > 0
-          ? `=IFERROR(ROUND(C${curRow}/${samenProTopf}*100/${potenzial}*100,1)&"%","—")`
-          : '"—"'
+          ? '=IFERROR(ROUND(C' + r + '/' + samen + '*100/' + potenzial + '*100,1)&"%","—")'
+          : '="—"'
       );
       curRow++;
     });
     curRow += 1; // Leerzeile
   }
 
-  for (let c = 1; c <= 9; c++) sheet.setColumnWidth(c, c === 1 ? 160 : 80);
+  azNummern.forEach(function (az) {
+    block('Kumulativ bis AZ' + az + '  (AZ1..AZ' + az + ')', az, false);
+  });
+  // Gesamt-Block: Summe ueber ALLE Runden. Das ist der Block, auf dem die
+  // Inferenzstatistik laeuft (SOP: "Statistik immer auf dem Gesamt-Block").
+  block('Gesamt  (KFK = Summe aller AZ-Runden)', azNummern[azNummern.length - 1], true);
+
+  sheet.setColumnWidth(1, 200);
+  for (let c = 2; c <= 9; c++) sheet.setColumnWidth(c, 85);
+  sheet.setRowHeight(2, 34);
+  sheet.setFrozenRows(3);
+}
+
+/**
+ * Baut den Auswertungs-Tab EINES Versuchs neu auf (loescht ihn und legt ihn
+ * frisch an). Noetig nach einer Aenderung von charge_kfk_potenzial oder
+ * samen_pro_topf und einmalig fuer allen Altbestand vor v1.8.0, dessen Tab
+ * noch nicht kumulativ rechnete.
+ *   rebuildAuswertungTab('26_036')
+ */
+function rebuildAuswertungTab(versuchsnr) {
+  const all = readIndex();
+  const v = all.find(function (x) { return String(x.versuchsnr) === String(versuchsnr); });
+  if (!v) throw new Error('Versuch nicht gefunden: ' + versuchsnr);
+  if (!v.sheet_file_id) throw new Error('Kein Sheet_File_ID fuer ' + versuchsnr);
+  const ss = SpreadsheetApp.openById(v.sheet_file_id);
+  const treatments = v.treatments || [];
+  if (!treatments.length) throw new Error('Keine Treatments im Index fuer ' + versuchsnr);
+
+  let sheet = ss.getSheetByName('Auswertung');
+  if (!sheet) sheet = ss.insertSheet('Auswertung');
+  fillAuswertungTab_(sheet, ss, treatments,
+    Number(v.samen_pro_topf || 36), Number(v.charge_kfk_potenzial || 0));
+  SpreadsheetApp.flush();
+  return { versuchsnr: versuchsnr, ok: true, treatments: treatments.length };
+}
+
+/**
+ * Wie rebuildAuswertungTab, aber fuer ALLE Versuche im Index (aktiv + Archiv).
+ * rebuildAuswertungTabForAll(true) = nur Report, ohne zu schreiben.
+ * Einmalig nach dem Update auf v1.8.0 ausfuehren.
+ */
+function rebuildAuswertungTabForAll(dryRun) {
+  const all = readIndex();
+  const report = [];
+  all.forEach(function (v) {
+    if (!v.sheet_file_id) { report.push(v.versuchsnr + ': kein Sheet'); return; }
+    if (!v.treatments || !v.treatments.length) { report.push(v.versuchsnr + ': keine Treatments'); return; }
+    if (dryRun) { report.push(v.versuchsnr + ': WUERDE neu aufgebaut'); return; }
+    try {
+      rebuildAuswertungTab(v.versuchsnr);
+      report.push(v.versuchsnr + ': neu aufgebaut');
+    } catch (e) {
+      report.push(v.versuchsnr + ': FEHLER ' + e.message);
+    }
+  });
+  Logger.log(report.join('\n'));
+  return report;
 }
 
 /**
@@ -3235,6 +3452,34 @@ function ensureTrayColumn(versuchsnr) {
  * Fuegt allen aktiven Versuchen (mit Sheet) eine Tray-Spalte hinzu.
  * Versuche mit mehreren Trays muessen separat migriert werden via migrateExistingTrayData().
  */
+/**
+ * Legt die Dickenklasse-Spalte in ALLEN Versuchs-Daten-Sheets nachtraeglich an.
+ * Einmalig im Apps-Script-Editor ausfuehren (Altbestand vor v1.8.0).
+ * ensureDickenklasseColumnForAll(true) = nur Report, ohne Schreiben.
+ */
+function ensureDickenklasseColumnForAll(dryRun) {
+  const all = readIndex();
+  const report = [];
+  all.forEach(v => {
+    if (!v.sheet_file_id) { report.push(v.versuchsnr + ': kein Sheet'); return; }
+    try {
+      const sheet = SpreadsheetApp.openById(v.sheet_file_id).getSheetByName('Daten');
+      if (!sheet) { report.push(v.versuchsnr + ': Tab "Daten" fehlt'); return; }
+      const lastCol = sheet.getLastColumn();
+      const headers = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+      const vorhanden = headers.some(h => String(h).trim() === DICKENKLASSE_COL);
+      if (vorhanden) { report.push(v.versuchsnr + ': vorhanden'); return; }
+      if (dryRun) { report.push(v.versuchsnr + ': WUERDE angelegt'); return; }
+      ensureDickenklasseColumn_(sheet);
+      report.push(v.versuchsnr + ': angelegt');
+    } catch (e) {
+      report.push(v.versuchsnr + ': FEHLER ' + e.message);
+    }
+  });
+  Logger.log(report.join('\n'));
+  return report;
+}
+
 function ensureTrayColumnForAll() {
   const all = readIndex();
   const results = [];

@@ -190,17 +190,33 @@ berechnet:
 ## Auswertungs-Tab (seit v1.8.0)
 Jeder Versuchs-Sheet hat einen Tab `Auswertung` mit einem Block je AZ-Runde
 ("Kumulativ bis AZn") plus einem hervorgehobenen Block **`Gesamt`** (Summe ueber
-alle Runden). Spalten: `Treatment · n · Mean · SD · Min · Max · KFK % · CV % ·
+alle Runden). Spalten: `Treatment · n · Ø · SD · Min · Max · KFK % · CV % ·
 rel. KFK %`. Die Inferenzstatistik (GLM/ANOVA, eta^2, CLD) laeuft laut SOP immer
 auf dem Gesamt-Block, nie auf einem Einzel-AZ.
 
+> [!IMPORTANT]
+> **Formeln IMMER mit Semikolon `;` als Argumenttrennzeichen erzeugen, nie mit
+> Komma.** Die Versuchs-Sheets laufen unter Gebietsschema **Deutschland**
+> (Datei -> Einstellungen -> Allgemein), dort ist `;` das Trennzeichen und `,`
+> das Dezimalzeichen. `Range.setFormula()` uebernimmt den String **wortwoertlich**
+> und konvertiert **nicht** von US-Komma-Syntax. Ein `ROUND(x,1)` statt
+> `ROUND(x;1)` laesst deshalb JEDE Zelle des Tabs mit "Fehler beim Parsen der
+> Formel" (`#ERROR!`) auflaufen — genau das war der Fehler in v1.8.0, behoben in
+> v1.8.1. Zahlenliterale, die in eine Formel eingebettet werden
+> (`samen_pro_topf`, `charge_kfk_potenzial`), laufen ueber `fmtNum_()` — Punkt
+> wird zu Dezimalkomma. Gilt fuer jede kuenftige `setFormula`-Stelle, nicht nur
+> fuer `fillAuswertungTab_`.
+
 Die Formeln sind Array-Formeln ueber `Daten!$X$2:$X$500` mit drei Bausteinen:
-`MASK` (Zeile gehoert zum Treatment, ueber `LEFT(Treatment-Spalte, len+1)`),
-`HAS` (Topf hat bis dahin ueberhaupt einen Wert -> zaehlt fuer n) und `CUM`
-(Summe der Rundenspalten bis n). Spaltenbuchstaben sind **nicht** mehr hart
-kodiert, sondern werden von `datenSpaltenAufloesen_(ss)` aus der echten
-Kopfzeile geholt — deshalb ist der Tab auch bei vorhandener Tray-Spalte und
-nach dem Anhaengen neuer Spalten korrekt.
+`MASK` (Zeile gehoert zum Treatment, ueber
+`REGEXMATCH(Treatment-Spalte; "^<code>(?:$|\s)")` — die Spalte enthaelt je
+Anlageweg den nackten Code (`T1`), `T1 Kontrolle` oder `T1 (Kontrolle)`; das
+Wortende-Muster verhindert, dass `T1` auch `T10` trifft, was ein `LEFT(...)`
+nicht leisten wuerde), `HAS` (Topf hat bis dahin ueberhaupt einen Wert ->
+zaehlt fuer n) und `CUM` (Summe der Rundenspalten bis n). Spaltenbuchstaben
+sind **nicht** hart kodiert, sondern werden von `datenSpaltenAufloesen_(ss)`
+aus der echten Kopfzeile geholt — deshalb ist der Tab auch bei vorhandener
+Tray-Spalte und nach dem Anhaengen neuer Spalten korrekt.
 
 `charge_kfk_potenzial` und `samen_pro_topf` stehen als Literale in den Formeln.
 Aendert sich einer der beiden Werte: `rebuildAuswertungTab('26_0XX')`.

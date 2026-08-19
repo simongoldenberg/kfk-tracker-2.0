@@ -6,10 +6,10 @@
   "app_version_date": "2026-08-19",
   "changelog_version": "1.8.0",
   "changelog_datum": "2026-08-15",
-  "branch": "develop",
+  "branch": "main",
   "commit": "pending",
-  "gestempelt_am": "2026-08-19T08:44:20+02:00",
-  "ist_live": false,
+  "gestempelt_am": "2026-08-19T08:46:49+02:00",
+  "ist_live": true,
   "schemata": {
     "kfk_data": "kfk-protocol-v3",
     "csv_export": "long-format-v1",
@@ -29,11 +29,7 @@
     "`tracker-status.json`",
     "Abrufbar als **live** (`…github.io/kfk-tracker-2.0/tracker-status.json`, Stand"
   ],
-  "offene_migrationen": [
-    "rebuildAuswertungTabForAll(true)",
-    "rebuildAuswertungTabForAll(false)",
-    "ensureDickenklasseColumnForAll(false)"
-  ],
+  "offene_migrationen": [],
   "urls": {
     "live": "https://simongoldenberg.github.io/kfk-tracker-2.0/",
     "status_live": "https://simongoldenberg.github.io/kfk-tracker-2.0/tracker-status.json",

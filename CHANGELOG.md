@@ -2,6 +2,27 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.1 — 2026-08-19
+
+### 🐛 Fixed
+- **KERNREGEL: Auswertungs-Tab zeigte `#ERROR!` in jeder Zelle jedes Blocks.**
+  `fillAuswertungTab_()` (neu in v1.8.0) schrieb alle Formeln mit
+  US-Komma als Funktions-Argumenttrennzeichen (`ROUND(x,1)`, `IFERROR(x,"")`,
+  `REGEXMATCH(a,b)`, …). Die Versuchs-Sheets laufen unter Gebietsschema
+  "Deutschland" (Datei → Einstellungen → Allgemein), wo das Trennzeichen
+  `;` ist — `Range.setFormula()` übernimmt den String wörtlich, es gibt
+  keine automatische US→DE-Konvertierung. Jede Formel im Tab scheiterte
+  dadurch beim Parsen. Alle Formeln in `fillAuswertungTab_`/`maskExpr`
+  verwenden jetzt `;`; eingebettete Zahlenliterale (`samen_pro_topf`,
+  `charge_kfk_potenzial`) laufen über die neue Hilfsfunktion `fmtNum_`
+  (deutsches Dezimalkomma statt Punkt, falls nicht ganzzahlig).
+
+### 🔧 Nach dem Deploy einmalig ausführen
+```
+rebuildAuswertungTabForAll(true)    // Report
+rebuildAuswertungTabForAll(false)   // alle Auswertungs-Tabs mit korrigierten Formeln neu aufbauen
+```
+
 ## Version 1.8.0 — 2026-08-15
 
 Ergebnis des Abgleichs zwischen dem Claude-Projekt "Forschungsplan_Skyseed"

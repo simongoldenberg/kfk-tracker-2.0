@@ -1,22 +1,25 @@
 {
   "schema": "kfk-tracker-status-v1",
   "hinweis": "Maschinenlesbarer Stand des KFK-Trackers fuer das Claude-Projekt Forschungsplan_Skyseed. Wird von scripts/stamp-status.js erzeugt - nicht von Hand bearbeiten.",
-  "version": "1.8.1",
-  "app_version": "1.8.1",
+  "version": "1.8.2",
+  "app_version": "1.8.2",
   "app_version_date": "2026-08-19",
-  "changelog_version": "1.8.1",
+  "changelog_version": "1.8.2",
   "changelog_datum": "2026-08-19",
-  "branch": "main",
+  "branch": "develop",
   "commit": "pending",
-  "gestempelt_am": "2026-08-19T14:56:37+02:00",
-  "ist_live": true,
+  "gestempelt_am": "2026-08-19T23:24:19+02:00",
+  "ist_live": false,
   "schemata": {
     "kfk_data": "kfk-protocol-v3",
     "csv_export": "long-format-v1",
     "supabase_auswertung": "zusammenfassung|interpretation|empfehlung"
   },
   "letzte_aenderungen": [
-    "KERNREGEL: Auswertungs-Tab zeigte `#ERROR!` in jeder Zelle jedes Blocks"
+    "`offene_migrationen` in `tracker-status.json` blieb dauerhaft leer",
+    "CLAUDE.md: Semikolon-Regel für Sheets-Formeln aufgenommen",
+    "CLAUDE.md: Beschreibung der Treatment-Maske korrigiert",
+    "Git-Tag `v1.8.1` auf den ausgelieferten Stand umgesetzt"
   ],
   "offene_migrationen": [],
   "urls": {

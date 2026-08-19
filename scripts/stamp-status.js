@@ -53,7 +53,15 @@ function isoLocal(d) {
 function readChangelogHead() {
   const file = path.join(ROOT, 'CHANGELOG.md');
   if (!fs.existsSync(file)) return { version: null, datum: null, aenderungen: [], migrationen: [] };
-  const text = fs.readFileSync(file, 'utf8');
+  // Zeilenenden normalisieren, BEVOR irgendein Regex darauf laeuft. Git steht
+  // hier auf core.autocrlf=true und es gibt keine .gitattributes: im Blob
+  // liegt LF, im Arbeitsverzeichnis auf Windows aber CRLF. Die Muster unten
+  // erwarten hartes \n (z.B. ```` ```[a-z]*\n ```` beim Migrationsblock) und
+  // liefen deshalb unter Windows stillschweigend ins Leere - offene_migrationen
+  // blieb dauerhaft [], obwohl der CHANGELOG welche auflistete. Auf Mac/Linux
+  // war derselbe Code unauffaellig. Einmal normalisieren statt jedes Muster
+  // einzeln CRLF-tolerant machen.
+  const text = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
 
   const heads = [...text.matchAll(/^## Version ([^\s—-]+)\s*[—-]\s*(\S+)\s*$/gm)];
   if (!heads.length) return { version: null, datum: null, aenderungen: [], migrationen: [] };

@@ -2,6 +2,35 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.2 — 2026-08-19
+
+### 🐛 Fixed
+- **`offene_migrationen` in `tracker-status.json` blieb dauerhaft leer.**
+  `scripts/stamp-status.js` liest `CHANGELOG.md` aus dem Arbeitsverzeichnis und
+  suchte den Migrationsblock mit einem Muster, das hartes `\n` direkt nach dem
+  Code-Fence erwartet. Git steht hier auf `core.autocrlf=true` ohne
+  `.gitattributes`: im Blob liegt LF, im Arbeitsverzeichnis auf Windows aber
+  CRLF — das Muster lief deshalb ins Leere, **stillschweigend und ohne Warnung**.
+  Folge: Für v1.8.0 *und* v1.8.1 standen Migrationen im Changelog, gemeldet
+  wurde `[]`; das Claude-Projekt „Forschungsplan_Skyseed" erfuhr also nie von
+  einer offenen Migration. Auf Mac/Linux war derselbe Code unauffällig. Der
+  Changelog-Text wird jetzt einmal auf LF normalisiert, bevor irgendein Muster
+  darauf läuft.
+
+### 📝 Dokumentation
+- **CLAUDE.md: Semikolon-Regel für Sheets-Formeln aufgenommen** (Abschnitt
+  „Auswertungs-Tab"). Die Randbedingung, die v1.8.0 unbrauchbar machte, war
+  nirgends dokumentiert — sie gilt für jede künftige `setFormula`-Stelle.
+- **CLAUDE.md: Beschreibung der Treatment-Maske korrigiert.** Dort stand noch
+  `LEFT(Treatment-Spalte, len+1)`; der Code nutzt seit v1.8.0 `REGEXMATCH` mit
+  Wortende-Muster (nötig, damit `T1` nicht auch `T10` trifft). Spaltenname `Ø`
+  statt `Mean` angeglichen.
+
+### 🔖 Sonstiges
+- **Git-Tag `v1.8.1` auf den ausgelieferten Stand umgesetzt.** Er zeigte auf den
+  Commit *vor* dem Cache-Bump und damit auf eine `CACHE_VERSION` aus v1.8.0 —
+  ein `git checkout v1.8.1` ergab also nicht, was live war.
+
 ## Version 1.8.1 — 2026-08-19
 
 ### 🐛 Fixed

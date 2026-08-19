@@ -83,11 +83,13 @@ Text oder deutscher Name über das Arten-Lexikon). Liefert Asana ein Custom-Fiel
 oder eine Zeile `Ort: …`, gewinnt dieser Wert. Alle Felder bleiben editierbar.
 
 **Auszählungen:** Je AZ wird nur die Anzahl **neu** gekeimter Samen seit der letzten
-Auszählung eingetragen — bereits gekeimte Samen werden nach dem Zählen aus dem Topf entfernt
-(gezogen), damit sie beim nächsten Mal nicht erneut mitgezählt werden. Das Eingabe-Modal zeigt
+Auszählung eingetragen — bereits gekeimte Keimlinge werden nach dem Zählen **abgeschnitten**
+(oder gezogen, solange die Keimwurzel noch flach sitzt und das Substrat nicht mitkommt), damit
+sie beim nächsten Mal nicht erneut mitgezählt werden. Das Eingabe-Modal zeigt
 getrennt den rohen Neu-Wert dieser Runde und die **kumulative** Gesamt-Keimfähigkeit
 (Summe AZ1…AZn / `Samen/Topf`) — Topf-Ansicht, Fortschritts-Pills, Statistik und ANOVA rechnen
-seit v1.3.0 durchgängig mit dieser kumulierten Zahl. Die Eingabe ist pro Runde zusätzlich auf
+seit v1.3.0 durchgängig mit dieser kumulierten Zahl, der Auswertungs-Tab im Versuchs-Sheet
+seit v1.8.0 ebenfalls (inklusive Block **„Gesamt"** über alle Runden). Die Eingabe ist pro Runde zusätzlich auf
 die noch nicht gekeimten Samen begrenzt (`Samen/Topf` minus bisherige Summe), damit die
 Kumulierung rechnerisch nie über die Samenanzahl steigen kann. Einzelne Altdaten aus 26_033
 (Topf 1: AZ1=20, AZ2=18, AZ3=18) stammen aus einer bestätigten Ausnahme vor dieser Regel: dort

@@ -1,0 +1,43 @@
+{
+  "schema": "kfk-tracker-status-v1",
+  "hinweis": "Maschinenlesbarer Stand des KFK-Trackers fuer das Claude-Projekt Forschungsplan_Skyseed. Wird von scripts/stamp-status.js erzeugt - nicht von Hand bearbeiten.",
+  "version": "1.8.0",
+  "app_version": "1.8.0",
+  "app_version_date": "2026-08-19",
+  "changelog_version": "1.8.0",
+  "changelog_datum": "2026-08-15",
+  "branch": "develop",
+  "commit": "pending",
+  "gestempelt_am": "2026-08-19T08:44:20+02:00",
+  "ist_live": false,
+  "schemata": {
+    "kfk_data": "kfk-protocol-v3",
+    "csv_export": "long-format-v1",
+    "supabase_auswertung": "zusammenfassung|interpretation|empfehlung"
+  },
+  "letzte_aenderungen": [
+    "KERNREGEL: Auswertungs-Tab rechnete nicht kumulativ",
+    "Auswertungs-Tab war an feste Spaltenbuchstaben gebunden",
+    "Themenbereich-Farben",
+    "`az_geplant` und `az_termine` waren entkoppelt",
+    "`type=\"number\"`",
+    "`ART_LEXIKON`",
+    "Block \"Gesamt\" im Auswertungs-Tab",
+    "Dickenklasse je Topf",
+    "Wartungsfunktionen",
+    "`posten_nr` und `saatgutcharge_id` sind dieselbe Größe",
+    "`tracker-status.json`",
+    "Abrufbar als **live** (`…github.io/kfk-tracker-2.0/tracker-status.json`, Stand"
+  ],
+  "offene_migrationen": [
+    "rebuildAuswertungTabForAll(true)",
+    "rebuildAuswertungTabForAll(false)",
+    "ensureDickenklasseColumnForAll(false)"
+  ],
+  "urls": {
+    "live": "https://simongoldenberg.github.io/kfk-tracker-2.0/",
+    "status_live": "https://simongoldenberg.github.io/kfk-tracker-2.0/tracker-status.json",
+    "status_develop": "https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/develop/tracker-status.json",
+    "changelog": "https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/main/CHANGELOG.md"
+  }
+}

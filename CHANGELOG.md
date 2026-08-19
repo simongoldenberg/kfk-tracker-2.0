@@ -2,6 +2,98 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.0 — 2026-08-15
+
+Ergebnis des Abgleichs zwischen dem Claude-Projekt "Forschungsplan_Skyseed"
+(SOP v3.0) und diesem Repo vom 15.08.2026.
+
+### 🐛 Fixed
+- **KERNREGEL: Auswertungs-Tab rechnete nicht kumulativ.** `buildAuswertungTab()`
+  griff je AZ-Block direkt auf die rohe Rundenspalte zu (`AVERAGEIFS(Daten!J:J,…)`
+  für AZ2). Da `AZn_Zahl` bewusst nur die **neu** gekeimten Samen dieser Runde
+  enthält, zeigte der Tab "Live-Auswertung" ein KFK % und rel. KFK %, das nur
+  eine einzelne Runde abbildete — im Widerspruch zur SOP-Kernregel
+  `KFK = AZ1 + AZ2 + AZ3 + …`. Alle Blöcke rechnen jetzt kumulativ
+  (Summe AZ1…AZn je Topf). Eingabe-Modal, Fortschritts-Pills, Backend-Statistik
+  und CSV-Export waren nie betroffen.
+- **Auswertungs-Tab war an feste Spaltenbuchstaben gebunden** (`D`, `G`, `J`, …).
+  Die Spalten werden jetzt aus der echten Kopfzeile des Tabs "Daten" aufgelöst
+  (`datenSpaltenAufloesen_`) — immun gegen eine Tray-Spalte und gegen später
+  ergänzte Spalten.
+- **Themenbereich-Farben** wichen vom Protokoll-Titelblock ab (Erdpalette statt
+  SOP §4.1). `themenbereichToFarbe()` liefert wieder A = rot `#ef4444`,
+  B = blau `#3b82f6`, C = gelb `#eab308`, D = grün `#22c55e`, damit Protokoll
+  und Tracker denselben Versuch gleich einfärben.
+- **`az_geplant` und `az_termine` waren entkoppelt.** Ein Gehölzversuch mit
+  `az_termine: [7,14,21,28]`, aber ohne explizites `az_geplant`, bekam nur drei
+  AZ-Tabs — die vierte Runde war nicht erfassbar. `az_geplant` wird jetzt aus
+  `az_termine.length` abgeleitet (gedeckelt auf 1–5).
+- **`type="number"`** im Importformular ("AZ geplant") auf den Tracker-Standard
+  `type="text"` + `inputmode="numeric"` umgestellt.
+- **`ART_LEXIKON`** um *Abies grandis* (KüTa) und *Triticum aestivum* (Weizen)
+  ergänzt — beide werden in der SOP und in `js/chargen.js` geführt, wurden bei
+  der Baumart-Normalisierung aber nicht erkannt.
+
+### 🚀 Added
+- **Block "Gesamt" im Auswertungs-Tab**: Summe über alle AZ-Runden, hervorgehoben,
+  mit `n · Ø · SD · Min · Max · KFK % · CV % · rel. KFK %`. Das ist der Block, auf
+  dem die Inferenzstatistik läuft (SOP §7). Der Statistik-Hinweis in der App
+  verwies bisher auf einen "Gesamt-Tab", den es nicht gab.
+- **Dickenklasse je Topf** (`Dickenklasse`-Spalte im Daten-Sheet, Freitext-Feld im
+  Topf-Modal, `saveTopf`-Feld `dickenklasse`). Die SOP führt die Sieb-Dickenklasse
+  als Pflicht-Kovariate; im CSV-Export war die Spalte bislang dauerhaft leer.
+  Sie wird jetzt befüllt.
+- **Wartungsfunktionen** (Apps-Script-Editor): `rebuildAuswertungTab('26_0XX')`,
+  `rebuildAuswertungTabForAll(dryRun)`, `ensureDickenklasseColumnForAll(dryRun)`.
+
+### 💥 Breaking Changes
+- **`posten_nr` und `saatgutcharge_id` sind dieselbe Größe** und werden zu einem
+  Feld zusammengeführt (Entscheidung Simon, 15.08.2026): bei Gehölzen die
+  amtliche Postennummer, bei Hanf/Weizen eine eigene Kennung. Die physische
+  Spalte `Posten_Nr` bleibt für Alt-Zeilen erhalten und wird gelesen, aber nicht
+  mehr getrennt gepflegt; `readIndex()` liefert `posten_nr` nur noch als Alias auf
+  `saatgutcharge_id`. Das Detail-Panel zeigt nur noch ein Feld.
+
+### 🔗 Änderungsmeldung an das Claude-Projekt
+- **`tracker-status.json`** im Repo-Wurzelverzeichnis (Schema
+  `kfk-tracker-status-v1`): maschinenlesbarer Stand des Trackers — Version,
+  Branch, Commit, aktive Schemata, Änderungsliste des obersten
+  CHANGELOG-Abschnitts, offene Migrationen. Erzeugt von
+  `scripts/stamp-status.js`.
+- Abrufbar als **live** (`…github.io/kfk-tracker-2.0/tracker-status.json`, Stand
+  von `main`) und **develop** (`raw.githubusercontent.com/…/develop/…`). Die
+  Differenz zeigt, ob etwas committet, aber noch nicht deployt ist.
+- Gestempelt wird bei jedem Commit (`pre-commit`-Hook, einmalig
+  `npm run hooks:install`), bei `deploy:frontend`/`deploy:backend` und manuell
+  über `npm run stamp`.
+- Der Stempler warnt, wenn `APP_VERSION`, `package.json` und der oberste
+  CHANGELOG-Eintrag auseinanderlaufen.
+
+### 📐 Standort-Zählrichtung festgelegt
+- **Boden 1 = unten, Boden 5 = oben.** Die Tracker-Beschriftung war korrekt,
+  die SOP-Formulierung „Boden 1 = oben" war der Fehler und ist in SOP v3.0
+  korrigiert. Am Code ändert sich nichts außer einem Kommentar, der die
+  Richtung gegen ein versehentliches Umdrehen absichert.
+
+### 🔧 Nach dem Deploy einmalig ausführen
+```
+rebuildAuswertungTabForAll(true)    // Report
+rebuildAuswertungTabForAll(false)   // alle Auswertungs-Tabs kumulativ neu aufbauen
+ensureDickenklasseColumnForAll(false)
+```
+
+Und einmalig lokal im Repo: `npm run hooks:install`
+
+## Version 1.7.1 — 2026-08-14
+
+### 🐛 Fixed
+- **Treatment-Farbe blieb beim Paste-Import leer.** Ein SOP-Entwurfsfehler
+  erzeugte KFK-DATA-Blöcke mit `farbe_hex` (ohne führendes `#`) statt `color`.
+  Das RBD-Raster liest ausschließlich `treatments[].color`, die Kachel fiel
+  deshalb auf Grau zurück. `mapTreatmentsV3_()` in `js/paste-import.js` übernimmt
+  `farbe_hex` jetzt automatisch und ergänzt ein fehlendes `#` — als Sicherheitsnetz
+  für Altbestand, nicht als Empfehlung. Neue Blöcke verwenden direkt `color`.
+
 ## Version 1.7.0 — 2026-08-13
 
 ### 🚀 Added

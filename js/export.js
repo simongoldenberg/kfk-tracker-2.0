@@ -112,7 +112,7 @@
           t.pelletcharge_id || '', t.matrixzusammensetzung || '', t.schichtdicke || '', t.pelletiert_von || '',
           v.substratcharge_id || '', v.substrat_basis || '', v.substrat_zuschlag || '', v.substrat_verhaeltnis || '',
           v.substrat_lieferant_lot || '', v.substrat_ec || '', v.substrat_ph || '',
-          '', // dickenklasse - noch kein eigenes Feld in der App (siehe CLAUDE.md "Chargen-IDs")
+          d.dickenklasse || '',
           d['az' + az + '_benutzer'] || '',
           '' // anmerkung - kein per-Zaehlwert-Notizfeld in der App vorhanden
         ]);

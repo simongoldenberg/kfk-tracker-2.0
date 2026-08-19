@@ -1135,7 +1135,8 @@
       <h2>Detail-Auswertung</h2>
     </div>
     <p style="margin-bottom:12px;line-height:1.55">
-      Inferenzstatistik läuft in Claude/R auf dem Gesamt-Tab.
+      Inferenzstatistik läuft in Claude/R auf dem Block „Gesamt" im Tab „Auswertung"
+      der Versuchsdatei — der rechnet kumulativ (KFK = AZ1 + AZ2 + AZ3 + …).
     </p>
     <div style="background:var(--bg-2);padding:12px;border:1px solid var(--line);margin-bottom:12px;font-size:20px">
       <div><strong>Versuchsdatei:</strong> <span id="stat-file">—</span></div>
@@ -1207,8 +1208,8 @@ const STORAGE_KEY = 'kfk-tracker-pref';
 // App-Version + Stand dieser Version (wird dezent in der Kopfzeile angezeigt).
 // APP_VERSION_DATE wird von bump-cache.js beim Frontend-Deploy automatisch auf
 // das Deploy-Datum gesetzt — die Nummer selbst bleibt manuell (s. CLAUDE.md).
-const APP_VERSION = '1.7.1';
-const APP_VERSION_DATE = '2026-08-13';
+const APP_VERSION = '1.8.0';
+const APP_VERSION_DATE = '2026-08-19';
 
 // Zeile fuer die Kopfzeile: "v1.1.0 · 06.08.2026"
 function versionLabel() {
@@ -2062,8 +2063,7 @@ function renderInfoPanel(v, f) {
             <div class="k">Aktivierung</div><div class="v">${esc(v.aktivierung_datum||'—')}</div>
             <div class="k">Ort</div><div class="v">${esc(v.ort||'—')}</div>
             <div class="k">Verantwortlich</div><div class="v">${esc(v.verantwortlich||'—')}</div>
-            <div class="k">Posten-Nr.</div><div class="v">${esc(v.posten_nr||'—')}</div>
-            <div class="k">Saatgutcharge-ID</div><div class="v">${esc(v.saatgutcharge_id||'—')}</div>
+            <div class="k">Saatgutcharge-ID</div><div class="v">${esc(v.saatgutcharge_id||'—')}<span style="color:var(--ink-muted);font-size:15px"> · bei Gehölzen = Posten-Nr.</span></div>
             <div class="k">Potenzial-KFK</div><div class="v">${v.charge_kfk_potenzial ? esc(v.charge_kfk_potenzial) + '%' : '—'}</div>
             <div class="k">Substratcharge-ID</div><div class="v">${esc(v.substratcharge_id||'—')}</div>
             <div class="k">Status</div><div class="v">${esc(v.status||'—')}</div>
@@ -2106,6 +2106,11 @@ function renderInfoPanel(v, f) {
 // und bleibt fuer alle folgenden AZ-Runden unveraendert stehen - es gibt
 // keine erneute "Standort unveraendert?"-Abfrage pro AZ. Wurde ein Tray
 // tatsaechlich umgestellt, aendert man es explizit ueber "Ändern".
+// Zaehlrichtung der Ebenen: Boden 1 = UNTEN, Boden 5 = OBEN.
+// Verbindlich festgelegt am 15.08.2026 (Entscheidung Simon) - die Beschriftung
+// hier war die richtige, die aeltere SOP-Formulierung "Boden 1 = oben" war der
+// Fehler und wurde in SOP v3.0 korrigiert. Nicht wieder umdrehen: bereits
+// erfasste Standorte wurden gegen genau diese Beschriftung eingetragen.
 const BODEN_LABELS = { 1: '1 (unten)', 2: '2', 3: '3', 4: '4', 5: '5 (oben)' };
 
 function renderStandortPanel(v) {
@@ -2315,7 +2320,9 @@ function renderRBDForTray(v, daten, az, treatments, tray) {
       const d = byPosition[block + '_' + r] || {};
       const tCode = (d.treatment || '').split(/[\s(]/)[0];
       const t = treatmentMap[tCode] || null;
-      const color = t ? t.color : '#f4eee3';
+      // Fallback greift fuer leere Toepfe UND fuer Treatments ohne color-Feld
+      // (sonst stuende background:undefined im Style und die Kachel bliebe transparent).
+      const color = (t && t.color) ? t.color : '#f4eee3';
       const txtCls = t ? textColorFor(color) + '-text' : 'dark-text';
       const val = d['az' + az + '_zahl'];
       const hatWert = (val !== '' && val != null && val !== undefined);
@@ -2374,7 +2381,9 @@ function renderRBD(v, daten, az, treatments) {
       const d = byTopf[topf] || {};
       const tCode = (d.treatment || '').split(/[\s(]/)[0]; // "T0" aus "T0 Kontrolle"
       const t = treatmentMap[tCode] || null;
-      const color = t ? t.color : '#f4eee3';
+      // Fallback greift fuer leere Toepfe UND fuer Treatments ohne color-Feld
+      // (sonst stuende background:undefined im Style und die Kachel bliebe transparent).
+      const color = (t && t.color) ? t.color : '#f4eee3';
       const txtCls = t ? textColorFor(color) + '-text' : 'dark-text';
       const val = d['az' + az + '_zahl'];
       const hatWert = (val !== '' && val != null && val !== undefined);
@@ -2680,6 +2689,12 @@ function renderTopfModal() {
       <div class="plaus-warn" id="limit-warn" style="${limitWarn ? '' : 'display:none'}">${limitWarn ? ICON.warn + '<span>' + esc(limitWarn) + '</span>' : ''}</div>
     </div>
 
+    <div class="field" style="margin:10px 0 14px">
+      <label for="topf-dickenklasse" style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">Dickenklasse (Sieb)</label>
+      <input id="topf-dickenklasse" type="text" value="${esc(d.dickenklasse || '')}" data-initial="${esc(d.dickenklasse || '')}" placeholder="z. B. 2,0–2,5 mm"
+        style="width:100%;padding:9px;font-family:inherit;font-size:19px;border:1.5px solid var(--line);background:var(--bg)">
+    </div>
+
     <div class="numpad">
       <button onclick="numPress('7')">7</button>
       <button onclick="numPress('8')">8</button>
@@ -2806,6 +2821,21 @@ function mirrorAzCountToSupabase(d, tray, az, val) {
   });
 }
 
+// Sieb-Dickenklasse des Topfes aus dem Modal lesen.
+// Liefert undefined, wenn das Feld fehlt ODER unveraendert ist - dann laesst
+// das Backend den gespeicherten Wert unangetastet. Das ist wichtig: ohne diese
+// Pruefung wuerde jeder AZ-Speichervorgang den Wert mitschreiben und einen im
+// Sheet nachgetragenen Eintrag ueberbuegeln, sobald die App den Versuch noch
+// mit altem Stand offen hat (oder ein Offline-Eintrag Stunden spaeter flusht).
+// '' nach einer bewussten Loeschung wird dagegen gesendet.
+function readDickenklasseFromModal() {
+  const el = document.getElementById('topf-dickenklasse');
+  if (!el) return undefined;
+  const wert = el.value.trim();
+  const initial = (el.getAttribute('data-initial') || '').trim();
+  return wert === initial ? undefined : wert;
+}
+
 function saveTopfValue(isDelete) {
   // SCHNELL: Modal sofort schliessen, lokal updaten, API-Call im Hintergrund (fire-and-forget)
   const topf = state.currentTopf;
@@ -2814,10 +2844,14 @@ function saveTopfValue(isDelete) {
   const el = document.getElementById('input-val');
   const raw = el ? el.textContent : '';
   const val = isDelete ? '' : (raw === '—' ? '' : raw);
+  const dickenklasse = readDickenklasseFromModal();
 
   // Lokal Update sofort -> UI fuehlt sich responsiv an
   const d = findTopfDaten(topf, tray);
-  if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+  if (d) {
+    d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+    if (dickenklasse !== undefined) d.dickenklasse = dickenklasse;
+  }
 
   // Modal sofort schliessen + neu rendern
   closeTopfModal();
@@ -2834,6 +2868,7 @@ function saveTopfValue(isDelete) {
     tray: tray || undefined,
     az,
     zahl: val === '' ? null : Number(val),
+    dickenklasse,
     datum: state.datum,
     benutzer: loadPref().benutzer || ''
   }).then(() => {
@@ -2845,6 +2880,7 @@ function saveTopfValue(isDelete) {
       versuchsnr: state.currentVersuch.versuchsnr,
       topf, tray: tray || undefined, az,
       zahl: val === '' ? null : Number(val),
+      dickenklasse,
       datum: state.datum,
       benutzer: loadPref().benutzer || ''
     });
@@ -2857,6 +2893,7 @@ async function saveAndNav(nextTopf) {
   const el = document.getElementById('input-val');
   const raw = el ? el.textContent : '';
   const val = raw === '—' ? '' : raw;
+  const dickenklasse = readDickenklasseFromModal();
   const topf = state.currentTopf;
   const tray = state.currentTray;
   const az = state.currentAZ;
@@ -2871,11 +2908,15 @@ async function saveAndNav(nextTopf) {
       tray: tray || undefined,
       az,
       zahl: val === '' ? null : Number(val),
+      dickenklasse,
       datum: state.datum,
       benutzer: loadPref().benutzer || ''
     });
     const d = findTopfDaten(topf, tray);
-    if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+    if (d) {
+      d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+      if (dickenklasse !== undefined) d.dickenklasse = dickenklasse;
+    }
     state.pendingSave = false;
     setSync('ok', 'gespeichert');
     backupCurrentVersuch();
@@ -2895,12 +2936,16 @@ async function saveAndNav(nextTopf) {
   } catch (e) {
     // Wie im Erfolgsfall lokal uebernehmen + weiternavigieren, Sync per Warteschlange nachholen
     const d = findTopfDaten(topf, tray);
-    if (d) d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+    if (d) {
+      d['az' + az + '_zahl'] = val === '' ? '' : Number(val);
+      if (dickenklasse !== undefined) d.dickenklasse = dickenklasse;
+    }
     enqueueOfflineSave({
       action: 'saveTopf',
       versuchsnr: state.currentVersuch.versuchsnr,
       topf, tray: tray || undefined, az,
       zahl: val === '' ? null : Number(val),
+      dickenklasse,
       datum: state.datum,
       benutzer: loadPref().benutzer || ''
     });
@@ -3270,10 +3315,16 @@ function openImportModal() {
   document.getElementById('imp-ort').value = DEFAULT_ORT;
 }
 
+// Zahlenfelder bewusst als type="text" + inputmode="numeric" (Tracker-Standard:
+// nie type="number" - Spinner/Scroll-Rad veraendern Werte im Growzelt
+// versehentlich). 'number' wird hier auf genau dieses Paar abgebildet.
 function impField(id, label, type, placeholder) {
+  const numeric = (type === 'number');
+  const inputType = numeric ? 'text' : type;
+  const extra = numeric ? ' inputmode="numeric"' : '';
   return `<div class="field" style="margin-bottom:10px">
     <label style="display:block;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-muted);margin-bottom:4px">${label}</label>
-    <input id="${id}" type="${type}" placeholder="${placeholder}"
+    <input id="${id}" type="${inputType}"${extra} placeholder="${placeholder}"
       style="width:100%;padding:10px;font-family:inherit;font-size:21px;border:1.5px solid var(--line);background:var(--bg)">
   </div>`;
 }
@@ -3342,13 +3393,18 @@ async function previewAsanaTask() {
 
 // Entsaettigte, erdige Palette statt der frueheren Tailwind-Grundfarben -
 // passt zum Rest der Skyseed-Oberflaeche (siehe CLAUDE.md UI-Konventionen).
+// Themenbereich-Farben nach SOP Sec. 4.1 (Titelblock der DOCX-Protokolle).
+// Bewusst dieselben Werte wie im Protokoll-Titelblock, damit Protokoll und
+// Tracker denselben Versuch gleich einfaerben (Entscheidung 15.08.2026).
+// A) SYSTEM PELLET = rot, B) PRAEDATION = blau, C) INFRASTRUKTUR = gelb,
+// D) DIREKTSAAT = gruen. Alles ausserhalb A-D faellt auf gruen zurueck.
 function themenbereichToFarbe(bereich) {
   const s = String(bereich).toUpperCase();
-  if (s.startsWith('A')) return '#b9633f'; // rust
-  if (s.startsWith('B')) return '#3d7376'; // teal (hell)
-  if (s.startsWith('C')) return '#c3903f'; // amber
-  if (s.startsWith('D')) return '#5a7237'; // moss
-  return '#5a7237';
+  if (s.startsWith('A')) return '#ef4444'; // rot
+  if (s.startsWith('B')) return '#3b82f6'; // blau
+  if (s.startsWith('C')) return '#eab308'; // gelb
+  if (s.startsWith('D')) return '#22c55e'; // gruen
+  return '#22c55e';
 }
 
 async function confirmCreateVersuch() {
@@ -3469,7 +3525,6 @@ async function confirmPasteImport() {
     hypothese: data.hypothese,
     start_datum: data.start_datum,
     mdd_pp: data.mdd_pp,
-    saatgutcharge: data.saatgutcharge,
     baumart_kurz: data.baumart_kurz,
     baumart_lat: data.baumart_lat,
     ort: data.ort || DEFAULT_ORT,
@@ -3481,7 +3536,29 @@ async function confirmPasteImport() {
     samen_pro_topf: data.samen_pro_topf,
     anzahl_trays: data.anzahl_trays,
     az_geplant: data.az_geplant || DEFAULT_AZ_GEPLANT,
-    standorte: data.standorte
+    standorte: data.standorte,
+    // Aussaat/Aktivierung + Chargen (seit v1.8.0). Der Parser liest diese
+    // Felder seit v1.7.0, das Frontend hat sie bis dahin aber NICHT an
+    // createVersuch weitergereicht - ein SOP-konformes Protokoll erzeugte
+    // dadurch einen Versuch ohne Saatgutcharge, ohne Substratblock und mit
+    // leerem Aktivierungsdatum, und die blockierende Abschlusspruefung schlug
+    // sofort an.
+    aussaat_datum: data.aussaat_datum,
+    aktivierung_datum: data.aktivierung_datum,
+    ruhephase_bestaetigt: data.ruhephase_bestaetigt,
+    az_termine: data.az_termine || [],
+    saatgutcharge: data.saatgutcharge_id,
+    saatgutcharge_id: data.saatgutcharge_id,
+    charge_kfk_potenzial: data.charge_kfk_potenzial,
+    substratcharge_id: data.substratcharge_id,
+    substrat_basis: data.substrat_basis,
+    substrat_zuschlag: data.substrat_zuschlag,
+    substrat_verhaeltnis: data.substrat_verhaeltnis,
+    substrat_lieferant_lot: data.substrat_lieferant_lot,
+    substrat_ec: data.substrat_ec,
+    substrat_ph: data.substrat_ph,
+    substrat_anmerkung: data.substrat_anmerkung,
+    substrat_gemischt_von: data.substrat_gemischt_von
   };
 
   setSync('wait', 'lege Versuch an…');

@@ -80,12 +80,16 @@
       .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
       .replace(/[^a-z]/g, '');
   }
+  // Kurznamen UND lateinische Namen, weil baumart_kurz fehlen darf, wenn
+  // baumart_lat gesetzt ist (SOP 4.2). Fehlte der lateinische Name, schlug der
+  // Tracker fuer diese Art das falsche AZ-Raster vor.
   const ARTENGRUPPEN_ZUORDNUNG = {
-    hanf: 'kurz', weizen: 'kurz', triticumaestivum: 'kurz',
+    hanf: 'kurz', cannabissativa: 'kurz',
+    weizen: 'kurz', triticumaestivum: 'kurz', saatweizen: 'kurz',
     ski: 'mittel', schwarzkiefer: 'mittel', pinusnigra: 'mittel',
     wki: 'mittel', waldkiefer: 'mittel', kiefer: 'mittel', pinussylvestris: 'mittel',
     ela: 'mittel', elae: 'mittel', laerche: 'mittel', larixdecidua: 'mittel',
-    kueta: 'lang', kuestentanne: 'lang'
+    kueta: 'lang', kuestentanne: 'lang', abiesgrandis: 'lang'
   };
   // Liefert die Artengruppe ('kurz'|'mittel'|'lang') fuer AZ-Termin-Vorschlaege.
   // Unbekannte/neue Arten fallen auf 'mittel' zurueck (SKi/WKi/ELae-Rhythmus) -

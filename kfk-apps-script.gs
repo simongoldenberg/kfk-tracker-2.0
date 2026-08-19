@@ -2842,12 +2842,25 @@ function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenz
   }
   // Die Treatment-Spalte enthaelt je nach Anlageweg den nackten Code ("T1",
   // so schreibt ihn buildDatenSheetFromRbdMap_), "T1 Kontrolle" (Handeintrag,
-  // Patches.js) oder "T1 (Kontrolle)". Die Maske muss alle drei treffen und
-  // darf T1 nicht mit T10 verwechseln - deshalb Regex auf Wortende statt
-  // LEFT(...) mit erzwungenem Leerzeichen.
+  // Patches.js) oder "T1 (Kontrolle)". In allen drei Faellen folgt auf den
+  // Code entweder nichts oder ein Leerzeichen - "\s" deckt das ab. Darf T1
+  // nicht mit T10 verwechseln - deshalb Regex auf Wortende statt LEFT(...)
+  // mit erzwungenem Leerzeichen.
   function maskExpr(code) {
     return 'ARRAYFORMULA(REGEXMATCH(Daten!$' + tCol + '$2:$' + tCol + '$' + R
-         + '&"","^' + code + '(?:$|[\\s(])"))';
+         + '&"";"^' + code + '(?:$|\\s)"))';
+  }
+  // WICHTIG: Alle Formeln in dieser Datei-Sheet-Umgebung laufen unter
+  // Gebietsschema "Deutschland" (Datei -> Einstellungen -> Allgemein) - dort
+  // ist das Funktions-Argumenttrennzeichen ";", nicht ",". Range.setFormula()
+  // konvertiert NICHT automatisch von US-Komma-Syntax, sondern uebernimmt den
+  // String wortwoertlich - ein Komma zwischen Argumenten liess deshalb JEDE
+  // Formel im Tab mit "Fehler beim Parsen der Formel" (#ERROR!) scheitern,
+  // nicht nur die Regex-Maske. Deshalb ueberall ";" als Trennzeichen, und
+  // fmtNum_ fuer eingebettete Zahlenliterale (deutsches Dezimalkomma statt
+  // Punkt, falls samen/potenzial keine ganze Zahl sind).
+  function fmtNum_(n) {
+    return String(n).replace('.', ',');
   }
 
   const HEADER = ['Treatment', 'n', 'Ø', 'SD', 'Min', 'Max', 'KFK %', 'CV %', 'rel. KFK %'];
@@ -2871,26 +2884,26 @@ function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenz
       const code = String(t.code || '').trim();
       if (!code) return;
       const SEL = maskExpr(code) + '*' + HAS;
-      const WERTE = 'ARRAYFORMULA(IF(' + SEL + ',' + CUM + ',""))';
+      const WERTE = 'ARRAYFORMULA(IF(' + SEL + ';' + CUM + ';""))';
       const r = curRow;
 
       sheet.getRange(r, 1).setValue(code + ' ' + (t.label || ''));
-      sheet.getRange(r, 2).setFormula('=IFERROR(SUMPRODUCT(' + SEL + '),"")');
-      sheet.getRange(r, 3).setFormula('=IFERROR(AVERAGE(' + WERTE + '),"")');
-      sheet.getRange(r, 4).setFormula('=IFERROR(STDEV(' + WERTE + '),"")');
+      sheet.getRange(r, 2).setFormula('=IFERROR(SUMPRODUCT(' + SEL + ');"")');
+      sheet.getRange(r, 3).setFormula('=IFERROR(AVERAGE(' + WERTE + ');"")');
+      sheet.getRange(r, 4).setFormula('=IFERROR(STDEV(' + WERTE + ');"")');
       // MIN/MAX ignorieren Text und liefern sonst 0, auch wenn gar kein Topf
       // matcht - das laese sich als Messwert lesen. Ueber n absichern.
-      sheet.getRange(r, 5).setFormula('=IFERROR(IF(N(B' + r + ')=0,"",MIN(' + WERTE + ')),"")');
-      sheet.getRange(r, 6).setFormula('=IFERROR(IF(N(B' + r + ')=0,"",MAX(' + WERTE + ')),"")');
+      sheet.getRange(r, 5).setFormula('=IFERROR(IF(N(B' + r + ')=0;"";MIN(' + WERTE + '));"")');
+      sheet.getRange(r, 6).setFormula('=IFERROR(IF(N(B' + r + ')=0;"";MAX(' + WERTE + '));"")');
       // KFK % = kumulativer Mittelwert / Samen pro Topf
-      sheet.getRange(r, 7).setFormula('=IFERROR(ROUND(C' + r + '/' + samen + '*100,1)&"%","")');
-      sheet.getRange(r, 8).setFormula('=IFERROR(ROUND(D' + r + '/C' + r + '*100,1)&"%","")');
+      sheet.getRange(r, 7).setFormula('=IFERROR(ROUND(C' + r + '/' + fmtNum_(samen) + '*100;1)&"%";"")');
+      sheet.getRange(r, 8).setFormula('=IFERROR(ROUND(D' + r + '/C' + r + '*100;1)&"%";"")');
       // rel. KFK % = KFK % / Potenzial-KFK der Charge * 100 (SOP-Kernregel).
       // Potenzial wird als Literal eingesetzt - aendert es sich spaeter, den Tab
       // per rebuildAuswertungTab(versuchsnr) neu aufbauen.
       sheet.getRange(r, 9).setFormula(
         potenzial > 0
-          ? '=IFERROR(ROUND(C' + r + '/' + samen + '*100/' + potenzial + '*100,1)&"%","—")'
+          ? '=IFERROR(ROUND(C' + r + '/' + fmtNum_(samen) + '*100/' + fmtNum_(potenzial) + '*100;1)&"%";"—")'
           : '="—"'
       );
       curRow++;

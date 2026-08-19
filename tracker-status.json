@@ -6,10 +6,10 @@
   "app_version_date": "2026-08-19",
   "changelog_version": "1.8.1",
   "changelog_datum": "2026-08-19",
-  "branch": "main",
+  "branch": "develop",
   "commit": "pending",
-  "gestempelt_am": "2026-08-19T14:47:49+02:00",
-  "ist_live": true,
+  "gestempelt_am": "2026-08-19T14:55:13+02:00",
+  "ist_live": false,
   "schemata": {
     "kfk_data": "kfk-protocol-v3",
     "csv_export": "long-format-v1",

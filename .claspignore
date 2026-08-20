@@ -4,3 +4,7 @@
 !appsscript.json
 !Patches.js
 !patch-26_024-treatments-v2.gs.js
+# Geteiltes Modul: derselbe Code laeuft im Backend (Formelbau des
+# Auswertungs-Tabs) und in der Vitest-Suite. Bewusst KEINE Kopie im .gs -
+# UMD-Export haengt es in Apps Script an globalThis (V8-Laufzeit).
+!js/auswertung-formeln.js

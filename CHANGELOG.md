@@ -4,6 +4,26 @@ Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
 ## Version 1.8.3 — 2026-08-19
 
+### 🚀 Added
+- **Testabdeckung für die Formelgenerierung des Auswertungs-Tabs.** Der
+  Formelbau steckte inline in `fillAuswertungTab_` und war damit von Vitest
+  nicht erreichbar (`SpreadsheetApp` lässt sich in Node nicht laden) — genau
+  deshalb fiel der Locale-Bug aus v1.8.0 erst im Growzelt-Sheet auf und nicht
+  in der Testsuite: es gab keinen einzigen Test, der eine erzeugte Formel
+  angeschaut hat. Die reinen String-Bauer liegen jetzt in
+  `js/auswertung-formeln.js` (`KfkAuswertungFormeln`, UMD-Modul wie
+  `js/chargen.js`), `fillAuswertungTab_` schreibt sie nur noch in die Zellen.
+  **Bewusst keine Kopie:** `.claspignore` lädt die Datei mit ins
+  Apps-Script-Projekt, der UMD-Export hängt sie dort an `globalThis`
+  (V8-Laufzeit) — Backend und Testsuite nutzen denselben Code, anders als bei
+  `missingAbschlussFields`/`missingAbschlussFelder_`, die bewusst gespiegelt
+  sind. 33 neue Tests (`test/auswertung-formeln.test.js`), Suite jetzt bei 181.
+  Abgesichert werden: Semikolon statt Komma als Argumenttrennzeichen,
+  Klammerbilanz, Dezimalkomma bei eingebetteten Zahlenliteralen, dass `T1`
+  nicht `T10` trifft, dass Spaltenbuchstaben nicht hart kodiert sind, und der
+  Blockplan unten. Gegenprobe gemacht: setzt man das Trennzeichen zurück auf
+  Komma, schlagen 3 Tests fehl — der v1.8.0-Bug wäre aufgefallen.
+
 ### 🔄 Changed
 - **Auswertungs-Tab zeigte Phantom-Blöcke.** Das Daten-Sheet bekommt von
   `buildDatenSheetFromRbdMap_` immer die Spalten `AZ1..AZ5`, unabhängig von

@@ -2837,44 +2837,14 @@ function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenz
     return;
   }
 
-  // Bausteine der Array-Formeln, jeweils bis einschliesslich Runde bisAz:
-  //   CUM  = Summe der Rundenwerte je Topf (leere Zellen zaehlen als 0)
-  //   HAS  = hat der Topf bis dahin ueberhaupt einen Wert? (sonst zaehlt er nicht als n)
-  //   MASK = gehoert die Zeile zu diesem Treatment?
-  function cumExpr(bisAz) {
-    return azNummern.filter(function (a) { return a <= bisAz; })
-      .map(function (a) { return 'N(Daten!$' + spalten.azZahlCols[a] + '$2:$' + spalten.azZahlCols[a] + '$' + R + ')'; })
-      .join('+');
-  }
-  function hasExpr(bisAz) {
-    return '((' + azNummern.filter(function (a) { return a <= bisAz; })
-      .map(function (a) { return '(Daten!$' + spalten.azZahlCols[a] + '$2:$' + spalten.azZahlCols[a] + '$' + R + '<>"")'; })
-      .join('+') + ')>0)';
-  }
-  // Die Treatment-Spalte enthaelt je nach Anlageweg den nackten Code ("T1",
-  // so schreibt ihn buildDatenSheetFromRbdMap_), "T1 Kontrolle" (Handeintrag,
-  // Patches.js) oder "T1 (Kontrolle)". In allen drei Faellen folgt auf den
-  // Code entweder nichts oder ein Leerzeichen - "\s" deckt das ab. Darf T1
-  // nicht mit T10 verwechseln - deshalb Regex auf Wortende statt LEFT(...)
-  // mit erzwungenem Leerzeichen.
-  function maskExpr(code) {
-    return 'ARRAYFORMULA(REGEXMATCH(Daten!$' + tCol + '$2:$' + tCol + '$' + R
-         + '&"";"^' + code + '(?:$|\\s)"))';
-  }
-  // WICHTIG: Alle Formeln in dieser Datei-Sheet-Umgebung laufen unter
-  // Gebietsschema "Deutschland" (Datei -> Einstellungen -> Allgemein) - dort
-  // ist das Funktions-Argumenttrennzeichen ";", nicht ",". Range.setFormula()
-  // konvertiert NICHT automatisch von US-Komma-Syntax, sondern uebernimmt den
-  // String wortwoertlich - ein Komma zwischen Argumenten liess deshalb JEDE
-  // Formel im Tab mit "Fehler beim Parsen der Formel" (#ERROR!) scheitern,
-  // nicht nur die Regex-Maske. Deshalb ueberall ";" als Trennzeichen, und
-  // fmtNum_ fuer eingebettete Zahlenliterale (deutsches Dezimalkomma statt
-  // Punkt, falls samen/potenzial keine ganze Zahl sind).
-  function fmtNum_(n) {
-    return String(n).replace('.', ',');
-  }
-
-  const HEADER = ['Treatment', 'n', 'Ø', 'SD', 'Min', 'Max', 'KFK %', 'CV %', 'rel. KFK %'];
+  // Der eigentliche Formelbau liegt in js/auswertung-formeln.js
+  // (KfkAuswertungFormeln) - UMD-Modul, das `.claspignore` mit hochlaedt und
+  // das per Vitest getestet wird (test/auswertung-formeln.test.js). Bis v1.8.2
+  // steckte er inline hier und war damit von der Testsuite nicht erreichbar;
+  // genau deshalb fiel der Locale-Bug aus v1.8.0 (US-Komma statt Semikolon)
+  // erst im Growzelt-Sheet auf. Hier bleibt nur noch das Schreiben in Zellen.
+  const FML = KfkAuswertungFormeln;
+  const HEADER = FML.KOPFZEILE;
   let curRow = 4;
 
   function block(titel, bisAz, hervorheben) {
@@ -2888,61 +2858,37 @@ function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenz
       .setHorizontalAlignment('center');
     curRow++;
 
-    const CUM = '(' + cumExpr(bisAz) + ')';
-    const HAS = hasExpr(bisAz);
-
     treatments.forEach(function (t) {
       const code = String(t.code || '').trim();
       if (!code) return;
-      const SEL = maskExpr(code) + '*' + HAS;
-      const WERTE = 'ARRAYFORMULA(IF(' + SEL + ';' + CUM + ';""))';
       const r = curRow;
+      const formeln = FML.zeilenFormeln({
+        code: code,
+        treatmentCol: tCol,
+        azZahlCols: spalten.azZahlCols,
+        azNummern: azNummern,
+        bisAz: bisAz,
+        zeilen: R,
+        row: r,
+        samenProTopf: samen,
+        chargeKfkPotenzial: potenzial
+      });
 
       sheet.getRange(r, 1).setValue(code + ' ' + (t.label || ''));
-      sheet.getRange(r, 2).setFormula('=IFERROR(SUMPRODUCT(' + SEL + ');"")');
-      sheet.getRange(r, 3).setFormula('=IFERROR(AVERAGE(' + WERTE + ');"")');
-      sheet.getRange(r, 4).setFormula('=IFERROR(STDEV(' + WERTE + ');"")');
-      // MIN/MAX ignorieren Text und liefern sonst 0, auch wenn gar kein Topf
-      // matcht - das laese sich als Messwert lesen. Ueber n absichern.
-      sheet.getRange(r, 5).setFormula('=IFERROR(IF(N(B' + r + ')=0;"";MIN(' + WERTE + '));"")');
-      sheet.getRange(r, 6).setFormula('=IFERROR(IF(N(B' + r + ')=0;"";MAX(' + WERTE + '));"")');
-      // KFK % = kumulativer Mittelwert / Samen pro Topf
-      sheet.getRange(r, 7).setFormula('=IFERROR(ROUND(C' + r + '/' + fmtNum_(samen) + '*100;1)&"%";"")');
-      sheet.getRange(r, 8).setFormula('=IFERROR(ROUND(D' + r + '/C' + r + '*100;1)&"%";"")');
-      // rel. KFK % = KFK % / Potenzial-KFK der Charge * 100 (SOP-Kernregel).
-      // Potenzial wird als Literal eingesetzt - aendert es sich spaeter, den Tab
-      // per rebuildAuswertungTab(versuchsnr) neu aufbauen.
-      sheet.getRange(r, 9).setFormula(
-        potenzial > 0
-          ? '=IFERROR(ROUND(C' + r + '/' + fmtNum_(samen) + '*100/' + fmtNum_(potenzial) + '*100;1)&"%";"—")'
-          : '="—"'
-      );
+      // Spalten B..I in der Reihenfolge von FML.FELDER, passend zu KOPFZEILE.
+      FML.FELDER.forEach(function (feld, i) {
+        sheet.getRange(r, i + 2).setFormula(formeln[feld]);
+      });
       curRow++;
     });
     curRow += 1; // Leerzeile
   }
 
-  // Wie viele Kumulativ-Blöcke? Das Daten-Sheet hat IMMER die Spalten AZ1..AZ5
-  // (buildDatenSheetFromRbdMap_ legt sie pauschal an, unabhaengig von
-  // az_geplant) - eine Blockschleife ueber alle gefundenen Spalten hat deshalb
-  // bis v1.8.2 auch fuer einen 3-Runden-Versuch Bloecke "bis AZ4"/"bis AZ5"
-  // gerendert, die numerisch identisch zu "bis AZ3" waren. Deshalb auf
-  // az_geplant begrenzen; fehlt/unplausibel -> alle Spalten (altes Verhalten).
-  const maxSpalte = azNummern[azNummern.length - 1];
-  let geplant = Number(azGeplant);
-  if (!(geplant >= 1 && geplant <= maxSpalte)) geplant = maxSpalte;
-
-  // Nur BIS ZUR VORLETZTEN geplanten Runde: "Kumulativ bis AZ<geplant>" waere
-  // dieselbe Summe wie der Gesamt-Block darunter - zwei identische Bloecke
-  // untereinander lesen sich wie ein Rechenfehler.
-  azNummern.filter(function (az) { return az < geplant; }).forEach(function (az) {
-    block('Kumulativ bis AZ' + az + '  (AZ1..AZ' + az + ')', az, false);
+  // Welche Bloecke, und bis zu welcher Runde jeweils - siehe blockPlan im
+  // Modul (begrenzt auf az_geplant, Gesamt ueber alle Spalten).
+  FML.blockPlan({ azNummern: azNummern, azGeplant: azGeplant }).forEach(function (b) {
+    block(b.titel, b.bisAz, b.hervorheben);
   });
-  // Gesamt-Block: Summe ueber ALLE vorhandenen Rundenspalten (nicht nur bis
-  // az_geplant) - so fallen Werte, die jemand ausserhalb der geplanten Runden
-  // eingetragen hat, nicht still aus der Auswertung. Das ist der Block, auf dem
-  // die Inferenzstatistik laeuft (SOP: "Statistik immer auf dem Gesamt-Block").
-  block('Gesamt  (KFK = Summe aller AZ-Runden)', maxSpalte, true);
 
   sheet.setColumnWidth(1, 200);
   for (let c = 2; c <= 9; c++) sheet.setColumnWidth(c, 85);

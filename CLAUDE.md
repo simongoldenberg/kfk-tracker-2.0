@@ -220,6 +220,19 @@ Werte ausserhalb der geplanten Runden still aus der Auswertung. Fehlt
 > wird zu Dezimalkomma. Gilt fuer jede kuenftige `setFormula`-Stelle, nicht nur
 > fuer `fillAuswertungTab_`.
 
+**Wo der Formelbau liegt (seit v1.8.3):** in `js/auswertung-formeln.js`
+(`KfkAuswertungFormeln`, UMD-Modul wie `js/chargen.js`), nicht mehr inline im
+Apps Script. `fillAuswertungTab_` schreibt die Formeln nur noch in die Zellen.
+**Bewusst keine Kopie:** `.claspignore` laedt die Datei mit ins
+Apps-Script-Projekt hoch, der UMD-Export haengt sie dort an `globalThis`
+(V8-Laufzeit) — Backend und Vitest nutzen also denselben Code, anders als bei
+`missingAbschlussFields`/`missingAbschlussFelder_`, die bewusst gespiegelt sind.
+Grund fuer die Auslagerung: inline war der Formelbau von der Testsuite nicht
+erreichbar (`SpreadsheetApp` laedt in Node nicht), weshalb der Locale-Bug aus
+v1.8.0 erst im Growzelt-Sheet auffiel. Tests:
+`test/auswertung-formeln.test.js`. Wer eine Formel aendert, aendert sie **dort**
+— nicht im `.gs`.
+
 Die Formeln sind Array-Formeln ueber `Daten!$X$2:$X$500` mit drei Bausteinen:
 `MASK` (Zeile gehoert zum Treatment, ueber
 `REGEXMATCH(Treatment-Spalte; "^<code>(?:$|\s)")` — die Spalte enthaelt je

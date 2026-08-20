@@ -416,7 +416,34 @@ Versionsueberschrift anlegen, bevor committet wird. Der Stempler liest genau
 diesen Abschnitt - ohne Eintrag meldet die Datei die Aenderung nicht. Kommt
 eine Migration im Apps-Script-Editor dazu, gehoert sie in einen Abschnitt
 "### Nach dem Deploy einmalig ausfuehren" mit Code-Block; der Stempler zieht
-die Zeilen nach `offene_migrationen`.
+die Zeilen nach `offene_migrationen`. Der Changelog-Text wird vor dem Parsen
+auf LF normalisiert - ohne das lief das Muster unter Windows (CRLF durch
+`core.autocrlf=true`) still ins Leere und `offene_migrationen` blieb dauerhaft
+leer (Fehler bis v1.8.1).
+
+### Release-Reihenfolge (wichtig, in dieser Folge)
+Die generierte `tracker-status.json` aendert sich auf jedem Branch bei jedem
+Commit. Wird sie auf beiden Seiten angefasst, kollidiert der Release-PR - bei
+den PRs #8 und #9 passiert. Deshalb:
+
+1. `npm run deploy:frontend` auf `develop` (bumpt CACHE_VERSION, stempelt,
+   committet, pusht)
+2. Version-PR `develop` -> `main` anlegen und mergen
+3. `git switch main && git pull`, dann `npm run stamp` + committen + pushen
+   (damit die Live-Datei `branch: main` / `ist_live: true` meldet)
+4. **Erst jetzt** den Git-Tag setzen - auf den fertigen `main`-HEAD. Wird vorher
+   getaggt, zeigt der Tag auf einen Stand mit veralteter `CACHE_VERSION` und
+   entspricht nicht dem, was live ist (Fehler bei `v1.8.1`, nachtraeglich
+   umgesetzt).
+5. `npm run sync:develop` - holt `develop` per Fast-Forward auf `main`, damit
+   der Stempel-Commit aus Schritt 3 nicht als Divergenz stehen bleibt und der
+   naechste PR konfliktfrei ist.
+
+`.gitattributes` setzt fuer die Datei zusaetzlich `merge=ours`; der dafuer
+noetige Driver kommt aus `npm run hooks:install`
+(`git config merge.ours.driver true`). Das wirkt aber **nur lokal** - GitHub
+kennt Merge-Driver serverseitig nicht, Schritt 5 bleibt also der maßgebliche
+Teil.
 
 Der Stempler warnt, wenn `APP_VERSION`, `package.json` und der oberste
 CHANGELOG-Eintrag auseinanderlaufen - die Warnung landet als Feld `warnungen`

@@ -45,10 +45,30 @@ Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
   Treatments), scheitert der AZ-Wechsel deswegen nicht — der Fehler wird im
   Rückgabewert unter `auswertung` mitgeliefert.
 
+### 🛠️ Werkzeug
+- **Release-PRs kollidierten strukturell an `tracker-status.json`.** Der
+  Release-Ablauf stempelt die Datei nach dem Merge noch einmal auf `main`
+  (damit die Live-Datei `branch: main` / `ist_live: true` meldet) — dieser
+  Commit liegt danach nur auf `main`. Arbeitet man auf `develop` weiter, ändern
+  beide Branches dieselbe generierte Datei und der nächste Release-PR
+  kollidiert; bei PR #8 und #9 genau so passiert, beide mussten von Hand
+  aufgelöst werden. Neu: `npm run sync:develop` holt `develop` per
+  **Fast-Forward** auf `main` (bricht ab, wenn `develop` eigene ungemergte
+  Commits hat, statt eigenmächtig zu mergen) — das ist der eigentliche Fix,
+  denn PR #10 war konfliktfrei, weil `develop` vorher auf `main` stand.
+  Zusätzlich `.gitattributes` mit `tracker-status.json merge=ours`; den dafür
+  nötigen Merge-Driver registriert `npm run hooks:install` mit
+  (`git config merge.ours.driver true`, lokale Config wie die Hooks selbst).
+  **Das hilft nur lokal** — GitHub kennt Merge-Driver serverseitig nicht,
+  deshalb bleibt der Sync-Schritt der maßgebliche Teil.
+
 ### 🔧 Nach dem Deploy einmalig ausführen
 ```
 rebuildAuswertungTabForAll(false)
 ```
+
+Und einmalig lokal im Repo: `npm run hooks:install` (registriert zusätzlich den
+Merge-Driver).
 
 ## Version 1.8.2 — 2026-08-19
 

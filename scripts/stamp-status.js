@@ -7,9 +7,9 @@
  * einzige Stelle, die Claude dafuer abrufen muss:
  *
  *   LIVE (main, via GitHub Pages):
- *     https://simongoldenberg.github.io/kfk-tracker-2.0/tracker-status.json
+ *     https://skyseed-berlin.github.io/kfk-tracker-2.0/tracker-status.json
  *   ENTWICKLUNG (develop, via raw.githubusercontent):
- *     https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/develop/tracker-status.json
+ *     https://raw.githubusercontent.com/skyseed-berlin/kfk-tracker-2.0/develop/tracker-status.json
  *
  * Unterscheiden sich die beiden Versionen, liegt etwas Fertiges auf develop,
  * das noch nicht deployt ist. Genau das soll die Versuchsleitung sehen.
@@ -141,10 +141,10 @@ const status = {
   letzte_aenderungen: cl.aenderungen,
   offene_migrationen: cl.migrationen,
   urls: {
-    live: 'https://simongoldenberg.github.io/kfk-tracker-2.0/',
-    status_live: 'https://simongoldenberg.github.io/kfk-tracker-2.0/tracker-status.json',
-    status_develop: 'https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/develop/tracker-status.json',
-    changelog: 'https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/main/CHANGELOG.md'
+    live: 'https://skyseed-berlin.github.io/kfk-tracker-2.0/',
+    status_live: 'https://skyseed-berlin.github.io/kfk-tracker-2.0/tracker-status.json',
+    status_develop: 'https://raw.githubusercontent.com/skyseed-berlin/kfk-tracker-2.0/develop/tracker-status.json',
+    changelog: 'https://raw.githubusercontent.com/skyseed-berlin/kfk-tracker-2.0/main/CHANGELOG.md'
   }
 };
 

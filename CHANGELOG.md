@@ -2,6 +2,24 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.6 — 2026-08-20
+
+### 🐛 Fixed
+- **Repo-Umzug: kanonisches GitHub-Repo war `simongoldenberg/kfk-tracker-2.0`
+  (persönlich), sollte aber immer `skyseed-berlin/kfk-tracker-2.0` (Org) sein.**
+  Das Org-Repo existierte bereits seit 11.08.2026, wurde aber nie wieder bespielt
+  — die komplette Entwicklung ab v1.7.0 lief versehentlich im persönlichen Repo.
+  Deshalb zeigte die GitHub-Pages-Seite unter der Org-URL (auf die z.B. das
+  Tablet im Growzelt korrekt zeigte) durchgehend den alten Stand v1.6.0, obwohl
+  in den letzten zehn Tagen bis v1.8.5 entwickelt wurde — kein Cache-/
+  Service-Worker-Problem, sondern zwei parallele Repos. Fix: kompletter
+  Verlauf (`main`, `develop`, alle Tags) ins Org-Repo nachgezogen, `origin`
+  lokal umgestellt, alle referenzierten URLs (README, `scripts/stamp-status.js`)
+  auf `skyseed-berlin` korrigiert. Zusätzlich einen einzelnen, im Org-Repo
+  isoliert entstandenen Commit ("Verbindliche SOP-Kernregeln") zurückgeholt,
+  der im persönlichen Repo nie ankam — siehe CLAUDE.md für zwei darin enthaltene,
+  bislang ungeklärte Widersprüche zum aktuellen Stand (Dark-Mode, ANOVA).
+
 ## Version 1.8.5 — 2026-08-20
 
 ### 🐛 Fixed

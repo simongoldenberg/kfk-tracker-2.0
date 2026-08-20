@@ -1,15 +1,15 @@
 {
   "schema": "kfk-tracker-status-v1",
   "hinweis": "Maschinenlesbarer Stand des KFK-Trackers fuer das Claude-Projekt Forschungsplan_Skyseed. Wird von scripts/stamp-status.js erzeugt - nicht von Hand bearbeiten.",
-  "version": "1.8.5",
-  "app_version": "1.8.5",
+  "version": "1.8.6",
+  "app_version": "1.8.6",
   "app_version_date": "2026-08-20",
-  "changelog_version": "1.8.5",
+  "changelog_version": "1.8.6",
   "changelog_datum": "2026-08-20",
   "branch": "develop",
-  "commit": "edf227e",
+  "commit": "8aea109",
   "commit_ist_vorgaenger": true,
-  "gestempelt_am": "2026-08-20T15:51:44+02:00",
+  "gestempelt_am": "2026-08-20T15:54:35+02:00",
   "ist_live": false,
   "schemata": {
     "kfk_data": "kfk-protocol-v3",
@@ -17,13 +17,13 @@
     "supabase_auswertung": "zusammenfassung|interpretation|empfehlung"
   },
   "letzte_aenderungen": [
-    "**Übersicht-Tabelle in der Versuchsansicht (AZ2 und folgende) zeigte den"
+    "**Repo-Umzug: kanonisches GitHub-Repo war `simongoldenberg/kfk-tracker-2.0`"
   ],
   "offene_migrationen": [],
   "urls": {
-    "live": "https://simongoldenberg.github.io/kfk-tracker-2.0/",
-    "status_live": "https://simongoldenberg.github.io/kfk-tracker-2.0/tracker-status.json",
-    "status_develop": "https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/develop/tracker-status.json",
-    "changelog": "https://raw.githubusercontent.com/simongoldenberg/kfk-tracker-2.0/main/CHANGELOG.md"
+    "live": "https://skyseed-berlin.github.io/kfk-tracker-2.0/",
+    "status_live": "https://skyseed-berlin.github.io/kfk-tracker-2.0/tracker-status.json",
+    "status_develop": "https://raw.githubusercontent.com/skyseed-berlin/kfk-tracker-2.0/develop/tracker-status.json",
+    "changelog": "https://raw.githubusercontent.com/skyseed-berlin/kfk-tracker-2.0/main/CHANGELOG.md"
   }
 }

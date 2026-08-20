@@ -394,6 +394,23 @@ APP_VERSION + Datum, Branch, Commit, Zeitstempel, die aktiven Schemata
 (`kfk-protocol-v3`, Long-Format-CSV), die Aenderungsliste des obersten
 CHANGELOG-Abschnitts und die noch offenen Apps-Script-Migrationen.
 
+**`commit` kann nie der eigene Commit sein** (seit v1.8.4 sauber geloest): der
+Hash ergibt sich aus dem Baum, in dem die Datei liegt - stuende er in ihr, waere
+er dadurch ein anderer. Im Feld steht deshalb immer der echte HEAD zum
+Stempelzeitpunkt, und `commit_ist_vorgaenger` sagt, wie er zu lesen ist:
+`true` = gestempelt aus dem `pre-commit`-Hook, also der Vorgaenger des
+entstehenden Commits; `false` = eigenstaendiger Stempel (`npm run stamp`,
+Deploy), also der tatsaechliche HEAD. Bis v1.8.3 stand hier die Marke
+`'pending'`, und weil der Hook nach `npm run stamp` ein zweites Mal stempelt und
+die Datei selbst staged, hat sie den korrekten Hash immer ueberschrieben - in
+jeder committeten Fassung stand `'pending'`. Fuer den Release-Stempel auf `main`
+ist der Wert jetzt genau der gesuchte: dort ist HEAD der Merge-Commit, also der
+Codestand, der live geht.
+
+**`offene_migrationen` heisst "diese Version braucht diese Migration"**, nicht
+"bei dir noch offen" - der Stempler liest nur den CHANGELOG-Abschnitt und weiss
+nicht, ob jemand die Zeilen schon ausgefuehrt hat.
+
 Zwei Abrufpunkte, deren Differenz die eigentliche Information ist:
 
 | Zweck | URL |

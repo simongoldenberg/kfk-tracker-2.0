@@ -102,7 +102,20 @@ const appVersion = (indexHtml.match(/const APP_VERSION = '([^']+)'/) || [])[1] |
 const appVersionDate = (indexHtml.match(/const APP_VERSION_DATE = '([^']+)'/) || [])[1] || null;
 
 const branch = git('rev-parse --abbrev-ref HEAD', 'unbekannt');
-const commit = STAGED ? 'pending' : git('rev-parse --short HEAD', 'unbekannt');
+
+// Der Commit-Hash kann NIE der des eigenen Commits sein: er ergibt sich aus dem
+// Baum, in dem diese Datei liegt - haette sie ihn schon im Inhalt, wuerde sich
+// der Hash dadurch aendern. Bis v1.8.3 stand deshalb im pre-commit-Hook die
+// Marke 'pending' drin, und weil der Hook nach `npm run stamp` ein zweites Mal
+// stempelt und die Datei selbst staged, hat 'pending' den vorher korrekt
+// ermittelten Hash immer wieder ueberschrieben: in JEDER committeten Fassung
+// stand 'pending', das Feld war damit nutzlos.
+// Jetzt steht immer der echte HEAD drin. Im Hook ist das der VORGAENGER des
+// entstehenden Commits - `commit_ist_vorgaenger` sagt es ausdruecklich, statt
+// eine Ungenauigkeit zu verstecken. Fuer den Release-Stempel auf main ist genau
+// dieser Wert der gesuchte: dort ist HEAD der Merge-Commit, also der Codestand,
+// der live geht - der Stempel-Commit selbst aendert nur diese Datei.
+const commit = git('rev-parse --short HEAD', 'unbekannt');
 
 const status = {
   schema: 'kfk-tracker-status-v1',
@@ -114,6 +127,10 @@ const status = {
   changelog_datum: cl.datum,
   branch,
   commit,
+  // true = gestempelt aus dem pre-commit-Hook, `commit` ist dann der Vorgaenger
+  // des entstehenden Commits (siehe Kommentar oben). false = eigenstaendiger
+  // Stempel (npm run stamp / deploy), `commit` ist der tatsaechliche HEAD.
+  commit_ist_vorgaenger: STAGED,
   gestempelt_am: isoLocal(new Date()),
   ist_live: branch === 'main',
   schemata: {
@@ -144,6 +161,7 @@ if (warnungen.length) status.warnungen = warnungen;
 const ziel = path.join(ROOT, 'tracker-status.json');
 fs.writeFileSync(ziel, JSON.stringify(status, null, 2) + '\n', 'utf8');
 
-console.log('tracker-status.json: v' + status.version + ' (' + branch + '/' + commit + ')'
+console.log('tracker-status.json: v' + status.version
+  + ' (' + branch + '/' + commit + (STAGED ? ', Vorgaenger' : '') + ')'
   + (status.letzte_aenderungen.length ? ', ' + status.letzte_aenderungen.length + ' Aenderungen' : '')
   + (warnungen.length ? '\n  WARNUNG: ' + warnungen.join('\n  WARNUNG: ') : ''));

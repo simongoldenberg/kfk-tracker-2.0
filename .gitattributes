@@ -1,0 +1,17 @@
+# tracker-status.json ist eine GENERIERTE Datei (scripts/stamp-status.js) und
+# aendert sich bei jedem Commit auf jedem Branch - Commit-Hash, Zeitstempel und
+# `branch`/`ist_live` unterscheiden sich zwischen develop und main
+# zwangslaeufig. Beim Zusammenfuehren gibt es also nichts sinnvoll zu mergen:
+# der naechste Stempel schreibt die Datei ohnehin komplett neu. `merge=ours`
+# nimmt bei einem lokalen Merge einfach die eigene Version, statt
+# Konfliktmarker in valides JSON zu schreiben.
+#
+# ACHTUNG - was das NICHT loest: Merge-Driver sind lokale Git-Konfiguration
+# (`merge.ours.driver`, wird von `npm run hooks:install` gesetzt, siehe dort).
+# GitHub kennt sie serverseitig nicht, ein Pull-Request kann deshalb weiterhin
+# an dieser Datei kollidieren. Dagegen hilft nur die Reihenfolge im
+# Release-Ablauf: nach jedem Release `npm run sync:develop` (Fast-Forward von
+# develop auf main), damit develop nie mit eigenen Stempel-Commits gegen main
+# divergiert. Siehe CLAUDE.md, Abschnitt "Aenderungsmeldung an das
+# Claude-Projekt".
+tracker-status.json merge=ours

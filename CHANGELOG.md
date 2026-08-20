@@ -2,6 +2,74 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.3 — 2026-08-19
+
+### 🚀 Added
+- **Testabdeckung für die Formelgenerierung des Auswertungs-Tabs.** Der
+  Formelbau steckte inline in `fillAuswertungTab_` und war damit von Vitest
+  nicht erreichbar (`SpreadsheetApp` lässt sich in Node nicht laden) — genau
+  deshalb fiel der Locale-Bug aus v1.8.0 erst im Growzelt-Sheet auf und nicht
+  in der Testsuite: es gab keinen einzigen Test, der eine erzeugte Formel
+  angeschaut hat. Die reinen String-Bauer liegen jetzt in
+  `js/auswertung-formeln.js` (`KfkAuswertungFormeln`, UMD-Modul wie
+  `js/chargen.js`), `fillAuswertungTab_` schreibt sie nur noch in die Zellen.
+  **Bewusst keine Kopie:** `.claspignore` lädt die Datei mit ins
+  Apps-Script-Projekt, der UMD-Export hängt sie dort an `globalThis`
+  (V8-Laufzeit) — Backend und Testsuite nutzen denselben Code, anders als bei
+  `missingAbschlussFields`/`missingAbschlussFelder_`, die bewusst gespiegelt
+  sind. 33 neue Tests (`test/auswertung-formeln.test.js`), Suite jetzt bei 181.
+  Abgesichert werden: Semikolon statt Komma als Argumenttrennzeichen,
+  Klammerbilanz, Dezimalkomma bei eingebetteten Zahlenliteralen, dass `T1`
+  nicht `T10` trifft, dass Spaltenbuchstaben nicht hart kodiert sind, und der
+  Blockplan unten. Gegenprobe gemacht: setzt man das Trennzeichen zurück auf
+  Komma, schlagen 3 Tests fehl — der v1.8.0-Bug wäre aufgefallen.
+
+### 🔄 Changed
+- **Auswertungs-Tab zeigte Phantom-Blöcke.** Das Daten-Sheet bekommt von
+  `buildDatenSheetFromRbdMap_` immer die Spalten `AZ1..AZ5`, unabhängig von
+  `az_geplant`. `fillAuswertungTab_` iterierte über alle gefundenen Spalten und
+  rendelte deshalb auch für einen 3-Runden-Versuch die Blöcke „Kumulativ bis
+  AZ4" und „bis AZ5" — beide numerisch identisch zu „bis AZ3". Zusammen mit dem
+  Gesamt-Block standen so bis zu drei rechnerisch gleiche Blöcke untereinander,
+  was sich wie ein Rechenfehler liest. Die Blockzahl richtet sich jetzt nach
+  `az_geplant`, und die Kumulativ-Blöcke laufen nur bis zur **vorletzten**
+  geplanten Runde — der letzte wäre ohnehin deckungsgleich mit „Gesamt".
+  Fehlt `az_geplant` oder ist der Wert unplausibel, bleibt das alte Verhalten
+  (alle Spalten) als Fallback.
+- **`Gesamt` summiert weiterhin über *alle* vorhandenen Rundenspalten**, nicht
+  nur bis `az_geplant` — Werte, die jemand ausserhalb der geplanten Runden
+  eingetragen hat, fallen so nicht still aus der Auswertung.
+- **`updateAZGeplant` baut den Auswertungs-Tab neu auf.** Da die Blockzahl nun
+  an `az_geplant` hängt, wäre der Tab nach einer Änderung der geplanten Runden
+  sonst still veraltet. Schlägt der Neuaufbau fehl (z.B. Versuch ohne
+  Treatments), scheitert der AZ-Wechsel deswegen nicht — der Fehler wird im
+  Rückgabewert unter `auswertung` mitgeliefert.
+
+### 🛠️ Werkzeug
+- **Release-PRs kollidierten strukturell an `tracker-status.json`.** Der
+  Release-Ablauf stempelt die Datei nach dem Merge noch einmal auf `main`
+  (damit die Live-Datei `branch: main` / `ist_live: true` meldet) — dieser
+  Commit liegt danach nur auf `main`. Arbeitet man auf `develop` weiter, ändern
+  beide Branches dieselbe generierte Datei und der nächste Release-PR
+  kollidiert; bei PR #8 und #9 genau so passiert, beide mussten von Hand
+  aufgelöst werden. Neu: `npm run sync:develop` holt `develop` per
+  **Fast-Forward** auf `main` (bricht ab, wenn `develop` eigene ungemergte
+  Commits hat, statt eigenmächtig zu mergen) — das ist der eigentliche Fix,
+  denn PR #10 war konfliktfrei, weil `develop` vorher auf `main` stand.
+  Zusätzlich `.gitattributes` mit `tracker-status.json merge=ours`; den dafür
+  nötigen Merge-Driver registriert `npm run hooks:install` mit
+  (`git config merge.ours.driver true`, lokale Config wie die Hooks selbst).
+  **Das hilft nur lokal** — GitHub kennt Merge-Driver serverseitig nicht,
+  deshalb bleibt der Sync-Schritt der maßgebliche Teil.
+
+### 🔧 Nach dem Deploy einmalig ausführen
+```
+rebuildAuswertungTabForAll(false)
+```
+
+Und einmalig lokal im Repo: `npm run hooks:install` (registriert zusätzlich den
+Merge-Driver).
+
 ## Version 1.8.2 — 2026-08-19
 
 ### 🐛 Fixed

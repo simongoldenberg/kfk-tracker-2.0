@@ -188,11 +188,24 @@ berechnet:
   "KF %". Behoben; Altbestand per `rebuildAuswertungTabForAll(false)` nachziehen.
 
 ## Auswertungs-Tab (seit v1.8.0)
-Jeder Versuchs-Sheet hat einen Tab `Auswertung` mit einem Block je AZ-Runde
-("Kumulativ bis AZn") plus einem hervorgehobenen Block **`Gesamt`** (Summe ueber
-alle Runden). Spalten: `Treatment · n · Ø · SD · Min · Max · KFK % · CV % ·
-rel. KFK %`. Die Inferenzstatistik (GLM/ANOVA, eta^2, CLD) laeuft laut SOP immer
-auf dem Gesamt-Block, nie auf einem Einzel-AZ.
+Jeder Versuchs-Sheet hat einen Tab `Auswertung` mit Bloecken "Kumulativ bis AZn"
+plus einem hervorgehobenen Block **`Gesamt`**. Spalten:
+`Treatment · n · Ø · SD · Min · Max · KFK % · CV % · rel. KFK %`. Die
+Inferenzstatistik (GLM/ANOVA, eta^2, CLD) laeuft laut SOP immer auf dem
+Gesamt-Block, nie auf einem Einzel-AZ.
+
+**Wie viele Bloecke (seit v1.8.3):** Kumulativ-Bloecke gibt es nur bis zur
+**vorletzten** geplanten Runde (`az_geplant - 1`), danach folgt `Gesamt`. Grund:
+das Daten-Sheet hat immer die Spalten `AZ1..AZ5` (`buildDatenSheetFromRbdMap_`
+legt sie pauschal an, unabhaengig von `az_geplant`) — eine Schleife ueber alle
+gefundenen Spalten hat bis v1.8.2 auch bei drei geplanten Runden Bloecke
+"bis AZ4"/"bis AZ5" gerendert, numerisch identisch zu "bis AZ3", und `Gesamt`
+war eine dritte Kopie derselben Zahlen. `Gesamt` summiert bewusst weiter ueber
+**alle** vorhandenen Rundenspalten, nicht nur bis `az_geplant` — sonst fielen
+Werte ausserhalb der geplanten Runden still aus der Auswertung. Fehlt
+`az_geplant` oder ist er unplausibel, greift als Fallback das alte Verhalten
+(alle Spalten). `updateAZGeplant` baut den Tab deshalb neu auf; aendert sich
+`az_geplant` auf anderem Weg, braucht der Tab `rebuildAuswertungTab('26_0XX')`.
 
 > [!IMPORTANT]
 > **Formeln IMMER mit Semikolon `;` als Argumenttrennzeichen erzeugen, nie mit
@@ -206,6 +219,19 @@ auf dem Gesamt-Block, nie auf einem Einzel-AZ.
 > (`samen_pro_topf`, `charge_kfk_potenzial`), laufen ueber `fmtNum_()` — Punkt
 > wird zu Dezimalkomma. Gilt fuer jede kuenftige `setFormula`-Stelle, nicht nur
 > fuer `fillAuswertungTab_`.
+
+**Wo der Formelbau liegt (seit v1.8.3):** in `js/auswertung-formeln.js`
+(`KfkAuswertungFormeln`, UMD-Modul wie `js/chargen.js`), nicht mehr inline im
+Apps Script. `fillAuswertungTab_` schreibt die Formeln nur noch in die Zellen.
+**Bewusst keine Kopie:** `.claspignore` laedt die Datei mit ins
+Apps-Script-Projekt hoch, der UMD-Export haengt sie dort an `globalThis`
+(V8-Laufzeit) — Backend und Vitest nutzen also denselben Code, anders als bei
+`missingAbschlussFields`/`missingAbschlussFelder_`, die bewusst gespiegelt sind.
+Grund fuer die Auslagerung: inline war der Formelbau von der Testsuite nicht
+erreichbar (`SpreadsheetApp` laedt in Node nicht), weshalb der Locale-Bug aus
+v1.8.0 erst im Growzelt-Sheet auffiel. Tests:
+`test/auswertung-formeln.test.js`. Wer eine Formel aendert, aendert sie **dort**
+— nicht im `.gs`.
 
 Die Formeln sind Array-Formeln ueber `Daten!$X$2:$X$500` mit drei Bausteinen:
 `MASK` (Zeile gehoert zum Treatment, ueber
@@ -390,7 +416,34 @@ Versionsueberschrift anlegen, bevor committet wird. Der Stempler liest genau
 diesen Abschnitt - ohne Eintrag meldet die Datei die Aenderung nicht. Kommt
 eine Migration im Apps-Script-Editor dazu, gehoert sie in einen Abschnitt
 "### Nach dem Deploy einmalig ausfuehren" mit Code-Block; der Stempler zieht
-die Zeilen nach `offene_migrationen`.
+die Zeilen nach `offene_migrationen`. Der Changelog-Text wird vor dem Parsen
+auf LF normalisiert - ohne das lief das Muster unter Windows (CRLF durch
+`core.autocrlf=true`) still ins Leere und `offene_migrationen` blieb dauerhaft
+leer (Fehler bis v1.8.1).
+
+### Release-Reihenfolge (wichtig, in dieser Folge)
+Die generierte `tracker-status.json` aendert sich auf jedem Branch bei jedem
+Commit. Wird sie auf beiden Seiten angefasst, kollidiert der Release-PR - bei
+den PRs #8 und #9 passiert. Deshalb:
+
+1. `npm run deploy:frontend` auf `develop` (bumpt CACHE_VERSION, stempelt,
+   committet, pusht)
+2. Version-PR `develop` -> `main` anlegen und mergen
+3. `git switch main && git pull`, dann `npm run stamp` + committen + pushen
+   (damit die Live-Datei `branch: main` / `ist_live: true` meldet)
+4. **Erst jetzt** den Git-Tag setzen - auf den fertigen `main`-HEAD. Wird vorher
+   getaggt, zeigt der Tag auf einen Stand mit veralteter `CACHE_VERSION` und
+   entspricht nicht dem, was live ist (Fehler bei `v1.8.1`, nachtraeglich
+   umgesetzt).
+5. `npm run sync:develop` - holt `develop` per Fast-Forward auf `main`, damit
+   der Stempel-Commit aus Schritt 3 nicht als Divergenz stehen bleibt und der
+   naechste PR konfliktfrei ist.
+
+`.gitattributes` setzt fuer die Datei zusaetzlich `merge=ours`; der dafuer
+noetige Driver kommt aus `npm run hooks:install`
+(`git config merge.ours.driver true`). Das wirkt aber **nur lokal** - GitHub
+kennt Merge-Driver serverseitig nicht, Schritt 5 bleibt also der maßgebliche
+Teil.
 
 Der Stempler warnt, wenn `APP_VERSION`, `package.json` und der oberste
 CHANGELOG-Eintrag auseinanderlaufen - die Warnung landet als Feld `warnungen`

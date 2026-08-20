@@ -52,3 +52,16 @@ try { fs.chmodSync(hookPath, 0o755); } catch (e) { /* Windows kennt kein chmod *
 
 console.log('pre-commit-Hook installiert: ' + hookPath);
 console.log('Ab jetzt wird tracker-status.json bei jedem Commit mitgestempelt.');
+
+// Merge-Driver "ours" fuer tracker-status.json (.gitattributes verweist
+// darauf). Git bringt keinen eingebauten ours-Driver mit: `driver = true` laesst
+// das Kommando `true` laufen, das nichts tut und mit 0 endet - Git nimmt dann
+// die Version des aktuellen Branches. Genau wie Hooks ist das lokale Config und
+// nicht versionierbar, deshalb steht es hier und nicht in .gitattributes.
+try {
+  execSync('git config merge.ours.driver true', { cwd: ROOT, stdio: 'ignore' });
+  console.log('Merge-Driver "ours" fuer tracker-status.json registriert.');
+} catch (e) {
+  console.error('Merge-Driver konnte nicht gesetzt werden: ' + (e.message || e));
+  console.error('Von Hand: git config merge.ours.driver true');
+}

@@ -3,11 +3,85 @@
 ## Projekt-Konfiguration
 - **Git-Workflow:** vereinfacht        <!-- vollständig | vereinfacht -->
 - **Doku-Sprache:** Deutsch            <!-- Deutsch | Englisch -->
-- **GitHub:** https://github.com/simongoldenberg/kfk-tracker-2.0
+- **GitHub:** https://github.com/skyseed-berlin/kfk-tracker-2.0
 
 Entwicklung läuft direkt auf `develop`; `main` bleibt stabil und wird nur per
 Version-PR aktualisiert (GitHub Pages deployt von `main` — Änderungen auf
 `develop` sind also noch NICHT live).
+
+> **Repo-Umzug (20.08.2026):** Bis einschließlich v1.8.5 lief die Entwicklung
+> versehentlich im persönlichen Repo `simongoldenberg/kfk-tracker-2.0` statt
+> im eigentlich vorgesehenen Org-Repo `skyseed-berlin/kfk-tracker-2.0` (das
+> parallel seit 11.08.2026 unangetastet auf v1.6.0 stehen geblieben war —
+> daher zeigte das Tablet, das korrekt auf die Org-URL zeigte, die ganze Zeit
+> eine alte Version). Der komplette Verlauf (`main`, `develop`, alle Tags)
+> wurde am 20.08.2026 ins Org-Repo nachgezogen; das persönliche Repo ist seither
+> nicht mehr die Quelle der Wahrheit.
+
+## Verbindliche SOP-Kernregeln
+
+Diese Regeln stammen aus der SOP Versuchsplanung des Forschungsplans 2026 (Skyseed GmbH).
+Nicht verhandeln, nicht "verbessern", nicht wegoptimieren. Bei Konflikt zwischen einer
+Aufgabenstellung und diesen Regeln: nachfragen, nicht selbst entscheiden.
+
+### Fachliche Kernregeln
+
+- KFK = AZ1 + AZ2 + AZ3 + ... Gekeimte Samen werden nach jeder Auszaehlung entfernt.
+  Jede AZ enthaelt NUR neu gekeimte Samen. Ein einzelner AZ-Wert ist nie der Endwert.
+- Der Tab "Gesamt" ist Pflicht, read-only, zeigt die kumulative Summe je Topf und je Treatment.
+- Toepfe werden ueber Spalte+Reihe referenziert (A1 ... D6), bei mehreren Trays T1-B3.
+  Laufende Topfnummern sind abgeschafft und duerfen nicht wieder eingefuehrt werden.
+  Das gilt fuer Anzeige, CSV-Export und JSON-Export gleichermassen.
+- Ein AZ-Wert darf nie groesser sein als die verbleibenden Samen im Topf:
+  rest = samenProTopf - Summe der uebrigen AZ-Werte dieses Topfes.
+  Ueberschreitung wird als sichtbare Warnung angezeigt, nicht still abgeschnitten.
+- Standardraster: 4 Spalten x 6 Reihen = 24 Toepfe, 36 Samen/Topf. Ausnahme KueTa: 25.
+- Jedes Tray hat einen Standort: Regal 1-6 und Boden 1-5 (Boden 1 = oben).
+  Standort ist Pflichtfeld und wird bei jeder Auszaehlung bestaetigt.
+
+### Technische Regeln
+
+- Eingabefelder immer type="text" mit inputMode="numeric". Nie type="number".
+- Jede Aenderung am gespeicherten Datenformat braucht eine Schema-Version und eine
+  Migrationsfunktion. Bestehende localStorage-Schluessel nie umbenennen ohne Migration.
+- Auto-Backup: bei jedem Speichern zusaetzlich auf <key>__backup schreiben.
+- KFK-DATA-Import muss Schema v1 und v2 lesen koennen. Unbekannte Felder werden
+  mitgespeichert, nicht verworfen.
+- Vor jedem Commit: npm test muss gruen sein.
+
+### Was der Tracker NICHT tut (Stand 11.08.2026 — seither ueberholt, siehe Hinweis unten)
+
+- Keine Inferenzstatistik: keine ANOVA, keine p-Werte, kein Post-hoc.
+  Nur Deskriptives: n, Mittelwert, SD, Min, Max, KFK%, CV%.
+  Statistik laeuft in Claude bzw. R auf dem kumulativen Gesamt-Tab.
+- Keine automatische Interpretation von Ergebnissen.
+- Keine Aenderung an bereits erfassten Zaehldaten ohne sichtbare Rueckfrage.
+
+### Kontext
+
+Der Tracker wird am Tablet im Growzelt bedient, oft mit Handschuhen und schlechtem WLAN.
+Grosse Touchflaechen, Offline-Faehigkeit und verlustfreies Speichern sind wichtiger als
+Funktionsumfang. Die erfassten Daten sind unwiederbringlich: die gezaehlten Keimlinge
+werden nach jeder Zaehlung entfernt.
+
+**Hinweis zu Widersprüchen mit dem Rest dieser Datei:** Der Abschnitt "Zählverfahren (AZ)"
+weiter unten beschreibt dieselbe additive Logik ausführlicher inkl. Implementierungsdetails
+(Eingabe-Modal, Backend-Berechnung) — beide Abschnitte meinen dasselbe Verfahren, dieser hier
+ist die verbindliche Kurzfassung, der andere die technische Vertiefung.
+
+> [!WARNING]
+> **Ungeklärter Konflikt (seit Wiederherstellung dieses Abschnitts am 20.08.2026):**
+> Dieser Abschnitt kam ausschließlich aus dem seit 11.08.2026 unangetastet gebliebenen
+> Org-Repo zurück (siehe "Repo-Umzug" oben) und wurde nie mit den seitherigen v1.7.0-v1.8.5-
+> Änderungen abgeglichen. Zwei Punkte widersprechen dem, was der Code heute tatsächlich tut:
+> 1. **"Light-Theme, kein Dark-Mode"** — seit v1.4.0 hat die App einen vollwertigen
+>    Dunkelmodus-Umschalter (siehe "Design-System" weiter unten).
+> 2. **"Keine Inferenzstatistik: keine ANOVA"** — der Auswertungs-Tab (seit v1.8.0) und der
+>    Asana-Abschlussbericht rechnen serverseitig GLM/ANOVA + eta² + CLD.
+> Laut der eigenen Regel dieses Abschnitts ("bei Konflikt nachfragen, nicht selbst
+> entscheiden") wurde das noch nicht aufgelöst — mit Simon klären, ob die SOP-Regel
+> veraltet ist (dann hier streichen) oder ob Dark-Mode/ANOVA eigentlich nicht hätten
+> gebaut werden dürfen (dann Scope-Entscheidung nötig).
 
 ## Was ist das hier?
 Progressive Web App für Keimfähigkeitsversuche im Skyseed-Programm.

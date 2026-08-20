@@ -2,6 +2,18 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.5 — 2026-08-20
+
+### 🐛 Fixed
+- **Übersicht-Tabelle in der Versuchsansicht (AZ2 und folgende) zeigte den
+  rohen Runden-Neuwert statt der kumulierten Keimzahl.** `renderUebersicht()`
+  in `index.html` las direkt `az{n}_zahl` statt über die bereits vorhandene
+  `cumulativeAZSum()` (siehe "Zählverfahren (AZ)" in CLAUDE.md) Summe(AZ1…AZn)
+  zu bilden — dadurch fielen Ø/KF%/CV% ab AZ2 viel zu niedrig aus (z.B. 6%
+  statt der tatsächlichen ~65% kumulierter Keimfähigkeit). Eingabe-Modal,
+  Fortschritts-Pills und Backend-Statistik/ANOVA rechneten schon vorher
+  korrekt kumulativ — betroffen war ausschließlich diese eine Live-Tabelle.
+
 ## Version 1.8.4 — 2026-08-20
 
 ### 🐛 Fixed

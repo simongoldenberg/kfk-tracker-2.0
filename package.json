@@ -1,6 +1,6 @@
 {
   "name": "kfk-tracker",
-  "version": "1.8.4",
+  "version": "1.8.5",
   "private": true,
   "description": "Skyseed KFK-Tracker — PWA + Google Apps Script Backend",
   "scripts": {

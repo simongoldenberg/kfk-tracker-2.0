@@ -2,6 +2,34 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.3 — 2026-08-19
+
+### 🔄 Changed
+- **Auswertungs-Tab zeigte Phantom-Blöcke.** Das Daten-Sheet bekommt von
+  `buildDatenSheetFromRbdMap_` immer die Spalten `AZ1..AZ5`, unabhängig von
+  `az_geplant`. `fillAuswertungTab_` iterierte über alle gefundenen Spalten und
+  rendelte deshalb auch für einen 3-Runden-Versuch die Blöcke „Kumulativ bis
+  AZ4" und „bis AZ5" — beide numerisch identisch zu „bis AZ3". Zusammen mit dem
+  Gesamt-Block standen so bis zu drei rechnerisch gleiche Blöcke untereinander,
+  was sich wie ein Rechenfehler liest. Die Blockzahl richtet sich jetzt nach
+  `az_geplant`, und die Kumulativ-Blöcke laufen nur bis zur **vorletzten**
+  geplanten Runde — der letzte wäre ohnehin deckungsgleich mit „Gesamt".
+  Fehlt `az_geplant` oder ist der Wert unplausibel, bleibt das alte Verhalten
+  (alle Spalten) als Fallback.
+- **`Gesamt` summiert weiterhin über *alle* vorhandenen Rundenspalten**, nicht
+  nur bis `az_geplant` — Werte, die jemand ausserhalb der geplanten Runden
+  eingetragen hat, fallen so nicht still aus der Auswertung.
+- **`updateAZGeplant` baut den Auswertungs-Tab neu auf.** Da die Blockzahl nun
+  an `az_geplant` hängt, wäre der Tab nach einer Änderung der geplanten Runden
+  sonst still veraltet. Schlägt der Neuaufbau fehl (z.B. Versuch ohne
+  Treatments), scheitert der AZ-Wechsel deswegen nicht — der Fehler wird im
+  Rückgabewert unter `auswertung` mitgeliefert.
+
+### 🔧 Nach dem Deploy einmalig ausführen
+```
+rebuildAuswertungTabForAll(false)
+```
+
 ## Version 1.8.2 — 2026-08-19
 
 ### 🐛 Fixed

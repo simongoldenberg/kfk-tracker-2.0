@@ -790,13 +790,23 @@ function updateAZGeplant(body) {
   sheet.getRange(rowIdx, colIdx[INDEX_COLS.az_geplant] + 1).setValue(neueAnzahl);
   SpreadsheetApp.flush();
 
+  // Auswertung-Tab nachziehen: seit v1.8.3 haengt die Anzahl der
+  // Kumulativ-Bloecke an az_geplant, der Tab waere sonst still veraltet.
+  // Darf den AZ-Wechsel nicht scheitern lassen (z.B. Versuch ohne Treatments).
+  let auswertungResult = { info: 'nicht neu aufgebaut' };
+  try {
+    auswertungResult = rebuildAuswertungTab(body.versuchsnr);
+  } catch (e) {
+    auswertungResult = { fehler: String(e.message || e) };
+  }
+
   // Asana-Subtasks anpassen
   let asanaResult = { info: 'keine Asana-Verbindung' };
   if (asanaGid && ASANA_PAT && !ASANA_PAT.startsWith('__')) {
     asanaResult = syncAsanaAZSubtasks(asanaGid, neueAnzahl, aktuell);
   }
 
-  return { ok: true, versuchsnr: body.versuchsnr, neueAnzahl, vorher: aktuell, asana: asanaResult };
+  return { ok: true, versuchsnr: body.versuchsnr, neueAnzahl, vorher: aktuell, asana: asanaResult, auswertung: auswertungResult };
 }
 
 // ========== FOTO-UPLOAD ==========
@@ -2371,7 +2381,7 @@ function setupSingleVersuch(versuchsnr) {
   const treatments = v.treatments || [];
   buildDatenTab(newSs, Number(v.raster_cols || 4), Number(v.raster_rows || 6), Number(v.anzahl_trays || 1));
   buildMetaTab(newSs, versuchsnr, treatments);
-  if (treatments.length) buildAuswertungTab(newSs, treatments, Number(v.samen_pro_topf || 36), Number(v.charge_kfk_potenzial || 0));
+  if (treatments.length) buildAuswertungTab(newSs, treatments, Number(v.samen_pro_topf || 36), Number(v.charge_kfk_potenzial || 0), Number(v.az_geplant || 3));
 
   // IDs zurueck in Index schreiben
   const indexSheet = getIndexSheet();
@@ -2605,6 +2615,7 @@ function bulkSetupVersuche() {
       const samenProTopf = Number(row[colIdx[INDEX_COLS.samen_pro_topf]] || 36);
       const anzahlTrays = Number(row[colIdx[INDEX_COLS.anzahl_trays]] || 1);
       const chargeKfkPotenzial = Number(row[colIdx[INDEX_COLS.charge_kfk_potenzial]] || 0);
+      const azGeplant = Number(row[colIdx[INDEX_COLS.az_geplant]] || 3);
 
       let treatments;
       try { treatments = JSON.parse(treatmentsJson); } catch (e) { treatments = []; }
@@ -2625,7 +2636,7 @@ function bulkSetupVersuche() {
       buildDatenTab(newSs, rasterCols, rasterRows, anzahlTrays);
       buildMetaTab(newSs, versuchsnr, treatments);
       if (treatments.length) {
-        buildAuswertungTab(newSs, treatments, samenProTopf, chargeKfkPotenzial);
+        buildAuswertungTab(newSs, treatments, samenProTopf, chargeKfkPotenzial, azGeplant);
       }
 
       // IDs zurueck in Index
@@ -2793,13 +2804,13 @@ function datenSpaltenAufloesen_(ss) {
 
 const AUSWERTUNG_ZEILEN = 500;   // Puffer weit ueber jeder realen Topfzahl
 
-function buildAuswertungTab(ss, treatments, samenProTopf, chargeKfkPotenzial) {
+function buildAuswertungTab(ss, treatments, samenProTopf, chargeKfkPotenzial, azGeplant) {
   const sheet = ss.insertSheet('Auswertung');
-  fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenzial);
+  fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenzial, azGeplant);
   return sheet;
 }
 
-function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenzial) {
+function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenzial, azGeplant) {
   const potenzial = Number(chargeKfkPotenzial || 0);
   const samen = Number(samenProTopf) || 36;
   const spalten = datenSpaltenAufloesen_(ss);
@@ -2911,12 +2922,27 @@ function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenz
     curRow += 1; // Leerzeile
   }
 
-  azNummern.forEach(function (az) {
+  // Wie viele Kumulativ-Blöcke? Das Daten-Sheet hat IMMER die Spalten AZ1..AZ5
+  // (buildDatenSheetFromRbdMap_ legt sie pauschal an, unabhaengig von
+  // az_geplant) - eine Blockschleife ueber alle gefundenen Spalten hat deshalb
+  // bis v1.8.2 auch fuer einen 3-Runden-Versuch Bloecke "bis AZ4"/"bis AZ5"
+  // gerendert, die numerisch identisch zu "bis AZ3" waren. Deshalb auf
+  // az_geplant begrenzen; fehlt/unplausibel -> alle Spalten (altes Verhalten).
+  const maxSpalte = azNummern[azNummern.length - 1];
+  let geplant = Number(azGeplant);
+  if (!(geplant >= 1 && geplant <= maxSpalte)) geplant = maxSpalte;
+
+  // Nur BIS ZUR VORLETZTEN geplanten Runde: "Kumulativ bis AZ<geplant>" waere
+  // dieselbe Summe wie der Gesamt-Block darunter - zwei identische Bloecke
+  // untereinander lesen sich wie ein Rechenfehler.
+  azNummern.filter(function (az) { return az < geplant; }).forEach(function (az) {
     block('Kumulativ bis AZ' + az + '  (AZ1..AZ' + az + ')', az, false);
   });
-  // Gesamt-Block: Summe ueber ALLE Runden. Das ist der Block, auf dem die
-  // Inferenzstatistik laeuft (SOP: "Statistik immer auf dem Gesamt-Block").
-  block('Gesamt  (KFK = Summe aller AZ-Runden)', azNummern[azNummern.length - 1], true);
+  // Gesamt-Block: Summe ueber ALLE vorhandenen Rundenspalten (nicht nur bis
+  // az_geplant) - so fallen Werte, die jemand ausserhalb der geplanten Runden
+  // eingetragen hat, nicht still aus der Auswertung. Das ist der Block, auf dem
+  // die Inferenzstatistik laeuft (SOP: "Statistik immer auf dem Gesamt-Block").
+  block('Gesamt  (KFK = Summe aller AZ-Runden)', maxSpalte, true);
 
   sheet.setColumnWidth(1, 200);
   for (let c = 2; c <= 9; c++) sheet.setColumnWidth(c, 85);
@@ -2943,7 +2969,8 @@ function rebuildAuswertungTab(versuchsnr) {
   let sheet = ss.getSheetByName('Auswertung');
   if (!sheet) sheet = ss.insertSheet('Auswertung');
   fillAuswertungTab_(sheet, ss, treatments,
-    Number(v.samen_pro_topf || 36), Number(v.charge_kfk_potenzial || 0));
+    Number(v.samen_pro_topf || 36), Number(v.charge_kfk_potenzial || 0),
+    Number(v.az_geplant || 3));
   SpreadsheetApp.flush();
   return { versuchsnr: versuchsnr, ok: true, treatments: treatments.length };
 }

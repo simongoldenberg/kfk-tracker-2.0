@@ -188,11 +188,24 @@ berechnet:
   "KF %". Behoben; Altbestand per `rebuildAuswertungTabForAll(false)` nachziehen.
 
 ## Auswertungs-Tab (seit v1.8.0)
-Jeder Versuchs-Sheet hat einen Tab `Auswertung` mit einem Block je AZ-Runde
-("Kumulativ bis AZn") plus einem hervorgehobenen Block **`Gesamt`** (Summe ueber
-alle Runden). Spalten: `Treatment · n · Ø · SD · Min · Max · KFK % · CV % ·
-rel. KFK %`. Die Inferenzstatistik (GLM/ANOVA, eta^2, CLD) laeuft laut SOP immer
-auf dem Gesamt-Block, nie auf einem Einzel-AZ.
+Jeder Versuchs-Sheet hat einen Tab `Auswertung` mit Bloecken "Kumulativ bis AZn"
+plus einem hervorgehobenen Block **`Gesamt`**. Spalten:
+`Treatment · n · Ø · SD · Min · Max · KFK % · CV % · rel. KFK %`. Die
+Inferenzstatistik (GLM/ANOVA, eta^2, CLD) laeuft laut SOP immer auf dem
+Gesamt-Block, nie auf einem Einzel-AZ.
+
+**Wie viele Bloecke (seit v1.8.3):** Kumulativ-Bloecke gibt es nur bis zur
+**vorletzten** geplanten Runde (`az_geplant - 1`), danach folgt `Gesamt`. Grund:
+das Daten-Sheet hat immer die Spalten `AZ1..AZ5` (`buildDatenSheetFromRbdMap_`
+legt sie pauschal an, unabhaengig von `az_geplant`) — eine Schleife ueber alle
+gefundenen Spalten hat bis v1.8.2 auch bei drei geplanten Runden Bloecke
+"bis AZ4"/"bis AZ5" gerendert, numerisch identisch zu "bis AZ3", und `Gesamt`
+war eine dritte Kopie derselben Zahlen. `Gesamt` summiert bewusst weiter ueber
+**alle** vorhandenen Rundenspalten, nicht nur bis `az_geplant` — sonst fielen
+Werte ausserhalb der geplanten Runden still aus der Auswertung. Fehlt
+`az_geplant` oder ist er unplausibel, greift als Fallback das alte Verhalten
+(alle Spalten). `updateAZGeplant` baut den Tab deshalb neu auf; aendert sich
+`az_geplant` auf anderem Weg, braucht der Tab `rebuildAuswertungTab('26_0XX')`.
 
 > [!IMPORTANT]
 > **Formeln IMMER mit Semikolon `;` als Argumenttrennzeichen erzeugen, nie mit

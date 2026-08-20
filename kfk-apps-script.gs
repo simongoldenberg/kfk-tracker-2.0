@@ -2811,6 +2811,18 @@ function buildAuswertungTab(ss, treatments, samenProTopf, chargeKfkPotenzial, az
 }
 
 function fillAuswertungTab_(sheet, ss, treatments, samenProTopf, chargeKfkPotenzial, azGeplant) {
+  // Der Formelbau kommt aus js/auswertung-formeln.js (per .claspignore mit
+  // hochgeladen, UMD-Export haengt sich an globalThis). Fehlt das Modul - etwa
+  // weil jemand die Datei aus dem Apps-Script-Projekt geloescht oder
+  // .claspignore beschnitten hat -, MUSS hier abgebrochen werden, BEVOR
+  // sheet.clear() weiter unten laeuft. Sonst bliebe der Tab geleert zurueck und
+  // ein rebuildAuswertungTabForAll haette alle Auswertungen ausradiert.
+  if (typeof KfkAuswertungFormeln === 'undefined') {
+    throw new Error('KfkAuswertungFormeln fehlt im Apps-Script-Projekt - '
+      + 'js/auswertung-formeln.js per clasp push hochladen (siehe .claspignore). '
+      + 'Tab wurde NICHT angetastet.');
+  }
+
   const potenzial = Number(chargeKfkPotenzial || 0);
   const samen = Number(samenProTopf) || 36;
   const spalten = datenSpaltenAufloesen_(ss);

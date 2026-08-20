@@ -28,10 +28,13 @@ const { execSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 
 function git(cmd, opts) {
-  return execSync('git ' + cmd, {
+  const out = execSync('git ' + cmd, {
     cwd: ROOT,
     stdio: (opts && opts.stdio) || ['ignore', 'pipe', 'pipe']
-  }).toString().trim();
+  });
+  // Bei stdio:'inherit' geht die Ausgabe direkt ans Terminal und execSync
+  // liefert null - dann gibt es hier nichts auszuwerten.
+  return out ? out.toString().trim() : '';
 }
 
 function fail(msg) {

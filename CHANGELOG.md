@@ -2,6 +2,24 @@
 
 Alle nennenswerten Änderungen am KFK-Tracker. Format: neueste Version oben.
 
+## Version 1.8.4 — 2026-08-20
+
+### 🐛 Fixed
+- **`commit` in `tracker-status.json` stand in *jeder* committeten Fassung auf
+  `"pending"`** und war damit nutzlos — auch in der Live-Datei, obwohl CLAUDE.md
+  einen Commit zusagt. Zwei Dinge kamen zusammen: der Hash **kann** nie der des
+  eigenen Commits sein (er ergibt sich aus dem Baum, in dem die Datei liegt —
+  stünde er drin, änderte sich der Hash dadurch), und der `pre-commit`-Hook
+  stempelt nach einem `npm run stamp` ein zweites Mal und legt die Datei selbst
+  in den Commit, hat den vorher korrekt ermittelten Hash also jedes Mal wieder
+  mit der Marke überschrieben. Jetzt steht immer der echte HEAD drin; das neue
+  Feld **`commit_ist_vorgaenger`** sagt ausdrücklich, ob es sich um den
+  Vorgänger des entstehenden Commits handelt (`true`, beim Stempeln aus dem
+  Hook) oder um den tatsächlichen HEAD (`false`, bei `npm run stamp` /
+  Deploy) — statt die Ungenauigkeit hinter einem Platzhalter zu verstecken.
+  Für den Release-Stempel auf `main` ist der Wert damit exakt der gesuchte:
+  dort ist HEAD der Merge-Commit, also der Codestand, der live geht.
+
 ## Version 1.8.3 — 2026-08-19
 
 ### 🚀 Added

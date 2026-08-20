@@ -7,9 +7,9 @@
   "changelog_version": "1.8.4",
   "changelog_datum": "2026-08-20",
   "branch": "develop",
-  "commit": "60cf65d",
+  "commit": "6e90b5b",
   "commit_ist_vorgaenger": true,
-  "gestempelt_am": "2026-08-20T08:58:52+02:00",
+  "gestempelt_am": "2026-08-20T08:59:32+02:00",
   "ist_live": false,
   "schemata": {
     "kfk_data": "kfk-protocol-v3",

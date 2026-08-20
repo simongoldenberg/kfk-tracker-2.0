@@ -10,7 +10,8 @@
     "deploy:backend": "clasp push && clasp deploy --deploymentId AKfycbyCtrEP1wsfkUsfaGMhLjouBxjYMA5la4XPeLG3Q1cUHv7qpmaLIplAsJy6gkaNaRSlgw && node scripts/stamp-status.js",
     "test": "vitest run",
     "stamp": "node scripts/stamp-status.js",
-    "hooks:install": "node scripts/install-hooks.js"
+    "hooks:install": "node scripts/install-hooks.js",
+    "sync:develop": "node scripts/sync-develop.js"
   },
   "devDependencies": {
     "@google/clasp": "^2.4.2",
